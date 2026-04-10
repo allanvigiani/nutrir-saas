@@ -1,0 +1,229 @@
+{
+  "entities": {
+    "nutritionist": {
+      "title": "Nutritionist",
+      "description": "Dados do nutricionista",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "crn": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "specialties": { "type": "array", "items": { "type": "string" } },
+        "photoUrl": { "type": "string" },
+        "role": { "type": "string", "enum": ["nutritionist", "admin"] },
+        "plan": { "type": "string", "enum": ["free", "premium"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "lastLogin": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "crn", "email"]
+    },
+    "patient": {
+      "title": "Patient",
+      "description": "Cadastro de pacientes",
+      "type": "object",
+      "properties": {
+        "nutritionist_id": { "type": "string" },
+        "name": { "type": "string" },
+        "birthDate": { "type": "string", "format": "date" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "cpf": { "type": "string" },
+        "phone": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "address": { "type": "string" },
+        "objective": { "type": "string" },
+        "activityLevel": { "type": "string" },
+        "diseases": { "type": "string" },
+        "medications": { "type": "string" },
+        "allergies": { "type": "string" },
+        "photoUrl": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["nutritionist_id", "name", "email"]
+    },
+    "consultation": {
+      "title": "Consultation",
+      "description": "Atendimentos realizados",
+      "type": "object",
+      "properties": {
+        "patient_id": { "type": "string" },
+        "nutritionist_id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "weight": { "type": "number" },
+        "height": { "type": "number" },
+        "imc": { "type": "number" },
+        "fatPercentage": { "type": "number" },
+        "waist": { "type": "number" },
+        "hip": { "type": "number" },
+        "abdomen": { "type": "number" },
+        "arm": { "type": "number" },
+        "anamnesis": { "type": "string" },
+        "observations": { "type": "string" },
+        "complaints": { "type": "string" },
+        "objectives": { "type": "string" },
+        "status": { "type": "string", "enum": ["realized", "cancelled", "missed"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patient_id", "nutritionist_id", "date"]
+    },
+    "meal_plan": {
+      "title": "Meal Plan",
+      "description": "Planos alimentares",
+      "type": "object",
+      "properties": {
+        "patient_id": { "type": "string" },
+        "consultation_id": { "type": "string" },
+        "nutritionist_id": { "type": "string" },
+        "name": { "type": "string" },
+        "generalInstructions": { "type": "string" },
+        "waterIntake": { "type": "string" },
+        "mealObservations": { "type": "object" },
+        "status": { "type": "string", "enum": ["active", "archived"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patient_id", "nutritionist_id", "name"]
+    },
+    "meal_plan_item": {
+      "title": "Meal Plan Item",
+      "description": "Itens de cada plano",
+      "type": "object",
+      "properties": {
+        "meal_plan_id": { "type": "string" },
+        "nutritionist_id": { "type": "string" },
+        "meal": { "type": "string", "enum": ["breakfast", "morning_snack", "lunch", "afternoon_snack", "dinner", "supper"] },
+        "food": { "type": "string" },
+        "quantity": { "type": "string" },
+        "unit": { "type": "string" },
+        "kcal": { "type": "number" },
+        "protein": { "type": "number" },
+        "carbs": { "type": "number" },
+        "fat": { "type": "number" },
+        "base_kcal": { "type": "number" },
+        "base_protein": { "type": "number" },
+        "base_carbs": { "type": "number" },
+        "base_fat": { "type": "number" },
+        "base_quantity": { "type": "number" },
+        "serving_name": { "type": "string" },
+        "serving_weight": { "type": "number" }
+      },
+      "required": ["meal_plan_id", "nutritionist_id", "meal", "food"]
+    },
+    "lab_exam_marker": {
+      "title": "Lab Exam Marker",
+      "description": "Marcador de exame",
+      "type": "object",
+      "properties": {
+        "type": { "type": "string" },
+        "name": { "type": "string" },
+        "result": { "type": "string" },
+        "unit": { "type": "string" },
+        "reference": { "type": "string" },
+        "status": { "type": "string", "enum": ["normal", "alto", "baixo", "atencao"] }
+      }
+    },
+    "lab_exam": {
+      "title": "Lab Exam",
+      "description": "Exames laboratoriais",
+      "type": "object",
+      "properties": {
+        "patient_id": { "type": "string" },
+        "nutritionist_id": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "title": { "type": "string" },
+        "observations": { "type": "string" },
+        "markers": { "type": "array", "items": { "$ref": "lab_exam_marker" } },
+        "reportUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patient_id", "nutritionist_id", "date", "title"]
+    },
+    "appointment": {
+      "title": "Appointment",
+      "description": "Agendamentos",
+      "type": "object",
+      "properties": {
+        "patient_id": { "type": "string" },
+        "nutritionist_id": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["confirmed", "pending", "cancelled", "realized"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patient_id", "nutritionist_id", "date"]
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Configurações globais do sistema",
+      "type": "object",
+      "properties": {
+        "free": {
+          "type": "object",
+          "properties": {
+            "maxPatients": { "type": "number" },
+            "maxMealPlans": { "type": "number" },
+            "maxExams": { "type": "number" },
+            "historyMonths": { "type": "number" }
+          }
+        }
+      }
+    },
+    "custom_food": {
+      "title": "Custom Food",
+      "description": "Alimentos cadastrados pelo nutricionista",
+      "type": "object",
+      "properties": {
+        "nutritionist_id": { "type": "string" },
+        "name": { "type": "string" },
+        "kcal": { "type": "number" },
+        "protein": { "type": "number" },
+        "carbs": { "type": "number" },
+        "fat": { "type": "number" },
+        "baseUnit": { "type": "string" },
+        "baseQuantity": { "type": "number" },
+        "serving": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "weight": { "type": "number" }
+          }
+        }
+      },
+      "required": ["nutritionist_id", "name", "kcal", "protein", "carbs", "fat", "baseUnit", "baseQuantity"]
+    },
+    "payment": {
+      "title": "Payment",
+      "description": "Registros de pagamentos",
+      "type": "object",
+      "properties": {
+        "patient_id": { "type": "string" },
+        "nutritionist_id": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date-time" },
+        "method": { "type": "string", "enum": ["pix", "credit_card", "debit_card", "cash", "bank_transfer"] },
+        "status": { "type": "string", "enum": ["paid", "pending", "cancelled"] },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patient_id", "nutritionist_id", "amount", "date", "method", "status"]
+    }
+  },
+  "firestore": {
+    "/nutritionists/{nutritionistId}": { "schema": "nutritionist", "description": "Dados do nutricionista" },
+    "/patients/{patientId}": { "schema": "patient", "description": "Cadastro de pacientes" },
+    "/consultations/{consultationId}": { "schema": "consultation", "description": "Atendimentos realizados" },
+    "/meal_plans/{mealPlanId}": { "schema": "meal_plan", "description": "Planos alimentares" },
+    "/meal_plan_items/{itemId}": { "schema": "meal_plan_item", "description": "Itens de cada plano" },
+    "/lab_exams/{examId}": { "schema": "lab_exam", "description": "Exames laboratoriais" },
+    "/appointments/{appointmentId}": { "schema": "appointment", "description": "Agendamentos" },
+    "/settings/{settingsId}": { "schema": "settings", "description": "Configurações globais" },
+    "/custom_foods/{foodId}": { "schema": "custom_food", "description": "Alimentos customizados" },
+    "/payments/{paymentId}": { "schema": "payment", "description": "Pagamentos" }
+  }
+}

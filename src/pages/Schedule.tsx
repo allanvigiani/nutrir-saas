@@ -1,0 +1,720 @@
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { 
+  Calendar as CalendarIcon, 
+  Plus, 
+  Clock, 
+  User, 
+  MoreVertical,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+  Trash2,
+  Edit
+} from 'lucide-react';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle,
+  CardDescription
+} from '../components/ui/card';
+import { Button, buttonVariants } from '../components/ui/button';
+import { Calendar } from '../components/ui/calendar';
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogHeader, 
+  DialogTitle, 
+  DialogTrigger,
+  DialogFooter
+} from '../components/ui/dialog';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '../components/ui/select';
+import { Label } from '../components/ui/label';
+import { Input } from '../components/ui/input';
+import { 
+  Tabs, 
+  TabsContent, 
+  TabsList, 
+  TabsTrigger 
+} from '../components/ui/tabs';
+import { useAuth } from '../contexts/AuthContext';
+import { collection, query, where, getDocs, addDoc, orderBy, updateDoc, doc, onSnapshot, deleteDoc } from 'firebase/firestore';
+import { db, auth } from '../lib/firebase';
+import { Appointment, Patient } from '../types';
+import { 
+  format, 
+  isSameDay, 
+  parseISO, 
+  startOfMonth, 
+  endOfMonth, 
+  startOfWeek, 
+  endOfWeek, 
+  eachDayOfInterval, 
+  isSameMonth, 
+  isToday, 
+  addMonths, 
+  subMonths,
+  addDays,
+  isSameHour,
+  startOfDay
+} from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
+import { cn } from '../lib/utils';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  }
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
+export const Schedule = () => {
+  const { user, isAuthReady } = useAuth();
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [appointmentToDelete, setAppointmentToDelete] = useState<string | null>(null);
+  const [view, setView] = useState<'month' | 'week' | 'day'>('month');
+  const [isDateLocked, setIsDateLocked] = useState(false);
+  
+  // Form states
+  const [selectedPatientId, setSelectedPatientId] = useState('');
+  const [selectedTime, setSelectedTime] = useState('09:00');
+  const [selectedStatus, setSelectedStatus] = useState<Appointment['status']>('pending');
+
+  const translateStatus = (status: string) => {
+    const statuses: Record<string, string> = {
+      'confirmed': 'Confirmado',
+      'pending': 'Pendente',
+      'cancelled': 'Cancelado',
+      'realized': 'Realizado'
+    };
+    return statuses[status] || status;
+  };
+
+  const fetchAppointments = () => {
+    if (!user || !isAuthReady) return;
+    setLoading(true);
+    
+    // Fetch patients first to ensure they are available for the appointments list
+    const patientsQuery = query(
+      collection(db, 'patients'),
+      where('nutritionist_id', '==', user.uid),
+      orderBy('name', 'asc')
+    );
+
+    const unsubPatients = onSnapshot(patientsQuery, (snap) => {
+      setPatients(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Patient)));
+    }, (error) => {
+      console.error("Error fetching patients:", error);
+      handleFirestoreError(error, OperationType.GET, 'patients');
+    });
+
+    const q = query(
+      collection(db, 'appointments'),
+      where('nutritionist_id', '==', user.uid),
+      orderBy('date', 'asc')
+    );
+    
+    const unsubAppointments = onSnapshot(q, (querySnapshot) => {
+      setAppointments(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment)));
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching schedule data:", error);
+      toast.error("Erro ao carregar agenda.");
+      setLoading(false);
+      handleFirestoreError(error, OperationType.GET, 'appointments');
+    });
+
+    return () => {
+      unsubPatients();
+      unsubAppointments();
+    };
+  };
+
+  useEffect(() => {
+    if (!isAuthReady || !user) return;
+    const unsubscribe = fetchAppointments();
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [user, isAuthReady]);
+
+  const handleAddAppointment = async () => {
+    if (!user || !selectedDate || !selectedPatientId) return;
+    
+    try {
+      const appointmentDate = new Date(selectedDate);
+      const [hours, minutes] = selectedTime.split(':');
+      appointmentDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+      const now = new Date();
+      if (!editingAppointment && appointmentDate < now) {
+        toast.error('Não é possível agendar consultas no passado.');
+        return;
+      }
+
+      if (editingAppointment) {
+        const oldDate = new Date(editingAppointment.date);
+        if (appointmentDate.getTime() !== oldDate.getTime() && appointmentDate < now) {
+          toast.error('Não é possível alterar o agendamento para uma data no passado.');
+          return;
+        }
+        await updateDoc(doc(db, 'appointments', editingAppointment.id), {
+          patient_id: selectedPatientId,
+          date: appointmentDate.toISOString(),
+          status: selectedStatus,
+          updatedAt: new Date().toISOString(),
+        });
+        toast.success('Agendamento atualizado com sucesso!');
+      } else {
+        await addDoc(collection(db, 'appointments'), {
+          patient_id: selectedPatientId,
+          nutritionist_id: user.uid,
+          date: appointmentDate.toISOString(),
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+        toast.success('Agendamento realizado com sucesso!');
+      }
+
+      setIsModalOpen(false);
+      setEditingAppointment(null);
+      fetchAppointments();
+    } catch (error) {
+      console.error("Error saving appointment:", error);
+      toast.error('Erro ao salvar agendamento.');
+    }
+  };
+
+  const handleDeleteAppointment = async () => {
+    if (!appointmentToDelete) return;
+    try {
+      await deleteDoc(doc(db, 'appointments', appointmentToDelete));
+      toast.success('Agendamento excluído com sucesso!');
+      setIsDeleteModalOpen(false);
+      setAppointmentToDelete(null);
+      fetchAppointments();
+    } catch (error) {
+      console.error("Error deleting appointment:", error);
+      toast.error('Erro ao excluir agendamento.');
+    }
+  };
+
+  const openEditModal = (app: Appointment) => {
+    setEditingAppointment(app);
+    setSelectedPatientId(app.patient_id);
+    setSelectedDate(parseISO(app.date));
+    setSelectedTime(format(parseISO(app.date), 'HH:mm'));
+    setSelectedStatus(app.status);
+    setIsDateLocked(false); // Allow rescheduling when editing
+    setIsModalOpen(true);
+  };
+
+  const openNewModal = (date?: Date) => {
+    if (date && !isToday(date) && date < new Date()) {
+      toast.error('Não é possível agendar consultas no passado.');
+      return;
+    }
+    setEditingAppointment(null);
+    setSelectedPatientId('');
+    setSelectedDate(date || new Date());
+    setIsDateLocked(!!date); // Lock if date was provided from calendar click
+    setSelectedTime('09:00');
+    setSelectedStatus('pending');
+    setIsModalOpen(true);
+  };
+
+  const handleUpdateStatus = async (id: string, status: string) => {
+    try {
+      await updateDoc(doc(db, 'appointments', id), {
+        status,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success('Status atualizado!');
+      fetchAppointments();
+    } catch (error) {
+      console.error("Error updating appointment:", error);
+      toast.error('Erro ao atualizar status.');
+    }
+  };
+
+  const getPatientName = (id: string) => {
+    return patients.find(p => p.id === id)?.name || 'Paciente não encontrado';
+  };
+
+  const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
+  const prevMonth = () => setCurrentDate(subMonths(currentDate, 1));
+  const goToToday = () => {
+    const today = new Date();
+    setCurrentDate(today);
+    setSelectedDate(today);
+  };
+
+  const monthStart = startOfMonth(currentDate);
+  const monthEnd = endOfMonth(monthStart);
+  const startDate = startOfWeek(monthStart);
+  const endDate = endOfWeek(monthEnd);
+
+  const calendarDays = eachDayOfInterval({
+    start: startDate,
+    end: endDate,
+  });
+
+  const weekDays = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">Agenda</h1>
+          <p className="text-slate-500">Gerencie seus horários e atendimentos.</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <Tabs value={view} onValueChange={(val: any) => setView(val)} className="w-auto">
+            <TabsList className="flex items-center justify-start gap-2 bg-transparent border-b border-slate-200 p-0 rounded-none h-auto overflow-x-auto">
+              <TabsTrigger 
+                value="month" 
+                className="relative gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap text-sm font-medium"
+              >
+                Mês
+              </TabsTrigger>
+              <TabsTrigger 
+                value="week" 
+                className="relative gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap text-sm font-medium"
+              >
+                Semana
+              </TabsTrigger>
+              <TabsTrigger 
+                value="day" 
+                className="relative gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap text-sm font-medium"
+              >
+                Dia
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <Dialog open={isModalOpen} onOpenChange={(open) => {
+            setIsModalOpen(open);
+            if (!open) setEditingAppointment(null);
+          }}>
+            <DialogTrigger 
+              render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" onClick={() => openNewModal()} />}
+              nativeButton={true}
+            >
+              <Plus className="w-4 h-4" /> Novo Agendamento
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
+                <DialogDescription>
+                  {editingAppointment ? 'Altere os dados do agendamento abaixo.' : 'Selecione o paciente e o horário para a consulta.'}
+                </DialogDescription>
+              </DialogHeader>
+              <div key={editingAppointment?.id || 'new'} className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Paciente</Label>
+                  <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o paciente">
+                        {selectedPatientId ? patients.find(p => p.id === selectedPatientId)?.name : "Selecione o paciente"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {patients.map(p => (
+                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Data</Label>
+                    {isDateLocked ? (
+                      <div className="p-2 border rounded-xl text-sm bg-slate-50 font-medium text-slate-600 flex items-center gap-2">
+                        <CalendarIcon className="w-4 h-4 text-slate-400" />
+                        {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : 'Selecione no calendário'}
+                      </div>
+                    ) : (
+                      <Input 
+                        type="date" 
+                        className="rounded-xl border-slate-200"
+                        value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
+                        onChange={(e) => {
+                          const newDate = parseISO(e.target.value);
+                          if (newDate < startOfDay(new Date())) {
+                            toast.error('Não é possível agendar consultas no passado.');
+                            return;
+                          }
+                          setSelectedDate(newDate);
+                        }}
+                      />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Horário</Label>
+                    <Input 
+                      type="time" 
+                      value={selectedTime} 
+                      onChange={(e) => setSelectedTime(e.target.value)} 
+                    />
+                  </div>
+                </div>
+                {editingAppointment && (
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={selectedStatus} onValueChange={(val: any) => setSelectedStatus(val)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o status">
+                          {selectedStatus === 'pending' ? 'Pendente' : 
+                           selectedStatus === 'confirmed' ? 'Confirmado' : 
+                           selectedStatus === 'realized' ? 'Realizado' : 
+                           selectedStatus === 'cancelled' ? 'Cancelado' : undefined}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pending">Pendente</SelectItem>
+                        <SelectItem value="confirmed">Confirmado</SelectItem>
+                        <SelectItem value="realized">Realizado</SelectItem>
+                        <SelectItem value="cancelled">Cancelado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+              <DialogFooter className="flex justify-between items-center">
+                {editingAppointment && (
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => {
+                      setAppointmentToDelete(editingAppointment.id);
+                      setIsDeleteModalOpen(true);
+                      setIsModalOpen(false);
+                    }}
+                    className="mr-auto"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" /> Excluir
+                  </Button>
+                )}
+                <div className="flex gap-2">
+                  {editingAppointment && (
+                    <Button nativeButton={false} variant="outline" className="gap-2" render={<Link to={`/patients/${editingAppointment.patient_id}?edit=true`} />}>
+                      <Edit className="w-4 h-4" /> Editar Paciente
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
+                  <Button onClick={handleAddAppointment} className="bg-emerald-600 hover:bg-emerald-700">
+                    {editingAppointment ? 'Salvar Alterações' : 'Confirmar Agendamento'}
+                  </Button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Excluir Agendamento</DialogTitle>
+                <DialogDescription>
+                  Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>Cancelar</Button>
+                <Button variant="destructive" onClick={handleDeleteAppointment}>Excluir Agendamento</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </div>
+
+      <Card className="overflow-hidden border-none shadow-sm">
+        <CardHeader className="bg-white border-b border-slate-100 flex flex-row items-center justify-between py-4">
+          <div className="flex items-center gap-4">
+            <h2 className="text-xl font-bold text-slate-900 capitalize">
+              {format(currentDate, 'MMMM yyyy', { locale: ptBR })}
+            </h2>
+            <div className="flex items-center gap-1">
+              <Button variant="outline" size="icon" onClick={prevMonth} className="h-8 w-8">
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={goToToday} className="h-8">
+                Hoje
+              </Button>
+              <Button variant="outline" size="icon" onClick={nextMonth} className="h-8 w-8">
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          {view === 'month' && (
+            <div className="grid grid-cols-7 border-b border-slate-100">
+              {weekDays.map(day => (
+                <div key={day} className="py-2 text-center text-xs font-bold text-slate-500 uppercase tracking-wider bg-slate-50/50 border-r border-slate-100 last:border-r-0">
+                  {day}
+                </div>
+              ))}
+              {calendarDays.map((day, idx) => {
+                const dayAppointments = appointments.filter(app => isSameDay(parseISO(app.date), day));
+                const isCurrentMonth = isSameMonth(day, currentDate);
+                const isPast = !isToday(day) && day < new Date();
+                
+                return (
+                  <div 
+                    key={idx} 
+                    className={cn(
+                      "min-h-[120px] p-2 border-r border-b border-slate-100 transition-colors",
+                      !isCurrentMonth && "bg-slate-50/30 text-slate-400",
+                      isToday(day) && "bg-emerald-50/30",
+                      isPast && "bg-slate-50/50 text-slate-300",
+                      !isPast && "hover:bg-slate-50/50 cursor-pointer",
+                      idx % 7 === 6 && "border-r-0"
+                    )}
+                    onClick={() => {
+                      if (!isPast) openNewModal(day);
+                    }}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <span className={cn(
+                        "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full",
+                        isToday(day) && "bg-emerald-600 text-white",
+                        !isCurrentMonth && "text-slate-400"
+                      )}>
+                        {format(day, 'd')}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {dayAppointments.slice(0, 3).map(app => (
+                        <div 
+                          key={app.id} 
+                          className={cn(
+                            "text-[10px] p-1 rounded border truncate",
+                            app.status === 'confirmed' ? "bg-blue-50 border-blue-100 text-blue-700" :
+                            app.status === 'realized' ? "bg-emerald-50 border-emerald-100 text-emerald-700" :
+                            app.status === 'cancelled' ? "bg-red-50 border-red-100 text-red-700" :
+                            "bg-amber-50 border-amber-100 text-amber-700"
+                          )}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditModal(app);
+                          }}
+                        >
+                          <span className="font-bold mr-1">{format(parseISO(app.date), 'HH:mm')}</span>
+                          {getPatientName(app.patient_id)}
+                        </div>
+                      ))}
+                      {dayAppointments.length > 3 && (
+                        <div className="text-[10px] text-slate-500 pl-1">
+                          + {dayAppointments.length - 3} mais
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {view === 'week' && (
+            <div className="flex flex-col h-[600px] overflow-y-auto">
+              <div className="grid grid-cols-8 border-b border-slate-100 sticky top-0 bg-white z-10">
+                <div className="py-2 border-r border-slate-100 bg-slate-50/50"></div>
+                {eachDayOfInterval({
+                  start: startOfWeek(currentDate),
+                  end: endOfWeek(currentDate)
+                }).map(day => (
+                  <div key={day.toString()} className={cn(
+                    "py-2 text-center border-r border-slate-100 last:border-r-0 bg-slate-50/50",
+                    isToday(day) && "bg-emerald-50/50"
+                  )}>
+                    <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">{format(day, 'EEE', { locale: ptBR })}</div>
+                    <div className={cn(
+                      "text-sm font-medium w-7 h-7 mx-auto flex items-center justify-center rounded-full mt-1",
+                      isToday(day) && "bg-emerald-600 text-white"
+                    )}>
+                      {format(day, 'd')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-8 flex-1">
+                <div className="border-r border-slate-100">
+                  {Array.from({ length: 15 }).map((_, i) => (
+                    <div key={i} className="h-20 border-b border-slate-50 text-[10px] text-slate-400 p-1 text-right pr-2">
+                      {format(addDays(startOfDay(new Date()), i + 7), 'HH:mm')}
+                    </div>
+                  ))}
+                </div>
+                {eachDayOfInterval({
+                  start: startOfWeek(currentDate),
+                  end: endOfWeek(currentDate)
+                }).map(day => (
+                  <div key={day.toString()} className="relative border-r border-slate-100 last:border-r-0">
+                    {Array.from({ length: 15 }).map((_, i) => (
+                      <div key={i} className="h-20 border-b border-slate-50"></div>
+                    ))}
+                    {appointments
+                      .filter(app => isSameDay(parseISO(app.date), day))
+                      .map(app => {
+                        const appDate = parseISO(app.date);
+                        const hour = appDate.getHours();
+                        const minutes = appDate.getMinutes();
+                        const top = (hour - 7) * 80 + (minutes / 60) * 80;
+                        
+                        return (
+                          <div 
+                            key={app.id}
+                            className={cn(
+                              "absolute left-1 right-1 p-1 rounded border text-[10px] overflow-hidden z-0 cursor-pointer hover:brightness-95 transition-all",
+                              app.status === 'confirmed' ? "bg-blue-50 border-blue-100 text-blue-700" :
+                              app.status === 'realized' ? "bg-emerald-50 border-emerald-100 text-emerald-700" :
+                              app.status === 'cancelled' ? "bg-red-50 border-red-100 text-red-700" :
+                              "bg-amber-50 border-amber-100 text-amber-700"
+                            )}
+                            style={{ top: `${top}px`, height: '70px' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEditModal(app);
+                            }}
+                          >
+                            <div className="font-bold">{format(appDate, 'HH:mm')}</div>
+                            <div className="truncate">{getPatientName(app.patient_id)}</div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {view === 'day' && (
+            <div className="flex flex-col h-[600px] overflow-y-auto">
+              <div className="grid grid-cols-8 border-b border-slate-100 sticky top-0 bg-white z-10">
+                <div className="py-2 border-r border-slate-100 bg-slate-50/50"></div>
+                <div className={cn(
+                  "col-span-7 py-2 text-center bg-slate-50/50",
+                  isToday(currentDate) && "bg-emerald-50/50"
+                )}>
+                  <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">{format(currentDate, 'EEEE', { locale: ptBR })}</div>
+                  <div className={cn(
+                    "text-sm font-medium w-7 h-7 mx-auto flex items-center justify-center rounded-full mt-1",
+                    isToday(currentDate) && "bg-emerald-600 text-white"
+                  )}>
+                    {format(currentDate, 'd')}
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-8 flex-1">
+                <div className="border-r border-slate-100">
+                  {Array.from({ length: 15 }).map((_, i) => (
+                    <div key={i} className="h-20 border-b border-slate-50 text-[10px] text-slate-400 p-1 text-right pr-2">
+                      {format(addDays(startOfDay(new Date()), i + 7), 'HH:mm')}
+                    </div>
+                  ))}
+                </div>
+                <div className="col-span-7 relative">
+                  {Array.from({ length: 15 }).map((_, i) => (
+                    <div key={i} className="h-20 border-b border-slate-50"></div>
+                  ))}
+                  {appointments
+                    .filter(app => isSameDay(parseISO(app.date), currentDate))
+                    .map(app => {
+                      const appDate = parseISO(app.date);
+                      const hour = appDate.getHours();
+                      const minutes = appDate.getMinutes();
+                      const top = (hour - 7) * 80 + (minutes / 60) * 80;
+                      
+                      return (
+                        <div 
+                          key={app.id}
+                          className={cn(
+                            "absolute left-2 right-2 p-2 rounded border text-xs overflow-hidden z-0 cursor-pointer hover:brightness-95 transition-all",
+                            app.status === 'confirmed' ? "bg-blue-50 border-blue-100 text-blue-700" :
+                            app.status === 'realized' ? "bg-emerald-50 border-emerald-100 text-emerald-700" :
+                            app.status === 'cancelled' ? "bg-red-50 border-red-100 text-red-700" :
+                            "bg-amber-50 border-amber-100 text-amber-700"
+                          )}
+                          style={{ top: `${top}px`, height: '70px' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditModal(app);
+                          }}
+                        >
+                          <div className="font-bold">{format(appDate, 'HH:mm')}</div>
+                          <div className="font-medium">{getPatientName(app.patient_id)}</div>
+                          <div className="text-[10px] opacity-70">Status: {translateStatus(app.status)}</div>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+

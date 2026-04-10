@@ -1,0 +1,346 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: nutritionists
+    // Fields: name (str), crn (str), email (email), phone (opt str), specialties (opt list), photoUrl (opt url), role (enum), plan (enum), createdAt (iso), updatedAt (iso), lastLogin (opt iso), subscriptionId (opt str), subscriptionStatus (opt str), cancelAtPeriodEnd (opt bool), currentPeriodEnd (opt iso), firstSubscriptionDate (opt iso), hadRefundBefore (opt bool), lastSubscriptionCheck (opt iso)
+    //
+    // Collection: patients
+    // Fields: nutritionist_id (uid), name (str), birthDate (date), gender (enum), cpf (str), phone (str), email (email), address (str), objective (str), activityLevel (str), diseases (opt str), medications (opt str), allergies (opt str), photoUrl (opt url), status (enum), createdAt (iso), updatedAt (iso)
+    //
+    // Collection: consultations
+    // Fields: patient_id (id), nutritionist_id (uid), date (iso), weight (num), height (num), imc (num), fatPercentage (opt num), waist (opt num), hip (opt num), abdomen (opt num), arm (opt num), anamnesis (str), observations (opt str), complaints (opt str), objectives (opt str), status (enum), createdAt (iso), updatedAt (iso)
+    //
+    // Collection: meal_plans
+    // Fields: patient_id (id), consultation_id (opt id), nutritionist_id (uid), name (str), generalInstructions (opt str), waterIntake (opt str), mealObservations (opt map), status (enum), createdAt (iso), updatedAt (iso)
+    //
+    // Collection: meal_plan_items
+    // Fields: meal_plan_id (id), nutritionist_id (uid), meal (enum), food (str), quantity (str), unit (str), kcal (opt num), protein (opt num), carbs (opt num), fat (opt num), base_kcal (opt num), base_protein (opt num), base_carbs (opt num), base_fat (opt num), base_quantity (opt num), serving_name (opt str), serving_weight (opt num)
+    //
+    // Collection: lab_exams
+    // Fields: patient_id (id), nutritionist_id (uid), date (date), title (str), observations (opt str), markers (list of maps), reportUrl (opt url), createdAt (iso), updatedAt (iso)
+    //
+    // Collection: appointments
+    // Fields: patient_id (id), nutritionist_id (uid), date (iso), status (enum), createdAt (iso), updatedAt (iso)
+    //
+    // Collection: custom_foods
+    // Fields: nutritionist_id (uid), name (str), kcal (num), protein (num), carbs (num), fat (num), baseUnit (str), baseQuantity (num), serving (opt map)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() &&
+        ((exists(/databases/$(database)/documents/nutritionists/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/nutritionists/$(request.auth.uid)).data.role == 'admin') ||
+          (request.auth.token.email == "vigianiallan@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function isValidDate(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}$");
+    }
+
+    function isValidDateTime(dateTimeStr) {
+      return dateTimeStr is string && dateTimeStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
+    }
+
+    function isValidString(val, maxLen) {
+      return val is string && val.size() > 0 && val.size() <= maxLen;
+    }
+
+    function isValidOptionalString(data, field, maxLen) {
+      return !(field in data) || data[field] == null || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isValidNumber(val) {
+      return val is number;
+    }
+
+    function isValidOptionalNumber(data, field) {
+      return !(field in data) || data[field] == null || data[field] is number;
+    }
+
+    function isValidEnum(val, allowed) {
+      return val in allowed;
+    }
+
+    function isValidList(val, maxLen) {
+      return val is list && val.size() <= maxLen;
+    }
+
+    function isValidOptionalList(data, field, maxLen) {
+      return !(field in data) || data[field] == null || (data[field] is list && data[field].size() <= maxLen);
+    }
+
+    function isValidMap(val, maxLen) {
+      return val is map && val.size() <= maxLen;
+    }
+
+    function isValidOptionalMap(data, field, maxLen) {
+      return !(field in data) || data[field] == null || (data[field] is map && data[field].size() <= maxLen);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidNutritionist(data) {
+      return hasRequiredFields(['name', 'email']) &&
+             hasOnlyAllowedFields(['name', 'email', 'crn', 'cpf', 'cnpj', 'phone', 'specialties', 'photoUrl', 'role', 'plan', 'createdAt', 'updatedAt', 'lastLogin', 'subscriptionId', 'subscriptionStatus', 'cancelAtPeriodEnd', 'currentPeriodEnd', 'firstSubscriptionDate', 'hadRefundBefore', 'lastSubscriptionCheck']) &&
+             isValidString(data.name, 100) &&
+             isValidEmail(data.email) &&
+             isValidOptionalString(data, 'crn', 50) &&
+             isValidOptionalString(data, 'cpf', 20) &&
+             isValidOptionalString(data, 'cnpj', 20) &&
+             isValidOptionalString(data, 'phone', 20) &&
+             isValidOptionalList(data, 'specialties', 20) &&
+             isValidOptionalString(data, 'photoUrl', 500) &&
+             (!('role' in data) || isValidEnum(data.role, ['nutritionist', 'admin'])) &&
+             (!('plan' in data) || isValidEnum(data.plan, ['free', 'premium'])) &&
+             (!('createdAt' in data) || isValidDateTime(data.createdAt)) &&
+             (!('updatedAt' in data) || isValidDateTime(data.updatedAt)) &&
+             isValidOptionalString(data, 'lastLogin', 50) &&
+             isValidOptionalString(data, 'subscriptionId', 100) &&
+             isValidOptionalString(data, 'subscriptionStatus', 50) &&
+             (!('cancelAtPeriodEnd' in data) || data.cancelAtPeriodEnd is bool) &&
+             isValidOptionalString(data, 'currentPeriodEnd', 50) &&
+             isValidOptionalString(data, 'firstSubscriptionDate', 50) &&
+             (!('hadRefundBefore' in data) || data.hadRefundBefore is bool) &&
+             isValidOptionalString(data, 'lastSubscriptionCheck', 50);
+    }
+
+    function isValidPatient(data) {
+      return hasRequiredFields(['nutritionist_id', 'name', 'birthDate', 'gender', 'cpf', 'phone', 'email', 'address', 'objective', 'activityLevel', 'status', 'createdAt', 'updatedAt']) &&
+             data.nutritionist_id == request.auth.uid &&
+             isValidString(data.name, 100) &&
+             isValidDate(data.birthDate) &&
+             isValidEnum(data.gender, ['male', 'female', 'other']) &&
+             isValidString(data.cpf, 20) &&
+             isValidString(data.phone, 20) &&
+             isValidEmail(data.email) &&
+             isValidString(data.address, 200) &&
+             isValidString(data.objective, 200) &&
+             isValidString(data.activityLevel, 100) &&
+             isValidOptionalString(data, 'diseases', 1000) &&
+             isValidOptionalString(data, 'medications', 1000) &&
+             isValidOptionalString(data, 'allergies', 1000) &&
+             isValidOptionalString(data, 'photoUrl', 500) &&
+             isValidEnum(data.status, ['active', 'inactive']) &&
+             isValidDateTime(data.createdAt) &&
+             isValidDateTime(data.updatedAt);
+    }
+
+    function isValidConsultation(data) {
+      return hasRequiredFields(['patient_id', 'nutritionist_id', 'date', 'weight', 'height', 'imc', 'anamnesis', 'status', 'createdAt', 'updatedAt']) &&
+             data.nutritionist_id == request.auth.uid &&
+             isValidDateTime(data.date) &&
+             isValidNumber(data.weight) &&
+             isValidNumber(data.height) &&
+             isValidNumber(data.imc) &&
+             isValidOptionalNumber(data, 'fatPercentage') &&
+             isValidOptionalNumber(data, 'waist') &&
+             isValidOptionalNumber(data, 'hip') &&
+             isValidOptionalNumber(data, 'abdomen') &&
+             isValidOptionalNumber(data, 'arm') &&
+             isValidString(data.anamnesis, 5000) &&
+             isValidOptionalString(data, 'observations', 5000) &&
+             isValidOptionalString(data, 'complaints', 5000) &&
+             isValidOptionalString(data, 'objectives', 5000) &&
+             isValidEnum(data.status, ['realized', 'cancelled', 'missed']) &&
+             isValidDateTime(data.createdAt) &&
+             isValidDateTime(data.updatedAt);
+    }
+
+    function isValidMealPlan(data) {
+      return hasRequiredFields(['patient_id', 'nutritionist_id', 'name', 'status', 'createdAt', 'updatedAt']) &&
+             data.nutritionist_id == request.auth.uid &&
+             data.name is string && data.name.size() <= 100 &&
+             isValidOptionalString(data, 'generalInstructions', 5000) &&
+             isValidOptionalString(data, 'waterIntake', 100) &&
+             isValidOptionalMap(data, 'mealObservations', 20) &&
+             isValidEnum(data.status, ['active', 'archived']) &&
+             isValidDateTime(data.createdAt) &&
+             isValidDateTime(data.updatedAt);
+    }
+
+    function isValidMealPlanItem(data) {
+      return hasRequiredFields(['meal_plan_id', 'nutritionist_id', 'meal', 'food', 'quantity', 'unit']) &&
+             data.nutritionist_id == request.auth.uid &&
+             isValidEnum(data.meal, ['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner', 'supper']) &&
+             data.food is string && data.food.size() <= 200 &&
+             data.quantity is string && data.quantity.size() <= 50 &&
+             data.unit is string && data.unit.size() <= 50 &&
+             isValidOptionalNumber(data, 'kcal') &&
+             isValidOptionalNumber(data, 'protein') &&
+             isValidOptionalNumber(data, 'carbs') &&
+             isValidOptionalNumber(data, 'fat') &&
+             isValidOptionalNumber(data, 'base_kcal') &&
+             isValidOptionalNumber(data, 'base_protein') &&
+             isValidOptionalNumber(data, 'base_carbs') &&
+             isValidOptionalNumber(data, 'base_fat') &&
+             isValidOptionalNumber(data, 'base_quantity') &&
+             isValidOptionalString(data, 'serving_name', 100) &&
+             isValidOptionalNumber(data, 'serving_weight');
+    }
+
+    function isValidLabExam(data) {
+      return hasRequiredFields(['patient_id', 'nutritionist_id', 'date', 'title', 'markers', 'createdAt', 'updatedAt']) &&
+             data.nutritionist_id == request.auth.uid &&
+             isValidDate(data.date) &&
+             isValidString(data.title, 200) &&
+             isValidOptionalString(data, 'observations', 5000) &&
+             isValidList(data.markers, 100) &&
+             isValidOptionalString(data, 'reportUrl', 500) &&
+             isValidDateTime(data.createdAt) &&
+             isValidDateTime(data.updatedAt);
+    }
+
+    function isValidAppointment(data) {
+      return hasRequiredFields(['patient_id', 'nutritionist_id', 'date', 'status', 'createdAt', 'updatedAt']) &&
+             data.nutritionist_id == request.auth.uid &&
+             isValidDateTime(data.date) &&
+             isValidEnum(data.status, ['confirmed', 'pending', 'cancelled', 'realized']) &&
+             isValidDateTime(data.createdAt) &&
+             isValidDateTime(data.updatedAt);
+    }
+
+    function isValidCustomFood(data) {
+      return hasRequiredFields(['nutritionist_id', 'name', 'kcal', 'protein', 'carbs', 'fat', 'baseUnit', 'baseQuantity']) &&
+             data.nutritionist_id == request.auth.uid &&
+             isValidString(data.name, 200) &&
+             isValidNumber(data.kcal) &&
+             isValidNumber(data.protein) &&
+             isValidNumber(data.carbs) &&
+             isValidNumber(data.fat) &&
+             isValidString(data.baseUnit, 50) &&
+             isValidNumber(data.baseQuantity) &&
+             isValidOptionalMap(data, 'serving', 5);
+    }
+
+    function isValidPayment(data) {
+      return hasRequiredFields(['patient_id', 'nutritionist_id', 'amount', 'date', 'method', 'status', 'createdAt', 'updatedAt']) &&
+             data.nutritionist_id == request.auth.uid &&
+             isValidNumber(data.amount) &&
+             isValidDateTime(data.date) &&
+             isValidEnum(data.method, ['pix', 'credit_card', 'debit_card', 'cash', 'bank_transfer']) &&
+             isValidEnum(data.status, ['paid', 'pending', 'cancelled']) &&
+             isValidOptionalString(data, 'description', 1000) &&
+             isValidDateTime(data.createdAt) &&
+             isValidDateTime(data.updatedAt);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /nutritionists/{nutritionistId} {
+      allow list: if true;
+      allow read: if true;
+      allow create: if isOwner(nutritionistId) && isValidNutritionist(request.resource.data);
+      allow update: if (isOwner(nutritionistId) && isValidNutritionist(request.resource.data) && areImmutableFieldsUnchanged(['role', 'createdAt'])) || 
+                    isAdmin() ||
+                    (request.auth == null && 
+                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plan', 'subscriptionStatus', 'currentPeriodEnd', 'lastSubscriptionCheck', 'hadRefundBefore', 'cancelAtPeriodEnd', 'updatedAt', 'subscriptionId']) &&
+                     isValidNutritionist(request.resource.data));
+    }
+
+    match /password_resets/{email} {
+      allow read, write: if true; // Permite que o backend (via Client SDK) gerencie os códigos
+    }
+
+    match /patients/{patientId} {
+      allow read: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidPatient(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidPatient(request.resource.data) && areImmutableFieldsUnchanged(['nutritionist_id', 'createdAt']);
+      allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+    }
+
+    match /consultations/{consultationId} {
+      allow read: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidConsultation(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidConsultation(request.resource.data) && areImmutableFieldsUnchanged(['patient_id', 'nutritionist_id', 'createdAt']);
+      allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+    }
+
+    match /meal_plans/{mealPlanId} {
+      allow read: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidMealPlan(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidMealPlan(request.resource.data) && areImmutableFieldsUnchanged(['patient_id', 'nutritionist_id', 'createdAt']);
+      allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+    }
+
+    match /meal_plan_items/{itemId} {
+      allow read: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidMealPlanItem(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidMealPlanItem(request.resource.data) && areImmutableFieldsUnchanged(['meal_plan_id', 'nutritionist_id']);
+      allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+    }
+
+    match /lab_exams/{examId} {
+      allow read: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidLabExam(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidLabExam(request.resource.data) && areImmutableFieldsUnchanged(['patient_id', 'nutritionist_id', 'createdAt']);
+      allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidAppointment(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidAppointment(request.resource.data) && areImmutableFieldsUnchanged(['patient_id', 'nutritionist_id', 'createdAt']);
+      allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+    }
+
+    match /settings/{settingsId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /custom_foods/{foodId} {
+      allow read: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidCustomFood(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidCustomFood(request.resource.data) && areImmutableFieldsUnchanged(['nutritionist_id']);
+      allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+    }
+
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidPayment(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidPayment(request.resource.data) && areImmutableFieldsUnchanged(['patient_id', 'nutritionist_id', 'createdAt']);
+      allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+    }
+  }
+}
