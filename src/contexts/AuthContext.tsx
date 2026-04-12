@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, onSnapshot, updateDoc, getDocFromServer } from 'firebase/firestore';
-import { Nutritionist } from '../types';
+import { doc, getDoc, onSnapshot, updateDoc, getDocFromServer, query, collection, where } from 'firebase/firestore';
+import { Nutritionist, Patient } from '../types';
 import { toast } from 'sonner';
 
 interface AuthContextType {
@@ -39,6 +39,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     testConnection();
 
     let unsubNutritionist: (() => void) | null = null;
+    let unsubPatient: (() => void) | null = null;
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
@@ -49,6 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (user) {
+        // 1. Buscar perfil de Nutricionista
         unsubNutritionist = onSnapshot(doc(db, 'nutritionists', user.uid), async (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data() as Nutritionist;
@@ -68,54 +70,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setNutritionist({ id: docSnap.id, ...data } as Nutritionist);
 
             // Proactive subscription verification:
-            // If user is premium in database, verify with Asaas to ensure it's still valid.
-            // We do this once per session or when the last check was more than 24h ago.
             const lastCheck = (data as any).lastSubscriptionCheck;
             const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             
             if (!lastCheck || lastCheck < oneDayAgo) {
-              // Perform silent verification
-              fetch('/api/verify-subscription', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email: user.email }),
-              })
-              .then(res => res.json())
-              .then(async (asaasData) => {
-                // Se o plano no Asaas for diferente do plano no banco, ou se o status de cancelamento mudou
-                const planChanged = asaasData.plan && asaasData.plan !== data.plan;
-                const cancelStatusChanged = asaasData.cancelAtPeriodEnd !== undefined && asaasData.cancelAtPeriodEnd !== data.cancelAtPeriodEnd;
-                
-                if (planChanged || cancelStatusChanged) {
-                  console.log("Syncing subscription status from Asaas...");
-                  await updateDoc(doc(db, 'nutritionists', user.uid), {
-                    plan: asaasData.plan || 'free',
-                    subscriptionId: asaasData.subscriptionId || null,
-                    subscriptionStatus: asaasData.subscriptionStatus || null,
-                    cancelAtPeriodEnd: asaasData.cancelAtPeriodEnd || false,
-                    currentPeriodEnd: asaasData.currentPeriodEnd || null,
-                    lastSubscriptionCheck: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                  });
-                } else {
-                  // Just update the last check time
-                  await updateDoc(doc(db, 'nutritionists', user.uid), {
-                    lastSubscriptionCheck: new Date().toISOString()
-                  });
-                }
-              })
-              .catch(err => console.error("Error in proactive subscription check:", err));
+              user.getIdToken().then(token => {
+                fetch('/api/verify-subscription', {
+                  method: 'POST',
+                  headers: { 
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                  },
+                  body: JSON.stringify({ email: user.email }),
+                })
+                .then(res => res.json())
+                .then(async (asaasData) => {
+                  const planChanged = asaasData.plan && asaasData.plan !== data.plan;
+                  const cancelStatusChanged = asaasData.cancelAtPeriodEnd !== undefined && asaasData.cancelAtPeriodEnd !== data.cancelAtPeriodEnd;
+                  
+                  if (planChanged || cancelStatusChanged) {
+                    await updateDoc(doc(db, 'nutritionists', user.uid), {
+                      plan: asaasData.plan || 'free',
+                      subscriptionId: asaasData.subscriptionId || null,
+                      subscriptionStatus: asaasData.subscriptionStatus || null,
+                      cancelAtPeriodEnd: asaasData.cancelAtPeriodEnd || false,
+                      currentPeriodEnd: asaasData.currentPeriodEnd || null,
+                      lastSubscriptionCheck: new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                    });
+                  } else {
+                    await updateDoc(doc(db, 'nutritionists', user.uid), {
+                      lastSubscriptionCheck: new Date().toISOString()
+                    });
+                  }
+                })
+                .catch(err => console.error("Error in proactive subscription check:", err));
+              }).catch(err => console.error("Error getting token for subscription check:", err));
             }
           } else {
             setNutritionist(null);
-            if (user) {
-              toast.error("Perfil de nutricionista não encontrado. Entre em contato com o suporte.");
-            }
           }
+          
           setLoading(false);
           setIsAuthReady(true);
         }, (error) => {
           console.error("Error fetching nutritionist data:", error);
+          setNutritionist(null);
           setLoading(false);
           setIsAuthReady(true);
         });

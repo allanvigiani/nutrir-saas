@@ -13,9 +13,22 @@ import { Schedule } from './pages/Schedule';
 import { Settings } from './pages/Settings';
 import { Financial } from './pages/Financial';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { PatientAccess } from './pages/PatientAccess';
 import { SubscriptionSuccess } from './pages/SubscriptionSuccess';
 import { Toaster } from './components/ui/sonner';
 import { TooltipProvider } from './components/ui/tooltip';
+
+import { useAuth } from './contexts/AuthContext';
+
+const Home = () => {
+  const { nutritionist } = useAuth();
+  
+  if (nutritionist) {
+    return <Dashboard />;
+  }
+  
+  return <Dashboard />; // Fallback
+};
 
 export default function App() {
   return (
@@ -28,9 +41,10 @@ export default function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/subscription-success" element={<SubscriptionSuccess />} />
+              <Route path="/patient-access/:id" element={<PatientAccess />} />
               
               <Route element={<Layout />}>
-                <Route path="/" element={<Dashboard />} />
+                <Route path="/" element={<Home />} />
                 <Route path="/patients" element={<Patients />} />
                 <Route path="/patients/:id" element={<PatientProfile />} />
                 <Route path="/schedule" element={<Schedule />} />

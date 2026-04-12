@@ -33,7 +33,10 @@ import {
   ChevronUp,
   MoreHorizontal,
   MessageSquare,
-  CheckCircle2
+  CheckCircle2,
+  Key,
+  Share2,
+  ExternalLink
 } from 'lucide-react';
 import { 
   Tabs, 
@@ -238,6 +241,7 @@ export const PatientProfile = () => {
   const [isDeleteConsultationConfirmOpen, setIsDeleteConsultationConfirmOpen] = useState(false);
   const [consultationToDelete, setConsultationToDelete] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('personal');
+  const [isGeneratingToken, setIsGeneratingToken] = useState(false);
   const [selectedMealPlan, setSelectedMealPlan] = useState<MealPlan | null>(null);
   const [selectedMealPlanItems, setSelectedMealPlanItems] = useState<MealPlanItem[]>([]);
   const [mealItems, setMealItems] = useState<{ 
@@ -545,9 +549,13 @@ export const PatientProfile = () => {
       const pdfBase64 = doc.output('datauristring').split(',')[1];
       const fileName = `Plano_Alimentar_${patient.name.replace(/\s+/g, '_')}.pdf`;
 
+      const token = await user.getIdToken();
       const response = await fetch('/api/send-meal-plan', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           patientEmail: patient.email,
           patientName: patient.name,
@@ -702,28 +710,50 @@ export const PatientProfile = () => {
   const onConsultationSubmit = async (data: any) => {
     if (!user || !id) return;
     try {
-      const imc = data.weight / ((data.height / 100) * (data.height / 100));
+      const imc = data.height > 0 ? data.weight / ((data.height / 100) * (data.height / 100)) : 0;
       
+      // Clean up optional numbers to ensure they are finite or null
+      const cleanData = { ...data };
+      const optionalNumberFields = ['fatPercentage', 'waist', 'hip', 'abdomen', 'arm'];
+      optionalNumberFields.forEach(field => {
+        if (cleanData[field] === '' || cleanData[field] === undefined || isNaN(Number(cleanData[field]))) {
+          delete cleanData[field];
+        } else {
+          cleanData[field] = Number(cleanData[field]);
+        }
+      });
+
       if (selectedConsultation) {
         // Update existing
-        await updateDoc(doc(db, 'consultations', selectedConsultation.id), {
-          ...data,
-          imc,
-          updatedAt: new Date().toISOString(),
-        });
-        toast.success('Consulta atualizada com sucesso!');
+        const updatePath = `consultations/${selectedConsultation.id}`;
+        try {
+          await updateDoc(doc(db, 'consultations', selectedConsultation.id), {
+            ...cleanData,
+            imc,
+            updatedAt: new Date().toISOString(),
+          });
+          toast.success('Consulta atualizada com sucesso!');
+        } catch (error) {
+          handleFirestoreError(error, OperationType.UPDATE, updatePath);
+        }
       } else {
         // Add new
-        await addDoc(collection(db, 'consultations'), {
-          ...data,
-          imc,
-          patient_id: id,
-          nutritionist_id: user.uid,
-          status: 'realized',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
-        toast.success('Consulta registrada com sucesso!');
+        const createPath = 'consultations';
+        try {
+          await addDoc(collection(db, 'consultations'), {
+            ...cleanData,
+            imc,
+            patient_id: id,
+            nutritionist_id: user.uid,
+            access_token: patient.access_token,
+            status: 'realized',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          });
+          toast.success('Consulta registrada com sucesso!');
+        } catch (error) {
+          handleFirestoreError(error, OperationType.CREATE, createPath);
+        }
       }
       
       setIsConsultationModalOpen(false);
@@ -741,7 +771,10 @@ export const PatientProfile = () => {
       setConsultations(consultationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Consultation)).sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
     } catch (error) {
       console.error("Error saving consultation:", error);
-      toast.error('Erro ao salvar consulta.');
+      // Error is already handled by handleFirestoreError inside the try blocks if it's a permission error
+      if (!(error instanceof Error && error.message.includes('operationType'))) {
+        toast.error('Erro ao salvar consulta.');
+      }
     }
   };
 
@@ -809,6 +842,7 @@ export const PatientProfile = () => {
         const mealPlanRef = await addDoc(collection(db, 'meal_plans'), {
           patient_id: id,
           nutritionist_id: user.uid,
+          access_token: patient.access_token,
           name: mealPlanName,
           generalInstructions,
           waterIntake,
@@ -831,6 +865,7 @@ export const PatientProfile = () => {
           ...sanitizedItem,
           meal_plan_id: mealPlanId,
           nutritionist_id: user.uid,
+          access_token: patient.access_token,
         });
       }
 
@@ -1067,6 +1102,7 @@ export const PatientProfile = () => {
         reportUrl: selectedExamFile,
         patient_id: id,
         nutritionist_id: user.uid,
+        access_token: patient.access_token,
         createdAt: selectedExam ? selectedExam.createdAt : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -1299,6 +1335,37 @@ export const PatientProfile = () => {
     };
   }, [id, user, navigate, isAuthReady]);
 
+  const generateAccessToken = async () => {
+    if (!patient || !id) return;
+    
+    setIsGeneratingToken(true);
+    try {
+      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      await updateDoc(doc(db, 'patients', id), {
+        access_token: token,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success('Link de acesso gerado com sucesso!');
+    } catch (error) {
+      console.error("Error generating access token:", error);
+      toast.error('Erro ao gerar link de acesso.');
+    } finally {
+      setIsGeneratingToken(false);
+    }
+  };
+
+  const shareAccessLink = () => {
+    if (!patient?.access_token) return;
+    
+    const baseUrl = window.location.origin;
+    const accessUrl = `${baseUrl}/patient-access/${id}?token=${patient.access_token}`;
+    
+    const message = `Olá ${patient.name}! Aqui está seu link exclusivo para acessar seu plano alimentar e evolução no Nutrir: ${accessUrl}\n\nPara sua segurança, ao acessar, digite os 3 últimos dígitos do seu CPF.`;
+    
+    const whatsappUrl = `https://wa.me/55${patient.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center py-24">
@@ -1313,6 +1380,16 @@ export const PatientProfile = () => {
 
   return (
     <div className="space-y-8">
+      {patient.status === 'inactive' && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 text-amber-800 shadow-sm">
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          <div className="text-sm">
+            <p className="font-bold">Paciente Inativo</p>
+            <p>Este paciente está desativado. Edições e novos registros estão bloqueados até que o paciente seja reativado na lista de pacientes.</p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button nativeButton={false} variant="ghost" size="icon" render={<Link to="/patients" />}>
@@ -1330,6 +1407,7 @@ export const PatientProfile = () => {
                   size="icon-sm" 
                   className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                   onClick={() => setIsEditPatientModalOpen(true)}
+                  disabled={patient.status === 'inactive'}
                 >
                   <Edit className="w-4 h-4" />
                 </Button>
@@ -1350,6 +1428,25 @@ export const PatientProfile = () => {
           </div>
         </div>
         <div className="flex gap-2">
+          {!patient.access_token ? (
+            <Button 
+              variant="outline" 
+              className="h-8 text-sm font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-4"
+              onClick={generateAccessToken}
+              disabled={isGeneratingToken || patient.status === 'inactive'}
+            >
+              {isGeneratingToken ? 'GERANDO...' : 'GERAR LINK DE ACESSO'}
+            </Button>
+          ) : (
+            <Button 
+              variant="outline" 
+              className="h-8 text-sm font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-4"
+              onClick={shareAccessLink}
+              disabled={patient.status === 'inactive'}
+            >
+              ENVIAR ACESSO WHATSAPP
+            </Button>
+          )}
           <Dialog open={isConsultationModalOpen} onOpenChange={(open) => {
             setIsConsultationModalOpen(open);
             if (!open) {
@@ -1371,7 +1468,7 @@ export const PatientProfile = () => {
             }
           }}>
             <DialogTrigger 
-              render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" onClick={() => {
+              render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" disabled={patient.status === 'inactive'} onClick={() => {
                 setSelectedConsultation(null);
                 resetConsultation({
                   date: new Date().toISOString().split('T')[0],
@@ -1590,8 +1687,9 @@ export const PatientProfile = () => {
               </div>
               <Button 
                 size="sm" 
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" 
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" 
                 onClick={() => setIsConsultationModalOpen(true)}
+                disabled={patient.status === 'inactive'}
               >
                 <Plus className="w-4 h-4" /> Nova Consulta
               </Button>
@@ -1627,7 +1725,7 @@ export const PatientProfile = () => {
                           </span>
                           
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="icon-sm" className="text-slate-400 hover:text-emerald-600" onClick={(e) => {
+                            <Button variant="ghost" size="icon-sm" className="text-slate-400 hover:text-emerald-600 disabled:opacity-30" disabled={patient.status === 'inactive'} onClick={(e) => {
                               e.stopPropagation();
                               setSelectedConsultation(consultation);
                               resetConsultation({
@@ -1648,7 +1746,7 @@ export const PatientProfile = () => {
                             }}>
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600" onClick={(e) => {
+                            <Button variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 disabled:opacity-30" disabled={patient.status === 'inactive'} onClick={(e) => {
                               e.stopPropagation();
                               setConsultationToDelete(consultation.id);
                               setIsDeleteConsultationConfirmOpen(true);
@@ -1779,7 +1877,7 @@ export const PatientProfile = () => {
               }}>
                 <PremiumFeature active={isMealPlanLimitReached}>
                   <DialogTrigger 
-                    render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" size="sm" />}
+                    render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" disabled={patient.status === 'inactive'} />}
                     nativeButton={true}
                   >
                     <Plus className="w-4 h-4" /> Novo Plano
@@ -2112,9 +2210,9 @@ export const PatientProfile = () => {
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => viewMealPlan(plan)}>Visualizar</Button>
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => editMealPlan(plan)}>Editar</Button>
+                        <Button variant="outline" size="sm" className="flex-1 disabled:opacity-50" onClick={() => editMealPlan(plan)} disabled={patient.status === 'inactive'}>Editar</Button>
                         <PremiumFeature active={isMealPlanLimitReached}>
-                          <Button variant="outline" size="sm" className="flex-1" onClick={() => duplicateMealPlan(plan)}>Duplicar</Button>
+                          <Button variant="outline" size="sm" className="flex-1 disabled:opacity-50" onClick={() => duplicateMealPlan(plan)} disabled={patient.status === 'inactive'}>Duplicar</Button>
                         </PremiumFeature>
                         <Button variant="ghost" size="sm" className="px-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50" onClick={() => sendMealPlanByEmail(plan)} title="Enviar por E-mail">
                           <Mail className="w-4 h-4" />
@@ -2122,7 +2220,7 @@ export const PatientProfile = () => {
                         <Button variant="ghost" size="sm" className="px-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50" onClick={() => exportMealPlanPDF(plan)} title="Imprimir PDF">
                           <Printer className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="px-2 text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => deleteMealPlan(plan.id)}>
+                        <Button variant="ghost" size="sm" className="px-2 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30" onClick={() => deleteMealPlan(plan.id)} disabled={patient.status === 'inactive'}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -2530,7 +2628,7 @@ export const PatientProfile = () => {
               }}>
                 <PremiumFeature active={isLabExamLimitReached}>
                   <DialogTrigger 
-                    render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" size="sm" />}
+                    render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" disabled={patient.status === 'inactive'} />}
                     nativeButton={true}
                   >
                     <Plus className="w-4 h-4" /> Registrar Exame
@@ -2784,24 +2882,26 @@ export const PatientProfile = () => {
                           <Button 
                             variant="ghost" 
                             size="icon-sm" 
-                            className="text-slate-400 hover:text-emerald-600"
+                            className="text-slate-400 hover:text-emerald-600 disabled:opacity-30"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedExam(exam);
                               setExamMarkers(exam.markers || []);
                               setIsLabExamModalOpen(true);
                             }}
+                            disabled={patient.status === 'inactive'}
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button 
                             variant="ghost" 
                             size="icon-sm" 
-                            className="text-slate-400 hover:text-red-600"
+                            className="text-slate-400 hover:text-red-600 disabled:opacity-30"
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteLabExam(exam.id);
                             }}
+                            disabled={patient.status === 'inactive'}
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>

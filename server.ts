@@ -6,10 +6,12 @@ import dotenv from "dotenv";
 import admin from 'firebase-admin';
 import { getFirestore as getAdminFirestore } from 'firebase-admin/firestore';
 import { initializeApp as initializeClientApp } from 'firebase/app';
-import { getFirestore as getClientFirestore, doc, updateDoc, getDocs, collection, query, where } from 'firebase/firestore';
+import { getFirestore as getClientFirestore, doc, updateDoc, getDocs, collection, query, where, getDoc } from 'firebase/firestore';
 import SmeeClient from "smee-client";
-import { sendEmail, getPatientWelcomeTemplate, getPremiumWelcomeTemplate, getMealPlanEmailTemplate, getPasswordResetTemplate } from "./src/lib/mail.js";
-import firebaseConfig from './firebase-applet-config.json' with { type: 'json' };
+import { sendEmail, getPatientWelcomeTemplate, getPremiumWelcomeTemplate, getMealPlanEmailTemplate, getPasswordResetTemplate } from "./src/lib/mail.ts";
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const firebaseConfig = require('./firebase-applet-config.json');
 
 dotenv.config();
 
@@ -25,19 +27,101 @@ const adminDb = getAdminFirestore(admin.app(), (firebaseConfig as any).firestore
 const clientApp = initializeClientApp(firebaseConfig);
 const clientDb = getClientFirestore(clientApp, (firebaseConfig as any).firestoreDatabaseId);
 
+// Firestore Helpers with Fallback
+function isPermissionDeniedError(err: any) {
+  if (!err) return false;
+  const message = (err.message || String(err)).toUpperCase();
+  const code = err.code;
+  return message.includes('PERMISSION_DENIED') || 
+         message.includes('INSUFFICIENT PERMISSIONS') || 
+         code === 7 || 
+         code === 'permission-denied';
+}
+
+async function getDocWithFallback(collectionName: string, docId: string) {
+  try {
+    const adminDoc = await adminDb.collection(collectionName).doc(docId).get();
+    if (adminDoc.exists) return { data: adminDoc.data(), id: adminDoc.id, ref: adminDoc.ref, exists: true };
+    return { exists: false };
+  } catch (err: any) {
+    if (isPermissionDeniedError(err)) {
+      console.warn(`[Firestore] Admin SDK PERMISSION_DENIED on read ${collectionName}/${docId}, trying Client SDK...`);
+      const clientDoc = await getDoc(doc(clientDb, collectionName, docId));
+      if (clientDoc.exists()) return { data: clientDoc.data(), id: clientDoc.id, ref: clientDoc.ref, exists: true };
+      return { exists: false };
+    }
+    throw err;
+  }
+}
+
+async function updateDocWithFallback(collectionName: string, docId: string, data: any) {
+  try {
+    await adminDb.collection(collectionName).doc(docId).update(data);
+  } catch (err: any) {
+    if (isPermissionDeniedError(err)) {
+      console.warn(`[Firestore] Admin SDK PERMISSION_DENIED on update ${collectionName}/${docId}, trying Client SDK...`);
+      await updateDoc(doc(clientDb, collectionName, docId), data);
+    } else {
+      throw err;
+    }
+  }
+}
+
+async function queryWithFallback(collectionName: string, field: string, operator: any, value: any) {
+  try {
+    const snapshot = await adminDb.collection(collectionName).where(field, operator, value).get();
+    return snapshot;
+  } catch (err: any) {
+    if (isPermissionDeniedError(err)) {
+      console.warn(`[Firestore] Admin SDK PERMISSION_DENIED on query ${collectionName}, trying Client SDK...`);
+      const q = query(collection(clientDb, collectionName), where(field, operator, value));
+      const snapshot = await getDocs(q);
+      return snapshot;
+    }
+    throw err;
+  }
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY || "";
 const ASAAS_API_URL = process.env.ASAAS_API_URL || "https://sandbox.asaas.com/api/v3";
 
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
+
+let google: any;
+
 async function startServer() {
+  const googleapis = await import('googleapis');
+  google = googleapis.google;
+
   const app = express();
+  app.set('trust proxy', true);
   const PORT = 3000;
 
   app.use(express.json());
 
-  // Middleware para log de requisições (ajuda a depurar o 302)
+  // Middleware de Autenticação Firebase
+  const authenticate = async (req: any, res: any, next: any) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Não autorizado. Token ausente.' });
+    }
+
+    const idToken = authHeader.split('Bearer ')[1];
+    try {
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      req.user = decodedToken;
+      next();
+    } catch (error) {
+      console.error('[Auth Middleware] Erro ao verificar token:', error);
+      return res.status(401).json({ error: 'Não autorizado. Token inválido.' });
+    }
+  };
+
+  // Middleware para log de requisições
   app.use((req, res, next) => {
     if (req.path.startsWith('/api/asaas-webhook')) {
       console.log(`[Request Log] ${req.method} ${req.path}`);
@@ -45,7 +129,7 @@ async function startServer() {
     next();
   });
 
-  app.post("/api/test-email", async (req, res) => {
+  app.post("/api/test-email", authenticate, async (req, res) => {
     const { to } = req.body;
     if (!to) return res.status(400).json({ error: "Destinatário é obrigatório." });
 
@@ -68,7 +152,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/send-welcome-email", async (req, res) => {
+  app.post("/api/send-welcome-email", authenticate, async (req, res) => {
     const { patientEmail, patientName, nutritionistName, nutritionistEmail, nutritionistPhone } = req.body;
 
     if (!patientEmail || !patientName) {
@@ -96,7 +180,7 @@ async function startServer() {
     }
   });
 
-  app.post("/api/send-meal-plan", async (req, res) => {
+  app.post("/api/send-meal-plan", authenticate, async (req, res) => {
     const { patientEmail, patientName, nutritionistName, pdfBase64, fileName } = req.body;
 
     if (!patientEmail || !pdfBase64) {
@@ -153,23 +237,8 @@ async function startServer() {
 
       // Referência para o documento do nutricionista no Firestore
       const updateUserData = async (data: any) => {
-        try {
-          await adminDb.collection('nutritionists').doc(userId).update(data);
-          console.log(`[Firestore] Atualizado via Admin SDK: ${userId}`);
-        } catch (adminError: any) {
-          if (adminError.message?.includes('PERMISSION_DENIED')) {
-            console.warn(`[Firestore] Admin SDK sem permissão, tentando Client SDK fallback...`);
-            try {
-              await updateDoc(doc(clientDb, 'nutritionists', userId), data);
-              console.log(`[Firestore] Atualizado via Client SDK Fallback: ${userId}`);
-            } catch (clientError: any) {
-              console.error(`[Firestore] Erro em ambos os SDKs:`, clientError.message);
-              throw clientError;
-            }
-          } else {
-            throw adminError;
-          }
-        }
+        if (!userId) return;
+        await updateDocWithFallback('nutritionists', userId, data);
       };
 
       switch (event.event) {
@@ -194,9 +263,9 @@ async function startServer() {
 
           // Enviar e-mail de boas-vindas ao Premium
           try {
-            const userDoc = await adminDb.collection('nutritionists').doc(userId).get();
+            const userDoc = await getDocWithFallback('nutritionists', userId);
             if (userDoc.exists) {
-              const userData = userDoc.data();
+              const userData = userDoc.data;
               if (userData?.email) {
                 const html = getPremiumWelcomeTemplate(userData.name || 'Nutricionista');
                 await sendEmail({
@@ -332,10 +401,252 @@ async function startServer() {
     res.json({ status: "ok", message: "Server is running" });
   });
 
+  // --- GOOGLE CALENDAR INTEGRATION ---
+
+  app.get("/api/auth/google/url", (req, res) => {
+    // Prefer origin from query param (passed by client), then trust proxy headers, then fallback
+    const clientOrigin = req.query.origin as string;
+    
+    // Robust origin detection
+    const forwardedProto = req.headers['x-forwarded-proto'] as string;
+    const forwardedHost = req.headers['x-forwarded-host'] as string;
+    const detectedOrigin = (forwardedProto && forwardedHost) 
+      ? `${forwardedProto}://${forwardedHost}` 
+      : `${req.protocol}://${req.get('host')}`;
+      
+    const origin = clientOrigin || detectedOrigin;
+    const redirectUri = `${origin}/api/auth/google/callback`;
+    
+    console.log(`[Google Auth] Generating URL. ClientOrigin: ${clientOrigin}, DetectedOrigin: ${detectedOrigin}, FinalRedirectUri: ${redirectUri}`);
+    
+    // Create a fresh client for this request to avoid state issues
+    const client = new google.auth.OAuth2(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      redirectUri
+    );
+    
+    const url = client.generateAuthUrl({
+      access_type: 'offline',
+      scope: [
+        'https://www.googleapis.com/auth/calendar.events',
+        'https://www.googleapis.com/auth/userinfo.email'
+      ],
+      prompt: 'consent',
+      state: redirectUri // Pass redirectUri in state to recover it in callback
+    });
+    
+    res.json({ url });
+  });
+
+  app.get("/api/auth/google/callback", async (req, res) => {
+    const { code, state } = req.query;
+    
+    // Recover redirectUri from state, fallback to detection
+    const forwardedProto = req.headers['x-forwarded-proto'] as string;
+    const forwardedHost = req.headers['x-forwarded-host'] as string;
+    const detectedOrigin = (forwardedProto && forwardedHost) 
+      ? `${forwardedProto}://${forwardedHost}` 
+      : `${req.protocol}://${req.get('host')}`;
+      
+    const redirectUri = (state as string) || `${detectedOrigin}/api/auth/google/callback`;
+
+    console.log(`[Google Auth] Callback received. StateRedirectUri: ${state}, DetectedOrigin: ${detectedOrigin}, FinalRedirectUri: ${redirectUri}`);
+
+    try {
+      const client = new google.auth.OAuth2(
+        GOOGLE_CLIENT_ID,
+        GOOGLE_CLIENT_SECRET,
+        redirectUri
+      );
+
+      const { tokens } = await client.getToken(code as string);
+      
+      // Get user info to identify the nutritionist
+      client.setCredentials(tokens);
+      const oauth2 = google.oauth2({ version: 'v2', auth: client });
+      const userInfo = await oauth2.userinfo.get();
+      const email = userInfo.data.email;
+
+      if (!email) throw new Error("Could not get user email from Google");
+
+      // Find the nutritionist in Firestore by email
+      const snapshot = await queryWithFallback('nutritionists', 'email', '==', email);
+
+      if (snapshot.empty) {
+        return res.send(`
+          <html>
+            <head><meta charset="UTF-8"></head>
+            <body>
+              <script>
+                alert("Nutricionista não encontrado com este e-mail (${email}) no sistema.");
+                window.close();
+              </script>
+            </body>
+          </html>
+        `);
+      }
+
+      const nutritionistDoc = snapshot.docs[0];
+      const updateData = {
+        googleCalendarTokens: tokens,
+        googleCalendarConnected: true,
+        updatedAt: new Date().toISOString()
+      };
+
+      try {
+        if ('update' in nutritionistDoc.ref) {
+          // Admin SDK
+          await (nutritionistDoc.ref as any).update(updateData);
+        } else {
+          // Client SDK
+          await updateDoc(doc(clientDb, 'nutritionists', nutritionistDoc.id), updateData);
+        }
+        console.log(`[Google Auth] Success updating tokens for ${email}`);
+      } catch (updateErr: any) {
+        if (updateErr.message?.includes('PERMISSION_DENIED')) {
+          console.warn("[Google Auth] Admin SDK PERMISSION_DENIED on update, trying Client SDK fallback...");
+          await updateDoc(doc(clientDb, 'nutritionists', nutritionistDoc.id), updateData);
+        } else {
+          throw updateErr;
+        }
+      }
+
+      res.send(`
+        <html>
+          <body>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({ type: 'GOOGLE_AUTH_SUCCESS' }, '*');
+                window.close();
+              } else {
+                window.location.href = '/settings';
+              }
+            </script>
+            <p>Conexão com Google Agenda realizada com sucesso! Esta janela fechará automaticamente.</p>
+          </body>
+        </html>
+      `);
+    } catch (error: any) {
+      console.error("[Google Auth] Error in callback:", error);
+      res.status(500).send("Erro ao processar autenticação com Google.");
+    }
+  });
+
+  app.post("/api/create-calendar-event", authenticate, async (req, res) => {
+    const { appointmentId, nutritionistId } = req.body;
+
+    // Verificar se o usuário autenticado é o próprio nutricionista ou um admin
+    if ((req as any).user.uid !== nutritionistId && (req as any).user.email !== 'vigianiallan@gmail.com') {
+      return res.status(403).json({ error: "Não autorizado a criar eventos para este nutricionista." });
+    }
+
+    try {
+      const nutritionist = await getDocWithFallback('nutritionists', nutritionistId);
+      const nutritionistData = nutritionist?.data;
+
+      if (!nutritionistData?.googleCalendarTokens) {
+        return res.status(400).json({ error: "Google Calendar not connected" });
+      }
+
+      const appointment = await getDocWithFallback('appointments', appointmentId);
+      const appointmentData = appointment?.data;
+
+      if (!appointmentData) {
+        return res.status(404).json({ error: "Appointment not found" });
+      }
+
+      const patient = await getDocWithFallback('patients', appointmentData.patient_id);
+      const patientData = patient?.data;
+
+      // Setup OAuth2 client with stored tokens
+      const nutritionistOAuth2Client = new google.auth.OAuth2(
+        GOOGLE_CLIENT_ID,
+        GOOGLE_CLIENT_SECRET
+      );
+      nutritionistOAuth2Client.setCredentials(nutritionistData.googleCalendarTokens);
+
+      // Refresh token if expired
+      nutritionistOAuth2Client.on('tokens', async (tokens) => {
+        if (tokens.refresh_token) {
+          // Store new tokens
+          const updateData = {
+            googleCalendarTokens: { ...nutritionistData.googleCalendarTokens, ...tokens }
+          };
+          await updateDocWithFallback('nutritionists', nutritionistId, updateData);
+        }
+      });
+
+      const calendar = google.calendar({ version: 'v3', auth: nutritionistOAuth2Client });
+
+      const startTime = new Date(appointmentData.date);
+      const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hour duration
+
+      const event = {
+        summary: `Consulta Nutricional - ${patientData?.name || 'Paciente'}`,
+        description: `Consulta agendada via Nutrir App.\nPaciente: ${patientData?.name}\nE-mail: ${patientData?.email || 'Não informado'}`,
+        start: {
+          dateTime: startTime.toISOString(),
+          timeZone: 'America/Sao_Paulo',
+        },
+        end: {
+          dateTime: endTime.toISOString(),
+          timeZone: 'America/Sao_Paulo',
+        },
+        attendees: patientData?.email ? [{ email: patientData.email }] : [],
+        conferenceData: {
+          createRequest: {
+            requestId: `nutrir-${appointmentId}`,
+            conferenceSolutionKey: { type: 'hangoutsMeet' },
+          },
+        },
+      };
+
+      const response = await calendar.events.insert({
+        calendarId: 'primary',
+        requestBody: event,
+        conferenceDataVersion: 1,
+      });
+
+      // Save Google Event ID and Meet Link to appointment
+      const appointmentUpdate = {
+        googleEventId: response.data.id,
+        meetLink: response.data.hangoutLink,
+        updatedAt: new Date().toISOString()
+      };
+
+      await updateDocWithFallback('appointments', appointmentId, appointmentUpdate);
+
+      res.json({ 
+        success: true, 
+        meetLink: response.data.hangoutLink,
+        eventId: response.data.id
+      });
+    } catch (error: any) {
+      console.error("[Google Calendar] Error creating event:", error);
+      
+      // Handle "API not enabled" error specifically
+      if (error.message?.includes('Google Calendar API has not been used') || error.message?.includes('is disabled')) {
+        return res.status(403).json({ 
+          error: "A API do Google Agenda não está ativada no seu projeto do Google Cloud.",
+          details: "Para corrigir, acesse o link abaixo e clique em 'ATIVAR': https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project=158020645241",
+          link: "https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project=158020645241"
+        });
+      }
+
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // API Routes
-  app.post("/api/create-checkout-session", async (req, res) => {
+  app.post("/api/create-checkout-session", authenticate, async (req, res) => {
     console.log("Recebida requisição para checkout Asaas:", req.body);
     const { userId, email, name, cpfCnpj } = req.body;
+
+    // Verificar se o usuário autenticado é o dono da conta
+    if ((req as any).user.uid !== userId && (req as any).user.email !== 'vigianiallan@gmail.com') {
+      return res.status(403).json({ error: "Não autorizado a criar checkout para este usuário." });
+    }
 
     // Sanitizar CPF/CNPJ (apenas números)
     const sanitizedCpfCnpj = cpfCnpj ? String(cpfCnpj).replace(/\D/g, '') : undefined;
@@ -450,8 +761,13 @@ async function startServer() {
     }
   });
 
-  app.post("/api/verify-subscription", async (req, res) => {
+  app.post("/api/verify-subscription", authenticate, async (req, res) => {
     const { email } = req.body;
+
+    // Verificar se o usuário autenticado é o dono do email
+    if ((req as any).user.email !== email && (req as any).user.email !== 'vigianiallan@gmail.com') {
+      return res.status(403).json({ error: "Não autorizado a verificar esta assinatura." });
+    }
 
     if (!email) {
       return res.status(400).json({ error: "Email é obrigatório." });
@@ -517,8 +833,13 @@ async function startServer() {
     }
   });
 
-  app.post("/api/create-portal-session", async (req, res) => {
+  app.post("/api/create-portal-session", authenticate, async (req, res) => {
     const { email } = req.body;
+
+    // Verificar se o usuário autenticado é o dono do email
+    if ((req as any).user.email !== email && (req as any).user.email !== 'vigianiallan@gmail.com') {
+      return res.status(403).json({ error: "Não autorizado a acessar este portal." });
+    }
 
     try {
       const encodedEmail = encodeURIComponent(email);
@@ -547,8 +868,13 @@ async function startServer() {
     }
   });
 
-  app.post("/api/cancel-subscription", async (req, res) => {
+  app.post("/api/cancel-subscription", authenticate, async (req, res) => {
     const { email } = req.body;
+
+    // Verificar se o usuário autenticado é o dono do email
+    if ((req as any).user.email !== email && (req as any).user.email !== 'vigianiallan@gmail.com') {
+      return res.status(403).json({ error: "Não autorizado a cancelar esta assinatura." });
+    }
 
     try {
       const encodedEmail = encodeURIComponent(email);
@@ -574,19 +900,9 @@ async function startServer() {
 
       // 1. Buscar ID do documento do usuário para atualização posterior
       let userDocId: string | null = null;
-      try {
-        const nutritionists = await adminDb.collection('nutritionists').where('email', '==', email).get();
-        if (!nutritionists.empty) {
-          userDocId = nutritionists.docs[0].id;
-        }
-      } catch (adminErr: any) {
-        if (adminErr.message?.includes('PERMISSION_DENIED')) {
-          const q = query(collection(clientDb, 'nutritionists'), where('email', '==', email));
-          const snapshot = await getDocs(q);
-          if (!snapshot.empty) {
-            userDocId = snapshot.docs[0].id;
-          }
-        }
+      const nutritionists = await queryWithFallback('nutritionists', 'email', '==', email);
+      if (!nutritionists.empty) {
+        userDocId = nutritionists.docs[0].id;
       }
 
       // 2. Verificar se é elegível para reembolso (dentro de 7 dias)
@@ -642,15 +958,7 @@ async function startServer() {
             updateData.hadRefundBefore = true;
           }
 
-          try {
-            await adminDb.collection('nutritionists').doc(userDocId).update(updateData);
-          } catch (adminUpdateErr: any) {
-            if (adminUpdateErr.message?.includes('PERMISSION_DENIED')) {
-              await updateDoc(doc(clientDb, 'nutritionists', userDocId), updateData);
-            } else {
-              throw adminUpdateErr;
-            }
-          }
+          await updateDocWithFallback('nutritionists', userDocId, updateData);
           console.log(`[Cancel] Firestore atualizado para usuário ${email}. Estornado: ${refunded}`);
         } catch (fsError) {
           console.error("Erro ao atualizar Firestore no cancelamento:", fsError);

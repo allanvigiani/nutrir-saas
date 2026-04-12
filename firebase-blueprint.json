@@ -29,6 +29,7 @@
         "birthDate": { "type": "string", "format": "date" },
         "gender": { "type": "string", "enum": ["male", "female", "other"] },
         "cpf": { "type": "string" },
+        "access_token": { "type": "string", "description": "Token para acesso via link único" },
         "phone": { "type": "string" },
         "email": { "type": "string", "format": "email" },
         "address": { "type": "string" },

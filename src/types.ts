@@ -20,6 +20,8 @@ export interface Nutritionist {
   createdAt: string;
   updatedAt: string;
   lastLogin?: string;
+  googleCalendarConnected?: boolean;
+  googleCalendarTokens?: any;
 }
 
 export interface Patient {
@@ -29,6 +31,7 @@ export interface Patient {
   birthDate: string;
   gender: 'male' | 'female' | 'other';
   cpf: string;
+  access_token?: string; // Token para acesso via link único
   phone: string;
   email: string;
   address: string;
@@ -60,6 +63,7 @@ export interface Consultation {
   observations?: string;
   complaints?: string;
   objectives?: string;
+  access_token?: string;
   status: 'realized' | 'cancelled' | 'missed';
   createdAt: string;
   updatedAt: string;
@@ -74,6 +78,7 @@ export interface MealPlan {
   generalInstructions?: string;
   waterIntake?: string;
   mealObservations?: Record<string, string>;
+  access_token?: string;
   status: 'active' | 'archived';
   createdAt: string;
   updatedAt: string;
@@ -133,6 +138,7 @@ export interface LabExam {
   date: string;
   title: string;
   observations?: string;
+  access_token?: string;
   markers: LabExamMarker[];
   reportUrl?: string;
   createdAt: string;
@@ -143,8 +149,11 @@ export interface Appointment {
   id: string;
   patient_id: string;
   nutritionist_id: string;
+  access_token?: string;
   date: string;
   status: 'confirmed' | 'pending' | 'cancelled' | 'realized';
+  googleEventId?: string;
+  meetLink?: string;
   createdAt: string;
   updatedAt: string;
 }

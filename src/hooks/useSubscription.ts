@@ -17,10 +17,12 @@ export const useSubscription = () => {
     const toastId = toast.loading('Abrindo portal de gerenciamento...');
 
     try {
+      const token = await user.getIdToken();
       const response = await fetch('/api/create-portal-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           email: user.email,
@@ -57,10 +59,12 @@ export const useSubscription = () => {
     const toastId = !silent ? toast.loading('Verificando assinatura no Asaas...') : null;
 
     try {
+      const token = await user.getIdToken();
       const response = await fetch('/api/verify-subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           email: user.email,
@@ -125,6 +129,7 @@ export const useSubscription = () => {
     const toastId = toast.loading('Iniciando checkout...');
 
     try {
+      const token = await user.getIdToken();
       // Busca dados do nutricionista para ter o CPF/CNPJ se disponível
       const nutritionistDoc = await getDoc(doc(db, 'nutritionists', user.uid));
       const nutritionistData = nutritionistDoc.data();
@@ -140,6 +145,7 @@ export const useSubscription = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           userId: user.uid,
@@ -192,10 +198,12 @@ export const useSubscription = () => {
     const toastId = toast.loading('Processando cancelamento...');
 
     try {
+      const token = await user.getIdToken();
       const response = await fetch('/api/cancel-subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           email: user.email,

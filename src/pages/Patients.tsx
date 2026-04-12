@@ -9,6 +9,8 @@ import {
   Edit,
   MoreVertical, 
   UserPlus,
+  UserCheck,
+  UserX,
   Mail,
   Phone,
   Calendar as CalendarIcon,
@@ -139,6 +141,7 @@ export const Patients = () => {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
+  const [isGeneratingToken, setIsGeneratingToken] = useState<string | null>(null);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
@@ -219,6 +222,34 @@ export const Patients = () => {
     };
   }, [user, isAuthReady]);
 
+  const togglePatientStatus = async (patient: Patient) => {
+    if (!user) return;
+
+    const newStatus = patient.status === 'active' ? 'inactive' : 'active';
+
+    // If activating, check limit
+    if (newStatus === 'active' && nutritionist?.plan === 'free') {
+      const activePatients = patients.filter(p => p.status === 'active');
+      const maxPatients = settings.free.maxPatients;
+      if (activePatients.length >= maxPatients) {
+        toast.error(`O plano gratuito permite apenas ${maxPatients} pacientes ativos.`);
+        return;
+      }
+    }
+
+    try {
+      await updateDoc(doc(db, 'patients', patient.id), {
+        status: newStatus,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success(`Paciente ${newStatus === 'active' ? 'ativado' : 'desativado'} com sucesso!`);
+    } catch (error) {
+      console.error("Error toggling patient status:", error);
+      toast.error("Erro ao alterar status do paciente.");
+      handleFirestoreError(error, OperationType.UPDATE, 'patients');
+    }
+  };
+
   const onSubmit = async (data: PatientFormValues) => {
     if (!user) return;
 
@@ -285,23 +316,6 @@ export const Patients = () => {
           });
           
           toast.success('Paciente cadastrado com sucesso!');
-
-          // Enviar e-mail de boas-vindas (assíncrono, não bloqueia a UI)
-          try {
-            fetch('/api/send-welcome-email', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                patientEmail: data.email,
-                patientName: data.name,
-                nutritionistName: nutritionist?.name || user.displayName || 'Seu Nutricionista',
-                nutritionistEmail: user.email,
-                nutritionistPhone: nutritionist?.phone
-              })
-            }).catch(err => console.error('Erro ao disparar e-mail:', err));
-          } catch (emailErr) {
-            console.error('Erro ao preparar envio de e-mail:', emailErr);
-          }
         } catch (error) {
           handleFirestoreError(error, OperationType.CREATE, 'patients');
         }
@@ -314,6 +328,36 @@ export const Patients = () => {
       console.error("Error saving patient:", error);
       toast.error('Erro ao salvar paciente.');
     }
+  };
+
+  const generateAccessToken = async (patient: Patient) => {
+    setIsGeneratingToken(patient.id);
+    try {
+      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      await updateDoc(doc(db, 'patients', patient.id), {
+        access_token: token,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success('Link de acesso gerado com sucesso!');
+      fetchPatients();
+    } catch (error) {
+      console.error("Error generating access token:", error);
+      toast.error('Erro ao gerar link de acesso.');
+    } finally {
+      setIsGeneratingToken(null);
+    }
+  };
+
+  const shareAccessLink = (patient: Patient) => {
+    if (!patient.access_token) return;
+    
+    const baseUrl = window.location.origin;
+    const accessUrl = `${baseUrl}/patient-access/${patient.id}?token=${patient.access_token}`;
+    
+    const message = `Olá ${patient.name}! Aqui está seu link exclusivo para acessar seu plano alimentar e evolução no Nutrir: ${accessUrl}\n\nPara sua segurança, ao acessar, digite os 3 últimos dígitos do seu CPF.`;
+    
+    const whatsappUrl = `https://wa.me/55${patient.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   const filteredPatients = patients.filter(patient => {
@@ -513,21 +557,37 @@ export const Patients = () => {
           {filteredPatients.map((patient) => (
             <Card key={patient.id} className="hover:shadow-md transition-shadow">
               <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg">
+                <div className="flex items-start justify-between mb-4 gap-4">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg shrink-0">
                       {patient.name.charAt(0)}
                     </div>
-                    <div>
-                      <h3 className="font-bold text-slate-900 truncate max-w-[150px]">{patient.name}</h3>
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-slate-900 truncate" title={patient.name}>{patient.name}</h3>
                       <p className="text-xs text-slate-500">{patient.cpf}</p>
                     </div>
                   </div>
-                  <div className={cn(
-                    "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
-                    patient.status === 'active' ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
-                  )}>
-                    {patient.status === 'active' ? 'Ativo' : 'Inativo'}
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    <div className={cn(
+                      "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
+                      patient.status === 'active' 
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                        : "bg-slate-50 text-slate-500 border-slate-200"
+                    )}>
+                      {patient.status === 'active' ? 'Ativo' : 'Inativo'}
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className={cn(
+                        "h-8 w-8 rounded-full",
+                        patient.status === 'active' ? "text-slate-400 hover:text-red-500 hover:bg-red-50" : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                      )}
+                      onClick={() => togglePatientStatus(patient)}
+                      title={patient.status === 'active' ? 'Desativar Paciente' : 'Ativar Paciente'}
+                    >
+                      {patient.status === 'active' ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                    </Button>
                   </div>
                 </div>
                 
@@ -555,12 +615,33 @@ export const Patients = () => {
                   >
                     Ver Prontuário
                   </Button>
+                  {!patient.access_token ? (
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 h-8 text-[10px] font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      onClick={() => generateAccessToken(patient)}
+                      disabled={isGeneratingToken === patient.id || patient.status === 'inactive'}
+                    >
+                      {isGeneratingToken === patient.id ? 'GERANDO...' : 'GERAR ACESSO'}
+                    </Button>
+                  ) : (
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 h-8 text-[10px] font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      onClick={() => shareAccessLink(patient)}
+                      disabled={patient.status === 'inactive'}
+                    >
+                      ENVIAR WHATSAPP
+                    </Button>
+                  )}
                   <Button 
                     variant="outline" 
-                    className="gap-2 h-8 text-sm font-medium" 
+                    className="h-8 w-8 p-0" 
                     onClick={() => openEditModal(patient)}
+                    disabled={patient.status === 'inactive'}
+                    title="Editar Paciente"
                   >
-                    <Edit className="w-4 h-4" /> Editar
+                    <Edit className="w-4 h-4" />
                   </Button>
                 </div>
               </CardContent>

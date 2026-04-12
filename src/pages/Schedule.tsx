@@ -123,7 +123,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 }
 
 export const Schedule = () => {
-  const { user, isAuthReady } = useAuth();
+  const { user, isAuthReady, nutritionist } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -227,15 +227,40 @@ export const Schedule = () => {
         });
         toast.success('Agendamento atualizado com sucesso!');
       } else {
-        await addDoc(collection(db, 'appointments'), {
+        const patient = patients.find(p => p.id === selectedPatientId);
+        const docRef = await addDoc(collection(db, 'appointments'), {
           patient_id: selectedPatientId,
           nutritionist_id: user.uid,
+          access_token: patient?.access_token,
           date: appointmentDate.toISOString(),
           status: 'pending',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
+        
         toast.success('Agendamento realizado com sucesso!');
+
+        // Trigger Google Calendar integration if connected
+        if (nutritionist?.googleCalendarConnected) {
+          user.getIdToken().then(token => {
+            fetch('/api/create-calendar-event', {
+              method: 'POST',
+              headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                appointmentId: docRef.id,
+                nutritionistId: user.uid
+              })
+            }).then(res => res.json())
+              .then(data => {
+                if (data.success && data.meetLink) {
+                  toast.success('Evento criado no Google Agenda com link do Meet!');
+                }
+              }).catch(err => console.error("Error creating calendar event:", err));
+          });
+        }
       }
 
       setIsModalOpen(false);
@@ -364,7 +389,7 @@ export const Schedule = () => {
             >
               <Plus className="w-4 h-4" /> Novo Agendamento
             </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
+            <DialogContent className="sm:max-w-[700px]">
               <DialogHeader>
                 <DialogTitle>{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
                 <DialogDescription>
@@ -374,16 +399,31 @@ export const Schedule = () => {
               <div key={editingAppointment?.id || 'new'} className="space-y-4 py-4">
                 <div className="space-y-2">
                   <Label>Paciente</Label>
-                  <Select value={selectedPatientId} onValueChange={setSelectedPatientId}>
-                    <SelectTrigger>
+                  <Select value={selectedPatientId} onValueChange={setSelectedPatientId} disabled={!!editingAppointment}>
+                    <SelectTrigger className="rounded-xl border-slate-200 h-11 bg-white w-full">
                       <SelectValue placeholder="Selecione o paciente">
-                        {selectedPatientId ? patients.find(p => p.id === selectedPatientId)?.name : "Selecione o paciente"}
+                        {selectedPatientId ? (
+                          <div className="flex items-center">
+                            <span className="font-medium text-slate-900 whitespace-nowrap">{patients.find(p => p.id === selectedPatientId)?.name}</span>
+                          </div>
+                        ) : "Selecione o paciente"}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
-                      {patients.map(p => (
-                        <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                      ))}
+                      {patients.length === 0 ? (
+                        <div className="p-4 text-center text-sm text-slate-500">
+                          Nenhum paciente cadastrado
+                        </div>
+                      ) : (
+                        patients.map(p => (
+                          <SelectItem key={p.id} value={p.id} className="py-2">
+                            <div className="flex flex-col">
+                              <span className="font-medium">{p.name}</span>
+                              <span className="text-xs text-slate-500">{p.email}</span>
+                            </div>
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -441,6 +481,40 @@ export const Schedule = () => {
                     </Select>
                   </div>
                 )}
+                {editingAppointment?.meetLink && (
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center border border-emerald-100">
+                        <svg className="w-6 h-6" viewBox="0 0 24 24">
+                          <path fill="#00ac47" d="M16 11c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2z"/>
+                          <path fill="#00ac47" d="M19 7h-1V6c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v1H5c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-3 12H8v-2h8v2zm0-4H8v-2h8v2zm0-4H8V9h8v2z"/>
+                        </svg>
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-emerald-800">Google Meet Gerado</p>
+                        <a 
+                          href={editingAppointment.meetLink} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-sm text-emerald-600 hover:underline break-all font-medium"
+                        >
+                          {editingAppointment.meetLink}
+                        </a>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="bg-white border-emerald-200 text-emerald-700 hover:bg-emerald-100 shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(editingAppointment.meetLink!);
+                        toast.success('Link copiado!');
+                      }}
+                    >
+                      Copiar Link
+                    </Button>
+                  </div>
+                )}
               </div>
               <DialogFooter className="flex justify-between items-center">
                 {editingAppointment && (
@@ -472,16 +546,19 @@ export const Schedule = () => {
           </Dialog>
 
           <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Excluir Agendamento</DialogTitle>
-                <DialogDescription>
+            <DialogContent className="sm:max-w-[380px] p-6">
+              <DialogHeader className="space-y-3">
+                <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-2">
+                  <Trash2 className="w-6 h-6 text-red-600" />
+                </div>
+                <DialogTitle className="text-center text-xl">Excluir Agendamento</DialogTitle>
+                <DialogDescription className="text-center">
                   Tem certeza que deseja excluir este agendamento? Esta ação não pode ser desfeita.
                 </DialogDescription>
               </DialogHeader>
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)}>Cancelar</Button>
-                <Button variant="destructive" onClick={handleDeleteAppointment}>Excluir Agendamento</Button>
+              <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0 mt-4">
+                <Button variant="outline" onClick={() => setIsDeleteModalOpen(false)} className="flex-1 rounded-xl">Cancelar</Button>
+                <Button variant="destructive" onClick={handleDeleteAppointment} className="flex-1 rounded-xl">Excluir</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -705,6 +782,12 @@ export const Schedule = () => {
                           <div className="font-bold">{format(appDate, 'HH:mm')}</div>
                           <div className="font-medium">{getPatientName(app.patient_id)}</div>
                           <div className="text-[10px] opacity-70">Status: {translateStatus(app.status)}</div>
+                          {app.meetLink && (
+                            <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-600 font-bold">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                              Google Meet disponível
+                            </div>
+                          )}
                         </div>
                       );
                     })}

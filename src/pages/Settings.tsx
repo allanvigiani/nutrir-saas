@@ -57,6 +57,12 @@ import { useSettings } from '../contexts/SettingsContext';
 import { doc, updateDoc, collection, query, where, onSnapshot, deleteDoc, getDocs } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../lib/firebase';
+import { signOut, updatePassword } from 'firebase/auth';
+import { toast } from 'sonner';
+import { CustomFood } from '../types';
+import { CustomFoodDialog } from '../components/CustomFoodDialog';
+import { useSubscription } from '../hooks/useSubscription';
+import { useSearchParams } from 'react-router-dom';
 
 enum OperationType {
   CREATE = 'create',
@@ -108,12 +114,6 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   console.error('Firestore Error: ', JSON.stringify(errInfo));
   throw new Error(JSON.stringify(errInfo));
 }
-import { signOut, updatePassword } from 'firebase/auth';
-import { toast } from 'sonner';
-import { CustomFood } from '../types';
-import { CustomFoodDialog } from '../components/CustomFoodDialog';
-import { useSubscription } from '../hooks/useSubscription';
-import { useSearchParams } from 'react-router-dom';
 
 const profileSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
@@ -158,6 +158,7 @@ export const Settings = () => {
   const [foodToDelete, setFoodToDelete] = useState<string | null>(null);
   const [editingFood, setEditingFood] = useState<CustomFood | null>(null);
   const [foodSearch, setFoodSearch] = useState('');
+  const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
   
   const defaultTab = searchParams.get('tab') || 'profile';
   
@@ -366,6 +367,58 @@ export const Settings = () => {
     signOut(auth);
   };
 
+  useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
+        toast.success('Google Agenda conectado com sucesso!');
+        // Refresh nutritionist data if needed, or just let the snapshot handle it
+        setIsConnectingGoogle(false);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const handleConnectGoogle = async () => {
+    setIsConnectingGoogle(true);
+    try {
+      // Pass current origin to help server generate correct redirect URI
+      const origin = window.location.origin;
+      const response = await fetch(`/api/auth/google/url?origin=${encodeURIComponent(origin)}`);
+      const { url } = await response.json();
+      
+      const width = 600;
+      const height = 700;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      
+      window.open(
+        url,
+        'google_auth_popup',
+        `width=${width},height=${height},left=${left},top=${top}`
+      );
+    } catch (error) {
+      console.error("Error connecting Google:", error);
+      toast.error('Erro ao iniciar conexão com Google.');
+      setIsConnectingGoogle(false);
+    }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    if (!user) return;
+    const toastId = toast.loading('Desconectando Google Agenda...');
+    try {
+      await updateDoc(doc(db, 'nutritionists', user.uid), {
+        googleCalendarConnected: false,
+        googleCalendarTokens: null,
+        updatedAt: new Date().toISOString()
+      });
+      toast.success('Google Agenda desconectado.', { id: toastId });
+    } catch (error) {
+      console.error("Error disconnecting Google:", error);
+      toast.error('Erro ao desconectar Google Agenda.', { id: toastId });
+    }
+  };
   const handleUpdatePassword = async () => {
     if (!user) {
       toast.error('Usuário não autenticado.');
@@ -458,6 +511,12 @@ export const Settings = () => {
             className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
           >
             <Award className="w-4 h-4" /> Assinatura e Plano
+          </TabsTrigger>
+          <TabsTrigger 
+            value="integrations" 
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+          >
+            <RefreshCw className="w-4 h-4" /> Integrações
           </TabsTrigger>
         </TabsList>
 
@@ -1121,6 +1180,87 @@ export const Settings = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+        <TabsContent value="integrations" className="space-y-6">
+          <Card className="border-none shadow-sm overflow-hidden">
+            <CardHeader className="bg-white border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl font-bold text-slate-900">Integrações Externas</CardTitle>
+                  <CardDescription>Conecte o Nutrir com outras ferramentas que você utiliza.</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl border border-slate-100 bg-slate-50/30 gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center border border-slate-100">
+                    <svg className="w-6 h-6" viewBox="0 0 24 24">
+                      <path
+                        fill="#4285F4"
+                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                      />
+                      <path
+                        fill="#34A853"
+                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      />
+                      <path
+                        fill="#FBBC05"
+                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"
+                      />
+                      <path
+                        fill="#EA4335"
+                        d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900">Google Agenda</h3>
+                    <p className="text-sm text-slate-500">Sincronize suas consultas e gere links do Google Meet automaticamente.</p>
+                  </div>
+                </div>
+                
+                {nutritionist?.googleCalendarConnected ? (
+                  <div className="flex items-center gap-3">
+                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1 py-1 px-3">
+                      <ShieldCheck className="w-3 h-3" /> Conectado
+                    </Badge>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="text-red-600 border-red-100 hover:bg-red-50"
+                      onClick={handleDisconnectGoogle}
+                    >
+                      Desconectar
+                    </Button>
+                  </div>
+                ) : (
+                  <Button 
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 rounded-xl"
+                    onClick={handleConnectGoogle}
+                    disabled={isConnectingGoogle}
+                  >
+                    {isConnectingGoogle ? 'Conectando...' : 'Conectar Google Agenda'}
+                  </Button>
+                )}
+              </div>
+
+              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex gap-3">
+                <AlertCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="text-sm text-emerald-800">
+                  <p className="font-bold mb-1">Como funciona a integração?</p>
+                  <ul className="list-disc list-inside space-y-1 opacity-90">
+                    <li>Ao agendar uma consulta, um evento será criado na sua agenda principal do Google.</li>
+                    <li>O paciente receberá um convite por e-mail automaticamente.</li>
+                    <li>Um link do <strong>Google Meet</strong> será gerado e anexado ao evento e ao agendamento no Nutrir.</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

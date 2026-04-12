@@ -23,10 +23,14 @@ export const SubscriptionSuccess = () => {
       }
 
       try {
+        const token = await user.getIdToken();
         // Verify with Asaas to get real subscription data
         const response = await fetch('/api/verify-subscription', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
           body: JSON.stringify({ email: user.email }),
         });
         

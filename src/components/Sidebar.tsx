@@ -48,16 +48,21 @@ export const Sidebar = () => {
     signOut(auth);
   };
 
-  const navItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', to: '/' },
-    { icon: Users, label: 'Pacientes', to: '/patients' },
-    { icon: Calendar, label: 'Agenda', to: '/schedule' },
-    { icon: DollarSign, label: 'Financeiro', to: '/financial' },
-    ...(nutritionist?.role === 'admin' ? [{ icon: ShieldCheck, label: 'Admin', to: '/admin' }] : []),
-    { icon: Settings, label: 'Configurações', to: '/settings' },
-  ];
+  const navItems = [];
 
-  const userName = nutritionist?.name || user?.displayName || 'Nutricionista';
+  // Itens do Nutricionista
+  if (nutritionist) {
+    navItems.push(
+      { icon: LayoutDashboard, label: 'Dashboard', to: '/' },
+      { icon: Users, label: 'Pacientes', to: '/patients' },
+      { icon: Calendar, label: 'Agenda', to: '/schedule' },
+      { icon: DollarSign, label: 'Financeiro', to: '/financial' },
+      ...(nutritionist?.role === 'admin' ? [{ icon: ShieldCheck, label: 'Admin', to: '/admin' }] : []),
+      { icon: Settings, label: 'Configurações', to: '/settings' },
+    );
+  }
+
+  const userName = nutritionist?.name || user?.displayName || 'Usuário';
   const userEmail = nutritionist?.email || user?.email || '';
 
   return (
