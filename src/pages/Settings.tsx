@@ -54,7 +54,7 @@ import {
 import { cn, maskCPF, maskCNPJ, maskPhone } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
-import { doc, updateDoc, collection, query, where, onSnapshot, deleteDoc, getDocs } from 'firebase/firestore';
+import { doc, updateDoc, collection, query, where, onSnapshot, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../lib/firebase';
 import { signOut, updatePassword } from 'firebase/auth';
@@ -154,7 +154,9 @@ export const Settings = () => {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showResetAllConfirm, setShowResetAllConfirm] = useState(false);
+  const [showResetTokensConfirm, setShowResetTokensConfirm] = useState(false);
   const [isResettingAll, setIsResettingAll] = useState(false);
+  const [isResettingTokens, setIsResettingTokens] = useState(false);
   const [foodToDelete, setFoodToDelete] = useState<string | null>(null);
   const [editingFood, setEditingFood] = useState<CustomFood | null>(null);
   const [foodSearch, setFoodSearch] = useState('');
@@ -231,6 +233,43 @@ export const Settings = () => {
       toast.error('Erro: ' + (error.message || 'Tente novamente.'), { id: toastId });
     } finally {
       setIsResettingAll(false);
+    }
+  };
+
+  const handleResetAllAccessTokens = async () => {
+    if (!user) return;
+    setIsResettingTokens(true);
+    const toastId = toast.loading('Resetando todos os códigos de acesso...');
+
+    try {
+      const collectionsToReset = ['patients', 'consultations', 'meal_plans', 'meal_plan_items', 'lab_exams', 'appointments'];
+      let totalReset = 0;
+
+      for (const colName of collectionsToReset) {
+        // Buscar todos os documentos que possuem access_token
+        const q = query(collection(db, colName), where('access_token', '!=', ''));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          const batch = writeBatch(db);
+          snapshot.docs.forEach((docSnap) => {
+            batch.update(doc(db, colName, docSnap.id), { 
+              access_token: null,
+              updatedAt: new Date().toISOString()
+            });
+            totalReset++;
+          });
+          await batch.commit();
+        }
+      }
+
+      toast.success(`${totalReset} códigos de acesso foram resetados com sucesso!`, { id: toastId });
+      setShowResetTokensConfirm(false);
+    } catch (error: any) {
+      console.error('Erro ao resetar tokens:', error);
+      toast.error('Erro ao resetar códigos: ' + (error.message || 'Tente novamente.'), { id: toastId });
+    } finally {
+      setIsResettingTokens(false);
     }
   };
 
@@ -836,6 +875,48 @@ export const Settings = () => {
                 </Button>
               </CardFooter>
             </Card>
+
+            <Card className="border-none shadow-sm border-red-100 bg-red-50/30 mt-8">
+              <CardHeader>
+                <CardTitle className="text-lg font-bold text-red-600">Zona de Perigo</CardTitle>
+                <CardDescription>Ações irreversíveis que afetam o acesso dos pacientes.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-white rounded-xl border border-red-100">
+                  <div>
+                    <p className="font-bold text-slate-900 text-sm">Resetar Todos os Códigos de Acesso</p>
+                    <p className="text-xs text-slate-500">Invalida todos os links de acesso enviados aos pacientes. Eles precisarão de novos links.</p>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    className="border-red-200 text-red-600 hover:bg-red-50 h-8 rounded-xl text-xs font-bold"
+                    onClick={() => setShowResetTokensConfirm(true)}
+                    disabled={isResettingTokens}
+                  >
+                    {isResettingTokens ? 'Resetando...' : 'Resetar Todos os Códigos'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Dialog open={showResetTokensConfirm} onOpenChange={setShowResetTokensConfirm}>
+              <DialogContent className="sm:max-w-[400px]">
+                <DialogHeader>
+                  <DialogTitle>Confirmar Reset de Códigos</DialogTitle>
+                  <DialogDescription>
+                    Isso irá invalidar todos os links de acesso de todos os seus pacientes. 
+                    Eles não conseguirão mais acessar seus perfis até que você gere novos links.
+                    Deseja continuar?
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="flex justify-end gap-3 mt-4">
+                  <Button variant="ghost" onClick={() => setShowResetTokensConfirm(false)} disabled={isResettingTokens}>Cancelar</Button>
+                  <Button variant="destructive" onClick={handleResetAllAccessTokens} disabled={isResettingTokens}>
+                    {isResettingTokens ? 'Resetando...' : 'Sim, Resetar Tudo'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </TabsContent>
 

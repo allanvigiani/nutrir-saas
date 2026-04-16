@@ -66,7 +66,8 @@ import {
   addDoc,
   updateDoc,
   serverTimestamp,
-  onSnapshot
+  onSnapshot,
+  writeBatch
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../lib/firebase';
@@ -745,7 +746,7 @@ export const PatientProfile = () => {
             imc,
             patient_id: id,
             nutritionist_id: user.uid,
-            access_token: patient.access_token,
+            access_token: patient.access_token || null,
             status: 'realized',
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -824,6 +825,7 @@ export const PatientProfile = () => {
           generalInstructions,
           waterIntake,
           mealObservations,
+          access_token: patient.access_token || null,
           updatedAt: new Date().toISOString(),
         });
         
@@ -842,7 +844,7 @@ export const PatientProfile = () => {
         const mealPlanRef = await addDoc(collection(db, 'meal_plans'), {
           patient_id: id,
           nutritionist_id: user.uid,
-          access_token: patient.access_token,
+          access_token: patient.access_token || null,
           name: mealPlanName,
           generalInstructions,
           waterIntake,
@@ -865,7 +867,7 @@ export const PatientProfile = () => {
           ...sanitizedItem,
           meal_plan_id: mealPlanId,
           nutritionist_id: user.uid,
-          access_token: patient.access_token,
+          access_token: patient.access_token || null,
         });
       }
 
@@ -873,6 +875,7 @@ export const PatientProfile = () => {
       setIsMealPlanModalOpen(false);
       setMealItems([]);
       setGeneralInstructions('');
+      setWaterIntake('');
       setMealObservations({});
       setMealPlanName('');
       setSelectedMealPlan(null);
@@ -1007,6 +1010,8 @@ export const PatientProfile = () => {
       setMealItems(items as any);
       setMealPlanName(plan.name ? `${plan.name} (Cópia)` : '');
       setGeneralInstructions(plan.generalInstructions || '');
+      setWaterIntake(plan.waterIntake || '');
+      setMealObservations(plan.mealObservations || {});
       setSelectedMealPlan(null); // Ensure it's treated as a new plan
       setIsMealPlanModalOpen(true);
       toast.info("Plano duplicado. Ajuste e salve para criar um novo.");
@@ -1102,7 +1107,7 @@ export const PatientProfile = () => {
         reportUrl: selectedExamFile,
         patient_id: id,
         nutritionist_id: user.uid,
-        access_token: patient.access_token,
+        access_token: patient.access_token || null,
         createdAt: selectedExam ? selectedExam.createdAt : new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
@@ -1339,16 +1344,55 @@ export const PatientProfile = () => {
     if (!patient || !id) return;
     
     setIsGeneratingToken(true);
+    const toastId = toast.loading('Gerando link de acesso e atualizando registros...');
+    
     try {
       const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      
+      // 1. Atualizar o paciente
       await updateDoc(doc(db, 'patients', id), {
         access_token: token,
         updatedAt: new Date().toISOString()
       });
-      toast.success('Link de acesso gerado com sucesso!');
+
+      // 2. Propagar o token para registros existentes (Consultas, Planos, Exames, Agendamentos)
+      const collectionsToUpdate = ['consultations', 'meal_plans', 'lab_exams', 'appointments'];
+      let totalUpdated = 0;
+      
+      for (const colName of collectionsToUpdate) {
+        const q = query(collection(db, colName), where('patient_id', '==', id));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          const batch = writeBatch(db);
+          snapshot.docs.forEach((docSnap) => {
+            batch.update(doc(db, colName, docSnap.id), { access_token: token });
+            totalUpdated++;
+          });
+          await batch.commit();
+
+          // Se for plano alimentar, atualizar também os itens
+          if (colName === 'meal_plans') {
+            for (const planDoc of snapshot.docs) {
+              const itemsQ = query(collection(db, 'meal_plan_items'), where('meal_plan_id', '==', planDoc.id));
+              const itemsSnap = await getDocs(itemsQ);
+              if (!itemsSnap.empty) {
+                const itemsBatch = writeBatch(db);
+                itemsSnap.docs.forEach((itemDoc) => {
+                  itemsBatch.update(doc(db, 'meal_plan_items', itemDoc.id), { access_token: token });
+                  totalUpdated++;
+                });
+                await itemsBatch.commit();
+              }
+            }
+          }
+        }
+      }
+
+      toast.success(`Link gerado e ${totalUpdated} registros atualizados!`, { id: toastId });
     } catch (error) {
       console.error("Error generating access token:", error);
-      toast.error('Erro ao gerar link de acesso.');
+      toast.error('Erro ao gerar link de acesso ou atualizar registros.', { id: toastId });
     } finally {
       setIsGeneratingToken(false);
     }
@@ -1871,6 +1915,8 @@ export const PatientProfile = () => {
                 if (!open) {
                   setSelectedMealPlan(null);
                   setGeneralInstructions('');
+                  setWaterIntake('');
+                  setMealObservations({});
                   setMealPlanName('');
                   setMealItems([]);
                 }

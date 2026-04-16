@@ -10,12 +10,31 @@ import {
   orderBy,
   limit 
 } from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { Patient, Consultation, MealPlan, LabExam } from '../types';
+import { db, auth } from '../lib/firebase';
+import { Patient, Consultation, MealPlan, LabExam, MealPlanItem, Nutritionist } from '../types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Label } from '../components/ui/label';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from '../components/ui/select';
+import { 
+  ResponsiveContainer, 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  Tooltip,
+  CartesianGrid,
+  LineChart,
+  Line,
+  Legend
+} from 'recharts';
 import { 
   User, 
   Calendar, 
@@ -26,11 +45,72 @@ import {
   CheckCircle2,
   Apple,
   Activity,
-  ArrowLeft
+  ArrowLeft,
+  Droplets,
+  Loader2,
+  Download,
+  Utensils,
+  Sun,
+  Coffee,
+  Moon,
+  CloudMoon
 } from 'lucide-react';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  return errInfo;
+};
 
 export const PatientAccess = () => {
   const { id } = useParams();
@@ -39,11 +119,15 @@ export const PatientAccess = () => {
   const navigate = useNavigate();
 
   const [patient, setPatient] = useState<Patient | null>(null);
+  const [nutritionist, setNutritionist] = useState<Nutritionist | null>(null);
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
   const [exams, setExams] = useState<LabExam[]>([]);
   
   const [loading, setLoading] = useState(true);
+  const [loadingData, setLoadingData] = useState(false);
+  const [downloadingPlanId, setDownloadingPlanId] = useState<string | null>(null);
+  const [evolutionMetric, setEvolutionMetric] = useState<'weight' | 'fatPercentage' | 'imc' | 'measurements'>('weight');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [cpfSuffix, setCpfSuffix] = useState('');
   const [authError, setAuthError] = useState('');
@@ -71,6 +155,16 @@ export const PatientAccess = () => {
           // Verificar se o ID bate (para garantir que é o paciente certo)
           if (docSnap.id === id) {
             setPatient(data);
+            
+            // Buscar dados do nutricionista
+            try {
+              const nutSnap = await getDoc(doc(db, 'nutritionists', data.nutritionist_id));
+              if (nutSnap.exists()) {
+                setNutritionist({ id: nutSnap.id, ...nutSnap.data() } as Nutritionist);
+              }
+            } catch (error) {
+              console.error("Error fetching nutritionist:", error);
+            }
           } else {
             toast.error('Link de acesso inválido.');
           }
@@ -97,52 +191,362 @@ export const PatientAccess = () => {
 
     if (cpfSuffix === lastThree) {
       setIsAuthenticated(true);
-      fetchPatientData();
     } else {
       setAuthError('Os 3 últimos dígitos do CPF não conferem.');
     }
   };
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchPatientData();
+    }
+  }, [isAuthenticated]);
+
+  const generateMealPlanPDF = (plan: MealPlan, items: MealPlanItem[]) => {
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    const mealTypesList = [
+      { id: 'breakfast', label: 'Café da Manhã', icon: Sun, color: 'bg-amber-50 border-amber-100 text-amber-700' },
+      { id: 'morning_snack', label: 'Lanche da Manhã', icon: Apple, color: 'bg-rose-50 border-rose-100 text-rose-700' },
+      { id: 'lunch', label: 'Almoço', icon: Utensils, color: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
+      { id: 'afternoon_snack', label: 'Lanche da Tarde', icon: Coffee, color: 'bg-orange-50 border-orange-100 text-orange-700' },
+      { id: 'dinner', label: 'Jantar', icon: Moon, color: 'bg-indigo-50 border-indigo-100 text-indigo-700' },
+      { id: 'supper', label: 'Ceia', icon: CloudMoon, color: 'bg-slate-50 border-slate-100 text-slate-700' },
+    ];
+
+    // Header background
+    doc.setFillColor(5, 150, 105); // emerald-600
+    doc.rect(0, 0, pageWidth, 45, 'F');
+    
+    // Title
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PLANO ALIMENTAR', pageWidth / 2, 20, { align: 'center' });
+    
+    // Nutritionist Info in Header
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Nutricionista: ${nutritionist?.name || 'Não informado'}`, pageWidth / 2, 28, { align: 'center' });
+    
+    let headerY = 33;
+    if (nutritionist?.crn) {
+      doc.text(`CRN: ${nutritionist.crn}`, pageWidth / 2, headerY, { align: 'center' });
+      headerY += 5;
+    }
+    if (nutritionist?.phone) {
+      doc.text(`Tel: ${nutritionist.phone}`, pageWidth / 2, headerY, { align: 'center' });
+    }
+
+    // Patient Info Section
+    doc.setTextColor(30, 41, 59); // slate-800
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('DADOS DO PACIENTE', 14, 60);
+    doc.setDrawColor(226, 232, 240); // slate-200
+    doc.line(14, 62, pageWidth - 14, 62);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Paciente:', 14, 70);
+    doc.setFont('helvetica', 'normal');
+    doc.text(patient?.name || 'Não informado', 35, 70);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.text('Data:', 14, 77);
+    doc.setFont('helvetica', 'normal');
+    doc.text(format(new Date(), 'dd/MM/yyyy'), 28, 77);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Plano:', 14, 84);
+    doc.setFont('helvetica', 'normal');
+    doc.text(plan.name || 'Plano Alimentar', 30, 84);
+
+    let currentY = 95;
+    if (plan.waterIntake) {
+      doc.setFont('helvetica', 'bold');
+      doc.text('Meta de Água:', 14, 91);
+      doc.setFont('helvetica', 'normal');
+      doc.text(plan.waterIntake, 43, 91);
+      currentY = 102;
+    }
+
+    // Group items by meal
+    const order = ['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner', 'supper'];
+    
+    order.forEach((mealId) => {
+      const mealItems = items.filter(i => i.meal === mealId);
+      if (mealItems.length === 0) return;
+
+      const mealLabel = mealTypesList.find(m => m.id === mealId)?.label || mealId;
+      const observation = plan.mealObservations?.[mealId];
+
+      // Meal Header
+      doc.setFillColor(248, 250, 252); // slate-50
+      doc.rect(14, currentY, pageWidth - 28, 10, 'F');
+      doc.setTextColor(5, 150, 105); // emerald-600
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(mealLabel.toUpperCase(), 18, currentY + 7);
+      
+      currentY += 12;
+
+      // Table for this meal
+      const tableData = mealItems.map(item => [
+        item.food,
+        `${item.quantity} ${item.unit}`,
+        `${item.kcal || 0} kcal`
+      ]);
+
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Alimento', 'Quantidade', 'Calorias']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [5, 150, 105], fontSize: 9, halign: 'center' },
+        bodyStyles: { fontSize: 9 },
+        columnStyles: {
+          0: { cellWidth: 'auto', halign: 'left' },
+          1: { cellWidth: 40, halign: 'center' },
+          2: { cellWidth: 30, halign: 'center' }
+        },
+        margin: { left: 14, right: 14 },
+        didParseCell: (data) => {
+          if (data.section === 'head' && data.column.index === 0) {
+            data.cell.styles.halign = 'left';
+          }
+        }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 5;
+
+      // Observation for this meal
+      if (observation) {
+        doc.setFillColor(255, 251, 235); // amber-50
+        doc.setDrawColor(251, 191, 36); // amber-400
+        
+        const splitObs = doc.splitTextToSize(observation, pageWidth - 36);
+        const obsHeight = (splitObs.length * 5) + 6;
+
+        // Check if we need a new page
+        if (currentY + obsHeight > doc.internal.pageSize.getHeight() - 20) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        doc.rect(14, currentY, pageWidth - 28, obsHeight, 'F');
+        doc.line(14, currentY, 14, currentY + obsHeight); // Left border accent
+        
+        doc.setTextColor(146, 64, 14); // amber-800
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.text(splitObs, 18, currentY + 5);
+        
+        currentY += obsHeight + 10;
+      } else {
+        currentY += 5;
+      }
+
+      // Check if next meal needs a new page
+      if (currentY > doc.internal.pageSize.getHeight() - 40) {
+        doc.addPage();
+        currentY = 20;
+      }
+    });
+
+    // General Instructions at the end
+    if (plan.generalInstructions) {
+      if (currentY > doc.internal.pageSize.getHeight() - 60) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('ORIENTAÇÕES GERAIS', 14, currentY + 10);
+      doc.line(14, currentY + 12, pageWidth - 14, currentY + 12);
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      const splitInstructions = doc.splitTextToSize(plan.generalInstructions, pageWidth - 28);
+      doc.text(splitInstructions, 14, currentY + 20);
+      currentY += 20 + (splitInstructions.length * 5) + 15;
+    }
+
+    // Household Measurements Table (EXACT COPY FROM NUTRITIONIST PROFILE)
+    if (currentY > doc.internal.pageSize.getHeight() - 80) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    doc.setTextColor(30, 41, 59);
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.text('EQUIVALÊNCIA DE MEDIDAS CASEIRAS', 14, currentY);
+    currentY += 5;
+
+    const householdMeasures = [
+      ['1 copo americano', '200 ml'],
+      ['1 xícara de chá', '200 ml'],
+      ['1 copo de requeijão', '250 ml'],
+      ['1 concha média', '100 g / 150 ml'],
+      ['1 colher de sopa', '15 g / 15 ml'],
+      ['1 colher de sobremesa', '10 g / 10 ml'],
+      ['1 colher de chá', '5 g / 5 ml'],
+      ['1 colher de café', '2.5 g / 2.5 ml'],
+      ['1 escumadeira média', '60 g']
+    ];
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Medida Caseira', 'Equivalência Aproximada']],
+      body: householdMeasures,
+      theme: 'grid',
+      headStyles: { fillColor: [71, 85, 105], fontSize: 8, halign: 'center' },
+      bodyStyles: { fontSize: 8, halign: 'center' },
+      columnStyles: {
+        0: { cellWidth: 'auto', halign: 'left' },
+        1: { cellWidth: 60, halign: 'center' }
+      },
+      margin: { left: 14, right: 14 }
+    });
+
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+
+    // Signature and Stamp Area (EXACT COPY FROM NUTRITIONIST PROFILE)
+    if (currentY > doc.internal.pageSize.getHeight() - 60) {
+      doc.addPage();
+      currentY = 30;
+    } else {
+      currentY += 30;
+    }
+
+    doc.setDrawColor(148, 163, 184); // slate-400
+    doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105); // slate-600
+    doc.text('Assinatura do Profissional', pageWidth / 2, currentY + 5, { align: 'center' });
+    
+    // Stamp Box
+    doc.setDrawColor(203, 213, 225); // slate-300
+    doc.rect(pageWidth - 54, currentY - 15, 40, 25);
+    doc.setFontSize(7);
+    doc.setTextColor(148, 163, 184); // slate-400
+    doc.text('ESPAÇO PARA CARIMBO', pageWidth - 34, currentY - 2, { align: 'center' });
+
+    // Footer with Disclaimer
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.setTextColor(148, 163, 184); // slate-400
+      
+      const mainFooter = `Gerado por NutriCare Pro em ${format(new Date(), 'dd/MM/yyyy HH:mm')} - Página ${i} de ${pageCount}`;
+      const patientDisclaimer = 'Este documento foi gerado pelo paciente através de link exclusivo de acesso.';
+      
+      doc.text(mainFooter, pageWidth / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' });
+      doc.setFont('helvetica', 'italic');
+      doc.text(patientDisclaimer, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
+    }
+
+    doc.save(`${patient?.name.replace(/\s+/g, '_')}_Plano_Alimentar.pdf`);
+  };
+
+  const downloadMealPlan = async (plan: MealPlan) => {
+    if (downloadingPlanId) return;
+    
+    setDownloadingPlanId(plan.id);
+    const toastId = toast.loading('Preparando seu plano alimentar para download...');
+    
+    try {
+      const q = query(
+        collection(db, 'meal_plan_items'),
+        where('access_token', '==', token)
+      );
+      const querySnapshot = await getDocs(q);
+      const items = querySnapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as MealPlanItem))
+        .filter((item) => item.meal_plan_id === plan.id);
+      
+      if (items.length === 0) {
+        toast.warning('Este plano alimentar parece estar vazio.', { id: toastId });
+      } else {
+        generateMealPlanPDF(plan, items);
+        toast.success('Plano baixado com sucesso!', { id: toastId });
+      }
+    } catch (error) {
+      console.error("Error fetching meal plan items:", error);
+      toast.error("Erro ao baixar o plano alimentar. Tente novamente.", { id: toastId });
+    } finally {
+      setDownloadingPlanId(null);
+    }
+  };
+
   const fetchPatientData = async () => {
     if (!id || !token) return;
+    setLoadingData(true);
+    const toastId = toast.loading('Buscando suas informações...');
 
     try {
       // Consultas
       const consultationsSnap = await getDocs(
         query(
           collection(db, 'consultations'), 
-          where('patient_id', '==', id), 
-          where('access_token', '==', token),
-          orderBy('date', 'desc')
+          where('access_token', '==', token)
         )
-      );
-      setConsultations(consultationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Consultation)));
+      ).catch(err => {
+        handleFirestoreError(err, OperationType.LIST, 'consultations');
+        throw err;
+      });
+      
+      const consultationsData = consultationsSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Consultation))
+        .filter(c => c.patient_id === id);
+      
+      setConsultations(consultationsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
 
       // Planos Alimentares
       const mealPlansSnap = await getDocs(
         query(
           collection(db, 'meal_plans'), 
-          where('patient_id', '==', id), 
-          where('access_token', '==', token),
-          orderBy('createdAt', 'desc')
+          where('access_token', '==', token)
         )
-      );
-      setMealPlans(mealPlansSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlan)));
+      ).catch(err => {
+        handleFirestoreError(err, OperationType.LIST, 'meal_plans');
+        throw err;
+      });
+
+      const mealPlansData = mealPlansSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as MealPlan))
+        .filter(p => p.patient_id === id);
+      
+      setMealPlans(mealPlansData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
 
       // Exames
       const examsSnap = await getDocs(
         query(
           collection(db, 'lab_exams'), 
-          where('patient_id', '==', id), 
-          where('access_token', '==', token),
-          orderBy('date', 'desc')
+          where('access_token', '==', token)
         )
-      );
-      setExams(examsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as LabExam)));
+      ).catch(err => {
+        handleFirestoreError(err, OperationType.LIST, 'lab_exams');
+        throw err;
+      });
 
+      const examsData = examsSnap.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as LabExam))
+        .filter(e => e.patient_id === id);
+      
+      setExams(examsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+
+      toast.success('Informações carregadas com sucesso!', { id: toastId });
     } catch (error) {
       console.error("Error fetching patient data:", error);
-      toast.error('Erro ao carregar seus dados.');
+      toast.error('Erro ao carregar algumas informações. Por favor, tente novamente.', { id: toastId });
+    } finally {
+      setLoadingData(false);
     }
   };
 
@@ -227,8 +631,15 @@ export const PatientAccess = () => {
       </div>
 
       <div className="max-w-4xl mx-auto px-4 mt-8 space-y-8">
-        {/* Perfil */}
-        <Card className="rounded-2xl border-none shadow-sm overflow-hidden bg-white">
+        {loadingData ? (
+          <div className="flex flex-col items-center justify-center py-24 space-y-4">
+            <Loader2 className="h-12 w-12 animate-spin text-emerald-600" />
+            <p className="text-slate-500 font-medium">Buscando suas informações...</p>
+          </div>
+        ) : (
+          <>
+            {/* Perfil */}
+            <Card className="rounded-2xl border-none shadow-sm overflow-hidden bg-white">
           <div className="h-24 bg-gradient-to-r from-emerald-500 to-teal-600" />
           <CardContent className="px-6 pb-6 -mt-12">
             <div className="flex flex-col md:flex-row md:items-end gap-4 mb-6">
@@ -281,18 +692,28 @@ export const PatientAccess = () => {
           {mealPlans.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
               {mealPlans.map((plan) => (
-                <Card key={plan.id} className="rounded-2xl border-none shadow-sm hover:shadow-md transition-shadow cursor-pointer group">
+                <Card 
+                  key={plan.id} 
+                  className="rounded-2xl border-none shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+                  onClick={() => downloadMealPlan(plan)}
+                >
                   <CardContent className="p-6 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
-                        <FileText className="w-6 h-6" />
+                        {downloadingPlanId === plan.id ? (
+                          <Loader2 className="w-6 h-6 animate-spin" />
+                        ) : (
+                          <FileText className="w-6 h-6" />
+                        )}
                       </div>
                       <div>
                         <h3 className="font-bold text-slate-900">{plan.name}</h3>
                         <p className="text-sm text-slate-500">Criado em {format(parseISO(plan.createdAt), 'dd/MM/yyyy')}</p>
                       </div>
                     </div>
-                    <Button variant="ghost" className="text-emerald-600 font-bold">Ver Plano</Button>
+                    <Button variant="ghost" className="text-emerald-600 font-bold gap-2">
+                      <Download className="w-4 h-4" /> Baixar Plano
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
@@ -306,49 +727,189 @@ export const PatientAccess = () => {
 
         {/* Evolução */}
         <section className="space-y-4">
-          <div className="flex items-center gap-2 px-2">
-            <TrendingUp className="w-5 h-5 text-emerald-600" />
-            <h2 className="text-xl font-bold text-slate-900">Minha Evolução</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-emerald-600" />
+              <h2 className="text-xl font-bold text-slate-900">Minha Evolução</h2>
+            </div>
+            
+            <Select value={evolutionMetric} onValueChange={(val: any) => setEvolutionMetric(val)}>
+              <SelectTrigger className="w-full sm:w-[220px] bg-white border-slate-200 rounded-xl h-10 shadow-sm font-medium focus:ring-emerald-500/20">
+                <SelectValue placeholder="Selecione a métrica">
+                  {evolutionMetric === 'weight' ? 'Peso (kg)' : 
+                   evolutionMetric === 'fatPercentage' ? 'Gordura Corporal (%)' : 
+                   evolutionMetric === 'imc' ? 'Índice de Massa Corporal (IMC)' : 
+                   evolutionMetric === 'measurements' ? 'Circunferências (cm)' : undefined}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="rounded-xl border-slate-200 shadow-xl">
+                <SelectItem value="weight">Peso (kg)</SelectItem>
+                <SelectItem value="fatPercentage">Gordura Corporal (%)</SelectItem>
+                <SelectItem value="imc">Índice de Massa Corporal (IMC)</SelectItem>
+                <SelectItem value="measurements">Circunferências (cm)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
-          <Card className="rounded-2xl border-none shadow-sm p-6">
-            {consultations.length > 1 ? (
+          <Card className="rounded-2xl border-none shadow-sm p-6 bg-white overflow-hidden">
+            {consultations.length > 0 ? (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-slate-500">Variação de Peso</p>
-                    <p className="text-2xl font-bold text-slate-900">
-                      {(consultations[0].weight - consultations[consultations.length - 1].weight).toFixed(1)} kg
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      {evolutionMetric === 'weight' ? 'Variação de Peso' : 
+                       evolutionMetric === 'fatPercentage' ? 'Variação de Gordura' : 
+                       evolutionMetric === 'imc' ? 'IMC Atual' : 'Consistência de Medidas'}
+                    </p>
+                    <p className="text-3xl font-bold text-slate-900">
+                      {evolutionMetric === 'weight' ? (
+                        `${(consultations[0].weight - (consultations[consultations.length - 1].weight || consultations[0].weight)).toFixed(1)} kg`
+                      ) : evolutionMetric === 'fatPercentage' ? (
+                        `${consultations[0].fatPercentage ? (consultations[0].fatPercentage - (consultations[consultations.length - 1].fatPercentage || consultations[0].fatPercentage)).toFixed(1) : '0.0'}%`
+                      ) : evolutionMetric === 'imc' ? (
+                        consultations[0].imc.toFixed(1)
+                      ) : (
+                        'Visualizando tendências'
+                      )}
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-slate-500">IMC Atual</p>
-                    <p className="text-2xl font-bold text-emerald-600">{consultations[0].imc.toFixed(1)}</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Última Consulta</p>
+                    <p className="text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 italic">
+                      {format(parseISO(consultations[0].date), 'dd/MM/yyyy')}
+                    </p>
                   </div>
                 </div>
-                <div className="h-48 flex items-end gap-2 px-2">
-                  {consultations.slice(0, 6).reverse().map((c, i) => (
-                    <div key={c.id} className="flex-1 flex flex-col items-center gap-2">
-                      <div 
-                        className="w-full bg-emerald-100 rounded-t-lg relative group"
-                        style={{ height: `${(c.weight / consultations[0].weight) * 100}%` }}
+                
+                <div className="h-80 pt-6 -ml-6">
+                  <ResponsiveContainer width="100%" height="100%">
+                    {evolutionMetric === 'measurements' ? (
+                      <LineChart 
+                        data={consultations.slice().reverse().map(c => ({
+                          date: format(parseISO(c.date), 'dd/MM'),
+                          fullDate: format(parseISO(c.date), "dd 'de' MMMM", { locale: ptBR }),
+                          waist: c.waist,
+                          hip: c.hip,
+                          abdomen: c.abdomen,
+                          arm: c.arm
+                        }))}
+                        margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
                       >
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                          {c.weight} kg
-                        </div>
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-medium">{format(parseISO(c.date), 'dd/MM')}</span>
-                    </div>
-                  ))}
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis 
+                          dataKey="date" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#94a3b8', fontSize: 12 }} 
+                          dy={10}
+                        />
+                        <YAxis hide domain={['dataMin - 5', 'dataMax + 5']} />
+                        <Tooltip 
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-white p-4 rounded-xl shadow-2xl border border-slate-100 min-w-[160px]">
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                    {payload[0].payload.fullDate}
+                                  </p>
+                                  <div className="space-y-1.5">
+                                    {payload.map((p, idx) => (
+                                      <div key={idx} className="flex items-center justify-between gap-4">
+                                        <span className="text-xs text-slate-500 font-medium">{p.name}:</span>
+                                        <span className="text-xs font-bold text-slate-900">{p.value} cm</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Legend verticalAlign="top" height={36} iconType="circle" />
+                        <Line name="Cintura" type="monotone" dataKey="waist" stroke="#10b981" strokeWidth={3} dot={{ r: 4, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                        <Line name="Quadril" type="monotone" dataKey="hip" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                        <Line name="Abdômen" type="monotone" dataKey="abdomen" stroke="#f59e0b" strokeWidth={3} dot={{ r: 4, fill: '#f59e0b', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                        <Line name="Braço" type="monotone" dataKey="arm" stroke="#8b5cf6" strokeWidth={3} dot={{ r: 4, fill: '#8b5cf6', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 6 }} />
+                      </LineChart>
+                    ) : (
+                      <AreaChart 
+                        data={consultations.slice().reverse().map(c => ({
+                          date: format(parseISO(c.date), 'dd/MM'),
+                          fullDate: format(parseISO(c.date), "dd 'de' MMMM", { locale: ptBR }),
+                          value: evolutionMetric === 'weight' ? Number(c.weight) : 
+                                 evolutionMetric === 'fatPercentage' ? Number(c.fatPercentage || 0) : 
+                                 Number(c.imc.toFixed(1)),
+                          metricName: evolutionMetric === 'weight' ? 'Peso' : 
+                                      evolutionMetric === 'fatPercentage' ? 'Gordura' : 'IMC',
+                          unit: evolutionMetric === 'weight' ? 'kg' : 
+                                evolutionMetric === 'fatPercentage' ? '%' : ''
+                        }))}
+                        margin={{ top: 10, right: 10, left: 10, bottom: 0 }}
+                      >
+                        <defs>
+                          <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.1}/>
+                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis 
+                          dataKey="date" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#94a3b8', fontSize: 12 }} 
+                          dy={10}
+                        />
+                        <YAxis hide domain={['dataMin - 2', 'dataMax + 2']} />
+                        <Tooltip 
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-white p-4 rounded-xl shadow-2xl border border-slate-100 min-w-[140px]">
+                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                    {data.fullDate}
+                                  </p>
+                                  <div className="flex items-center justify-between gap-4">
+                                    <span className="text-sm text-slate-500 font-medium whitespace-nowrap">{data.metricName}:</span>
+                                    <span className="text-base font-bold text-emerald-600">
+                                      {payload[0].value} {data.unit}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Area 
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke="#10b981" 
+                          strokeWidth={4}
+                          fillOpacity={1} 
+                          fill="url(#colorMetric)" 
+                          dot={{ r: 5, fill: '#fff', stroke: '#10b981', strokeWidth: 3 }}
+                          activeDot={{ r: 8, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }}
+                        />
+                      </AreaChart>
+                    )}
+                  </ResponsiveContainer>
                 </div>
               </div>
             ) : (
-              <div className="text-center py-8">
-                <p className="text-slate-500">Acompanhe sua evolução após a próxima consulta!</p>
+              <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
+                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                  <TrendingUp className="w-8 h-8 text-slate-300" />
+                </div>
+                <p className="text-slate-500 font-medium">Sua evolução aparecerá aqui após as próximas consultas!</p>
               </div>
             )}
           </Card>
         </section>
+      </>
+    )}
       </div>
     </div>
   );

@@ -287,7 +287,7 @@ service cloud.firestore {
 
     match /nutritionists/{nutritionistId} {
       allow list: if isAuthenticated() && isAdmin();
-      allow get: if isOwner(nutritionistId) || isAdmin();
+      allow get: if true; // Permite que pacientes vejam nome/crn no link de acesso
       allow create: if isOwner(nutritionistId) && isValidNutritionist(request.resource.data);
       allow update: if (isOwner(nutritionistId) && isValidNutritionist(request.resource.data) && areImmutableFieldsUnchanged(['role', 'createdAt'])) || 
                     isAdmin() ||
@@ -304,7 +304,9 @@ service cloud.firestore {
     match /patients/{patientId} {
       allow get: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
       allow list: if (isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin())) ||
-                   (request.query.filters.access_token != null && request.query.limit <= 1);
+                   (request.query.filters.access_token != null && 
+                    resource.data.access_token == request.query.filters.access_token &&
+                    request.query.limit <= 1);
       allow create: if isAuthenticated() && isValidPatient(request.resource.data);
       allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidPatient(request.resource.data) && areImmutableFieldsUnchanged(['nutritionist_id', 'createdAt']);
       allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());

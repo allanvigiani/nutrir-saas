@@ -231,7 +231,7 @@ export const Schedule = () => {
         const docRef = await addDoc(collection(db, 'appointments'), {
           patient_id: selectedPatientId,
           nutritionist_id: user.uid,
-          access_token: patient?.access_token,
+          access_token: patient?.access_token || null,
           date: appointmentDate.toISOString(),
           status: 'pending',
           createdAt: new Date().toISOString(),

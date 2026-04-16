@@ -45,7 +45,7 @@ import {
 import { Label } from '../components/ui/label';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, orderBy, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, addDoc, updateDoc, doc, orderBy, serverTimestamp, onSnapshot, writeBatch } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 
 import { Patient } from '../types';
@@ -332,17 +332,56 @@ export const Patients = () => {
 
   const generateAccessToken = async (patient: Patient) => {
     setIsGeneratingToken(patient.id);
+    const toastId = toast.loading('Gerando link de acesso e atualizando registros...');
+    
     try {
       const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      
+      // 1. Atualizar o paciente
       await updateDoc(doc(db, 'patients', patient.id), {
         access_token: token,
         updatedAt: new Date().toISOString()
       });
-      toast.success('Link de acesso gerado com sucesso!');
+
+      // 2. Propagar o token para registros existentes (Consultas, Planos, Exames, Agendamentos)
+      const collectionsToUpdate = ['consultations', 'meal_plans', 'lab_exams', 'appointments'];
+      let totalUpdated = 0;
+      
+      for (const colName of collectionsToUpdate) {
+        const q = query(collection(db, colName), where('patient_id', '==', patient.id));
+        const snapshot = await getDocs(q);
+        
+        if (!snapshot.empty) {
+          const batch = writeBatch(db);
+          snapshot.docs.forEach((docSnap) => {
+            batch.update(doc(db, colName, docSnap.id), { access_token: token });
+            totalUpdated++;
+          });
+          await batch.commit();
+
+          // Se for plano alimentar, atualizar também os itens
+          if (colName === 'meal_plans') {
+            for (const planDoc of snapshot.docs) {
+              const itemsQ = query(collection(db, 'meal_plan_items'), where('meal_plan_id', '==', planDoc.id));
+              const itemsSnap = await getDocs(itemsQ);
+              if (!itemsSnap.empty) {
+                const itemsBatch = writeBatch(db);
+                itemsSnap.docs.forEach((itemDoc) => {
+                  itemsBatch.update(doc(db, 'meal_plan_items', itemDoc.id), { access_token: token });
+                  totalUpdated++;
+                });
+                await itemsBatch.commit();
+              }
+            }
+          }
+        }
+      }
+
+      toast.success(`Link gerado e ${totalUpdated} registros atualizados!`, { id: toastId });
       fetchPatients();
     } catch (error) {
       console.error("Error generating access token:", error);
-      toast.error('Erro ao gerar link de acesso.');
+      toast.error('Erro ao gerar link de acesso ou atualizar registros.', { id: toastId });
     } finally {
       setIsGeneratingToken(null);
     }

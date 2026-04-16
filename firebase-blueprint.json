@@ -65,6 +65,7 @@
         "observations": { "type": "string" },
         "complaints": { "type": "string" },
         "objectives": { "type": "string" },
+        "access_token": { "type": "string" },
         "status": { "type": "string", "enum": ["realized", "cancelled", "missed"] },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
@@ -83,6 +84,7 @@
         "generalInstructions": { "type": "string" },
         "waterIntake": { "type": "string" },
         "mealObservations": { "type": "object" },
+        "access_token": { "type": "string" },
         "status": { "type": "string", "enum": ["active", "archived"] },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
@@ -110,7 +112,8 @@
         "base_fat": { "type": "number" },
         "base_quantity": { "type": "number" },
         "serving_name": { "type": "string" },
-        "serving_weight": { "type": "number" }
+        "serving_weight": { "type": "number" },
+        "access_token": { "type": "string" }
       },
       "required": ["meal_plan_id", "nutritionist_id", "meal", "food"]
     },
@@ -139,6 +142,7 @@
         "observations": { "type": "string" },
         "markers": { "type": "array", "items": { "$ref": "lab_exam_marker" } },
         "reportUrl": { "type": "string" },
+        "access_token": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -153,6 +157,7 @@
         "nutritionist_id": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
         "status": { "type": "string", "enum": ["confirmed", "pending", "cancelled", "realized"] },
+        "access_token": { "type": "string" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
