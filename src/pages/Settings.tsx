@@ -1162,7 +1162,7 @@ export const Settings = () => {
                   )}
 
                   {/* Ferramenta de Desenvolvedor - Visível apenas para o Admin principal */}
-                  {user?.email === 'vigianiallan@gmail.com' && (
+                  {nutritionist?.role === 'admin' && (
                     <div className="mt-8 pt-6 border-t border-slate-100">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Ferramentas de Desenvolvedor</p>
                       {!showResetConfirm ? (

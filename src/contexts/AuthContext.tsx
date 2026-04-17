@@ -55,18 +55,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (docSnap.exists()) {
             const data = docSnap.data() as Nutritionist;
             
-            // Self-healing: ensure the main admin always has the admin role
-            if (user.email === 'vigianiallan@gmail.com' && data.role !== 'admin') {
-              try {
-                await updateDoc(doc(db, 'nutritionists', user.uid), { 
-                  role: 'admin',
-                  updatedAt: new Date().toISOString()
-                });
-              } catch (error) {
-                console.error("Error auto-promoting admin:", error);
-              }
-            }
-
             setNutritionist({ id: docSnap.id, ...data } as Nutritionist);
 
             // Proactive subscription verification:

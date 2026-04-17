@@ -170,7 +170,7 @@ export const Register = () => {
           cnpj: data.cnpj || null,
           email: data.email,
           phone: data.phone,
-          role: data.email === 'vigianiallan@gmail.com' ? 'admin' : 'nutritionist',
+          role: 'nutritionist',
           plan: 'free',
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),

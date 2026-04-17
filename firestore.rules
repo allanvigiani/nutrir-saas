@@ -45,9 +45,8 @@ service cloud.firestore {
     
     function isAdmin() {
       return isAuthenticated() &&
-        ((exists(/databases/$(database)/documents/nutritionists/$(request.auth.uid)) && 
-          get(/databases/$(database)/documents/nutritionists/$(request.auth.uid)).data.role == 'admin') ||
-          (request.auth.token.email == "vigianiallan@gmail.com" && request.auth.token.email_verified == true));
+        (exists(/databases/$(database)/documents/nutritionists/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/nutritionists/$(request.auth.uid)).data.role == 'admin');
     }
 
     function isPatientWithToken(patientId, token) {
@@ -287,7 +286,7 @@ service cloud.firestore {
 
     match /nutritionists/{nutritionistId} {
       allow list: if isAuthenticated() && isAdmin();
-      allow get: if true; // Permite que pacientes vejam nome/crn no link de acesso
+      allow get: if isAuthenticated() && (isOwner(nutritionistId) || isAdmin());
       allow create: if isOwner(nutritionistId) && isValidNutritionist(request.resource.data);
       allow update: if (isOwner(nutritionistId) && isValidNutritionist(request.resource.data) && areImmutableFieldsUnchanged(['role', 'createdAt'])) || 
                     isAdmin() ||

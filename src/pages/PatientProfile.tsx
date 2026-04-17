@@ -77,6 +77,7 @@ import { ptBR } from 'date-fns/locale';
 import { PremiumFeature } from '../components/PremiumFeature';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { maskCPF, maskPhone } from '../lib/masks';
+import { generateSecureToken } from '../lib/utils';
 import { FoodAutocomplete } from '../components/FoodAutocomplete';
 import { TacoFood } from '../data/taco';
 import { CustomFoodDialog } from '../components/CustomFoodDialog';
@@ -110,6 +111,24 @@ interface FirestoreErrorInfo {
     }[];
   }
 }
+
+type DraftMealItem = {
+  meal: string;
+  food: string;
+  quantity: string;
+  unit: string;
+  kcal: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+  base_kcal?: number | null;
+  base_protein?: number | null;
+  base_carbs?: number | null;
+  base_fat?: number | null;
+  base_quantity?: number | null;
+  serving_name?: string | null;
+  serving_weight?: number | null;
+};
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo: FirestoreErrorInfo = {
@@ -245,16 +264,7 @@ export const PatientProfile = () => {
   const [isGeneratingToken, setIsGeneratingToken] = useState(false);
   const [selectedMealPlan, setSelectedMealPlan] = useState<MealPlan | null>(null);
   const [selectedMealPlanItems, setSelectedMealPlanItems] = useState<MealPlanItem[]>([]);
-  const [mealItems, setMealItems] = useState<{ 
-    meal: string, 
-    food: string, 
-    quantity: string, 
-    unit: string,
-    kcal: number,
-    protein: number,
-    carbs: number,
-    fat: number
-  }[]>([]);
+  const [mealItems, setMealItems] = useState<DraftMealItem[]>([]);
   const [generalInstructions, setGeneralInstructions] = useState('');
   const [waterIntake, setWaterIntake] = useState('');
   const [mealObservations, setMealObservations] = useState<Record<string, string>>({});
@@ -1087,7 +1097,7 @@ export const PatientProfile = () => {
     setExamMarkers(examMarkers.map(m => m.id === markerId ? { ...m, [field]: value } : m));
   };
 
-  const onLabExamSubmit = async (e: React.FormEvent) => {
+  const onLabExamSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user || !id) return;
 
@@ -1170,7 +1180,7 @@ export const PatientProfile = () => {
     }
   }, [isEditPatientModalOpen, patient]);
 
-  const onEditPatientSubmit = async (e: React.FormEvent) => {
+  const onEditPatientSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!user || !id || !patient) return;
     const formData = new FormData(e.currentTarget);
@@ -1194,13 +1204,13 @@ export const PatientProfile = () => {
       return;
     }
 
-    const data = {
+    const data: Pick<Patient, 'name' | 'email' | 'phone' | 'cpf' | 'birthDate' | 'gender' | 'address' | 'diseases' | 'medications' | 'allergies' | 'updatedAt'> = {
       name: formData.get('name') as string,
       email,
       phone,
       cpf,
       birthDate,
-      gender: formData.get('gender') as string,
+      gender: formData.get('gender') as Patient['gender'],
       address: formData.get('address') as string,
       diseases: formData.get('diseases') as string,
       medications: formData.get('medications') as string,
@@ -1347,7 +1357,7 @@ export const PatientProfile = () => {
     const toastId = toast.loading('Gerando link de acesso e atualizando registros...');
     
     try {
-      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const token = generateSecureToken();
       
       // 1. Atualizar o paciente
       await updateDoc(doc(db, 'patients', id), {

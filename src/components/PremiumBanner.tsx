@@ -44,7 +44,9 @@ export const PremiumBanner = ({
               <Zap className="w-4 h-4" /> Conhecer Premium <ArrowRight className="w-4 h-4" />
             </Button>
             <button 
-              onClick={verifySubscription}
+              onClick={() => {
+                void verifySubscription();
+              }}
               disabled={isVerifying}
               className="text-[10px] text-emerald-200 hover:text-white underline transition-colors disabled:opacity-50"
             >

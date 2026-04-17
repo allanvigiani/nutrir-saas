@@ -177,7 +177,7 @@ export const Login = () => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password" className="text-slate-700 font-medium">Senha</Label>
-                  <Link to="/forgot-password" size="sm" className="text-sm text-emerald-600 font-medium hover:text-emerald-700 transition-colors">
+                  <Link to="/forgot-password" className="text-sm text-emerald-600 font-medium hover:text-emerald-700 transition-colors">
                     Esqueceu a senha?
                   </Link>
                 </div>

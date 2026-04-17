@@ -56,6 +56,7 @@ import { toast } from 'sonner';
 import { PremiumFeature } from '../components/PremiumFeature';
 import { PremiumBanner } from '../components/PremiumBanner';
 import { maskCPF, maskPhone } from '../lib/masks';
+import { generateSecureToken } from '../lib/utils';
 
 enum OperationType {
   CREATE = 'create',
@@ -335,7 +336,7 @@ export const Patients = () => {
     const toastId = toast.loading('Gerando link de acesso e atualizando registros...');
     
     try {
-      const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+      const token = generateSecureToken();
       
       // 1. Atualizar o paciente
       await updateDoc(doc(db, 'patients', patient.id), {

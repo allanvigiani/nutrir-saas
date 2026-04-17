@@ -81,7 +81,9 @@ export const UpgradeModal = ({ isOpen, onClose }: UpgradeModalProps) => {
 
           <Button 
             variant="outline"
-            onClick={verifySubscription}
+            onClick={() => {
+              void verifySubscription();
+            }}
             disabled={isVerifying}
             className="w-full border-slate-200 text-slate-600 font-medium py-6 rounded-xl transition-all active:scale-[0.98]"
           >
