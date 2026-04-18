@@ -157,8 +157,9 @@ service cloud.firestore {
              isValidOptionalString(data, 'phone', 20) &&
              isValidOptionalList(data, 'specialties', 20) &&
              isValidOptionalString(data, 'photoUrl', 500) &&
-             (!('role' in data) || isValidEnum(data.role, ['nutritionist', 'admin'])) &&
-             (!('plan' in data) || isValidEnum(data.plan, ['free', 'premium'])) &&
+             // Prevent privilege escalation by regular users on profile creation/update.
+             (!('role' in data) || (isAdmin() ? isValidEnum(data.role, ['nutritionist', 'admin']) : data.role == 'nutritionist')) &&
+             (!('plan' in data) || (isAdmin() ? isValidEnum(data.plan, ['free', 'premium']) : data.plan == 'free')) &&
              (!('createdAt' in data) || isValidDateTime(data.createdAt)) &&
              (!('updatedAt' in data) || isValidDateTime(data.updatedAt)) &&
              isValidOptionalString(data, 'lastLogin', 50) &&
@@ -289,10 +290,7 @@ service cloud.firestore {
       allow get: if isAuthenticated() && (isOwner(nutritionistId) || isAdmin());
       allow create: if isOwner(nutritionistId) && isValidNutritionist(request.resource.data);
       allow update: if (isOwner(nutritionistId) && isValidNutritionist(request.resource.data) && areImmutableFieldsUnchanged(['role', 'createdAt'])) || 
-                    isAdmin() ||
-                    (request.auth == null && 
-                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['plan', 'subscriptionStatus', 'currentPeriodEnd', 'lastSubscriptionCheck', 'hadRefundBefore', 'cancelAtPeriodEnd', 'updatedAt', 'subscriptionId', 'googleCalendarTokens', 'googleCalendarConnected']) &&
-                     isValidNutritionist(request.resource.data));
+                    isAdmin();
     }
 
     match /password_resets/{email} {
