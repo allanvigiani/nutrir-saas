@@ -44,8 +44,8 @@ ASAAS_API_URL=https://sandbox.asaas.com/api/v3
 ASAAS_WEBHOOK_TOKEN=defina-um-token-forte
 SUPER_ADMIN_EMAILS=admin@seudominio.com
 
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
+GOOGLE_CALENDAR_CLIENT_ID=
+GOOGLE_CALENDAR_CLIENT_SECRET=
 
 SMTP_HOST=smtp-relay.brevo.com
 SMTP_PORT=587
@@ -55,6 +55,11 @@ SMTP_FROM="Nutrir <seu-email@dominio.com>"
 
 APP_URL=http://localhost:3000
 ```
+
+> Importante: o login com Google via Firebase Auth (popup) nao usa as variaveis acima.
+> Esse fluxo deve ser configurado no Firebase Console (Authentication > Sign-in method > Google)
+> e no Google Cloud Console com o redirect URI:
+> `https://SEU_AUTH_DOMAIN.firebaseapp.com/__/auth/handler`.
 
 3. Garanta que o arquivo `firebase-applet-config.json` esteja valido para seu projeto Firebase.
 

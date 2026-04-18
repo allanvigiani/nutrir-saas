@@ -15,15 +15,20 @@ export function createGoogleCalendarService({
   queryWithFallback,
 }: GoogleCalendarServiceInput) {
   function getAuthUrl(origin: string) {
+    const scopes = (process.env.GOOGLE_OAUTH_SCOPES || "")
+      .split(",")
+      .map((scope) => scope.trim())
+      .filter(Boolean);
+    if (!scopes.length) {
+      throw new Error("GOOGLE_OAUTH_SCOPES não configurada.");
+    }
+
     const redirectUri = `${origin}/api/auth/google/callback`;
     const client = new google.auth.OAuth2(googleClientId, googleClientSecret, redirectUri);
 
     const url = client.generateAuthUrl({
       access_type: "offline",
-      scope: [
-        "https://www.googleapis.com/auth/calendar.events",
-        "https://www.googleapis.com/auth/userinfo.email",
-      ],
+      scope: scopes,
       prompt: "consent",
       state: redirectUri,
     });

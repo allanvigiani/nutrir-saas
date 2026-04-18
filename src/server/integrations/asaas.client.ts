@@ -10,7 +10,10 @@ type CreateAsaasClientInput = {
 export function createAsaasClient({ asaasApiUrl, asaasApiKey }: CreateAsaasClientInput): AsaasClient {
   async function request(endpoint: string, options: any = {}) {
     try {
-      const baseUrl = (asaasApiUrl || "https://sandbox.asaas.com/api/v3").replace(/\/$/, "");
+      const baseUrl = (asaasApiUrl || "").replace(/\/$/, "");
+      if (!baseUrl) {
+        throw new Error("ASAAS_API_URL não configurada.");
+      }
       const apiPath = endpoint.replace(/^\//, "");
       const url = `${baseUrl}/${apiPath}`;
 

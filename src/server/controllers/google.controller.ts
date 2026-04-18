@@ -16,6 +16,8 @@ function detectOrigin(req: any) {
 }
 
 export function createGoogleController({ isSuperAdmin, googleService }: GoogleControllerDeps) {
+  const googleCalendarEnableApiUrl = process.env.GOOGLE_CALENDAR_ENABLE_API_URL || "";
+
   async function getAuthUrl(req: any, res: any) {
     const origin = detectOrigin(req);
     const { url } = googleService.getAuthUrl(origin);
@@ -67,9 +69,10 @@ export function createGoogleController({ isSuperAdmin, googleService }: GoogleCo
       if (error.message?.includes("Google Calendar API has not been used") || error.message?.includes("is disabled")) {
         return res.status(403).json({
           error: "A API do Google Agenda não está ativada no seu projeto do Google Cloud.",
-          details:
-            "Para corrigir, acesse o link abaixo e clique em 'ATIVAR': https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project=158020645241",
-          link: "https://console.developers.google.com/apis/api/calendar-json.googleapis.com/overview?project=158020645241",
+          details: googleCalendarEnableApiUrl
+            ? `Para corrigir, acesse o link abaixo e clique em 'ATIVAR': ${googleCalendarEnableApiUrl}`
+            : "A URL de ativação da API não está configurada no ambiente.",
+          link: googleCalendarEnableApiUrl || undefined,
         });
       }
       console.error("[Google Calendar] Error creating event:", error);

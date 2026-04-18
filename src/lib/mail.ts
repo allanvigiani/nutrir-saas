@@ -4,7 +4,7 @@ import nodemailer from 'nodemailer';
  * Configuração do transportador de e-mail usando Brevo (SMTP)
  */
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+  host: process.env.SMTP_HOST || '',
   port: parseInt(process.env.SMTP_PORT || '587'),
   secure: false, // true para 465, false para outras portas
   auth: {
@@ -27,7 +27,7 @@ interface SendEmailOptions {
 export async function sendEmail({ to, subject, text, html, attachments }: SendEmailOptions) {
   try {
     const info = await transporter.sendMail({
-      from: process.env.SMTP_FROM || '"Nutrir" <vigianiallan@gmail.com>',
+      from: process.env.SMTP_FROM || '',
       to,
       subject,
       text,
@@ -92,6 +92,7 @@ export function getPatientWelcomeTemplate(patientName: string, nutritionistName:
  * Template de e-mail de boas-vindas ao Plano Premium para o nutricionista
  */
 export function getPremiumWelcomeTemplate(nutritionistName: string) {
+  const appUrl = process.env.APP_URL || '';
   return `
     <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; border-radius: 16px; overflow: hidden; border: 1px solid #e5e7eb;">
       <div style="background-color: #065f46; padding: 40px 20px; text-align: center;">
@@ -129,7 +130,7 @@ export function getPremiumWelcomeTemplate(nutritionistName: string) {
         </div>
         
         <div style="text-align: center;">
-          <a href="${process.env.APP_URL || 'https://nutrir.app'}" style="background-color: #059669; color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">Acessar meu Painel</a>
+          <a href="${appUrl}" style="background-color: #059669; color: white; padding: 16px 32px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 16px; display: inline-block;">Acessar meu Painel</a>
         </div>
       </div>
       

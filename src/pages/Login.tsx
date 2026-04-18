@@ -73,6 +73,8 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 export const Login = () => {
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = React.useState(false);
+  const loginHeroImageUrl = import.meta.env.VITE_LOGIN_HERO_IMAGE_URL || '';
+  const loginAvatarBaseUrl = import.meta.env.VITE_LOGIN_AVATAR_BASE_URL || '';
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
   });
@@ -136,11 +138,35 @@ export const Login = () => {
       toast.success('Login com Google realizado com sucesso!');
       navigate('/');
     } catch (error: any) {
-      console.error("Google login error:", error);
+      console.error("Google login error:", {
+        code: error?.code,
+        message: error?.message,
+        customData: error?.customData,
+      });
       if (error.code === 'auth/popup-closed-by-user') {
         return;
       }
-      toast.error('Erro ao entrar com Google. Tente novamente.');
+      if (error.code === 'auth/unauthorized-domain') {
+        toast.error('Domínio não autorizado no Firebase. Adicione este domínio em Authentication > Settings > Authorized domains.');
+        return;
+      }
+      if (error.code === 'auth/operation-not-allowed') {
+        toast.error('Login com Google não está habilitado no Firebase Authentication.');
+        return;
+      }
+      if (error.code === 'auth/configuration-not-found') {
+        toast.error('Configuração OAuth ausente para Google. Verifique o provedor Google no Firebase.');
+        return;
+      }
+      if (error.code === 'auth/popup-blocked') {
+        toast.error('O navegador bloqueou o popup de autenticação. Permita popups para este site.');
+        return;
+      }
+      if (error.code === 'auth/cancelled-popup-request') {
+        toast.error('Tentativa de login cancelada. Feche popups anteriores e tente novamente.');
+        return;
+      }
+      toast.error(`Erro ao entrar com Google (${error.code || 'desconhecido'}).`);
     }
   };
 
@@ -268,12 +294,14 @@ export const Login = () => {
 
       {/* Right Side - Image */}
       <div className="hidden md:block flex-1 relative overflow-hidden bg-emerald-900">
-        <img 
-          src="https://images.unsplash.com/photo-1512621776951-a57141f2eefd?q=80&w=2070&auto=format&fit=crop" 
-          alt="Nutrition and Healthy Food" 
-          className="absolute inset-0 w-full h-full object-cover opacity-60"
-          referrerPolicy="no-referrer"
-        />
+        {loginHeroImageUrl ? (
+          <img
+            src={loginHeroImageUrl}
+            alt="Nutrition and Healthy Food"
+            className="absolute inset-0 w-full h-full object-cover opacity-60"
+            referrerPolicy="no-referrer"
+          />
+        ) : null}
         <div className="absolute inset-0 bg-gradient-to-t from-emerald-950 via-emerald-900/20 to-transparent z-10" />
         
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-16 z-20">
@@ -291,7 +319,7 @@ export const Login = () => {
               <div className="flex -space-x-3">
                 {[1, 2, 3, 4].map((i) => (
                   <div key={i} className="w-10 h-10 rounded-full border-2 border-emerald-900 bg-emerald-100 overflow-hidden">
-                    <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="User" />
+                    {loginAvatarBaseUrl ? <img src={`${loginAvatarBaseUrl}?img=${i + 10}`} alt="User" /> : null}
                   </div>
                 ))}
               </div>

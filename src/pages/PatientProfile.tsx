@@ -1410,13 +1410,18 @@ export const PatientProfile = () => {
 
   const shareAccessLink = () => {
     if (!patient?.access_token) return;
+    const whatsappBaseUrl = import.meta.env.VITE_WHATSAPP_BASE_URL || '';
+    if (!whatsappBaseUrl) {
+      toast.error('VITE_WHATSAPP_BASE_URL não configurada.');
+      return;
+    }
     
     const baseUrl = window.location.origin;
     const accessUrl = `${baseUrl}/patient-access/${id}?token=${patient.access_token}`;
     
     const message = `Olá ${patient.name}! Aqui está seu link exclusivo para acessar seu plano alimentar e evolução no Nutrir: ${accessUrl}\n\nPara sua segurança, ao acessar, digite os 3 últimos dígitos do seu CPF.`;
     
-    const whatsappUrl = `https://wa.me/55${patient.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
+    const whatsappUrl = `${whatsappBaseUrl}/55${patient.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
 

@@ -16,8 +16,8 @@ const PORT = 3000;
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY || "";
 const ASAAS_API_URL = process.env.ASAAS_API_URL || "https://sandbox.asaas.com/api/v3";
 const ASAAS_WEBHOOK_TOKEN = process.env.ASAAS_WEBHOOK_TOKEN;
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
+const GOOGLE_CALENDAR_CLIENT_ID = process.env.GOOGLE_CALENDAR_CLIENT_ID || "";
+const GOOGLE_CALENDAR_CLIENT_SECRET = process.env.GOOGLE_CALENDAR_CLIENT_SECRET || "";
 
 const SUPER_ADMIN_EMAILS = (process.env.SUPER_ADMIN_EMAILS || "")
   .split(",")
@@ -56,8 +56,8 @@ async function startServer() {
     authenticate,
     isSuperAdmin,
     google,
-    googleClientId: GOOGLE_CLIENT_ID,
-    googleClientSecret: GOOGLE_CLIENT_SECRET,
+    googleClientId: GOOGLE_CALENDAR_CLIENT_ID,
+    googleClientSecret: GOOGLE_CALENDAR_CLIENT_SECRET,
     asaasApiUrl: ASAAS_API_URL,
     asaasApiKey: ASAAS_API_KEY,
     asaasWebhookToken: ASAAS_WEBHOOK_TOKEN,
@@ -86,7 +86,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Servidor rodando em http://localhost:${PORT}`);
+    console.log(`Servidor rodando na porta ${PORT}`);
   });
 }
 
