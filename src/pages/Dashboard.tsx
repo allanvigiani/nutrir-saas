@@ -160,9 +160,6 @@ export const Dashboard = () => {
           <p className="text-slate-500">Veja o que temos para hoje.</p>
         </div>
         <div className="flex gap-3">
-          <Button nativeButton={false} variant="outline" className="gap-2 h-8 text-sm font-bold" render={<Link to="/patients" />}>
-            <Search className="w-4 h-4" /> Buscar Paciente
-          </Button>
           <PremiumFeature active={stats.activePatients >= 3}>
             <Button 
               nativeButton={false} 

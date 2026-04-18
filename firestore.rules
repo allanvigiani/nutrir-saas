@@ -293,11 +293,6 @@ service cloud.firestore {
                     isAdmin();
     }
 
-    match /password_resets/{email} {
-      allow read: if false; // Somente backend via Admin SDK deve ler
-      allow write: if false; // Somente backend via Admin SDK deve escrever
-    }
-
     match /patients/{patientId} {
       allow get: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
       allow list: if (isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin())) ||

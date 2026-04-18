@@ -186,45 +186,4 @@ export function getMealPlanEmailTemplate(patientName: string, nutritionistName: 
   `;
 }
 
-/**
- * Template de e-mail para recuperação de senha
- */
-export function getPasswordResetTemplate(userName: string, code: string) {
-  return `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f9fafb; border-radius: 16px; overflow: hidden; border: 1px solid #e5e7eb;">
-      <div style="background-color: #1e293b; padding: 40px 20px; text-align: center;">
-        <div style="background-color: #ffffff; width: 60px; height: 60px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 16px;">
-          <span style="font-size: 30px;">🔐</span>
-        </div>
-        <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: -0.025em;">Recuperação de Senha</h1>
-      </div>
-      
-      <div style="padding: 40px 30px; background-color: white;">
-        <p style="font-size: 18px; color: #111827; margin-bottom: 24px;">Olá, <strong>${userName}</strong>!</p>
-        
-        <p style="font-size: 16px; color: #4b5563; line-height: 1.6; margin-bottom: 32px;">
-          Recebemos uma solicitação para redefinir a senha da sua conta no <strong>Nutrir</strong>. 
-          Use o código abaixo para prosseguir com a alteração:
-        </p>
-        
-        <div style="background-color: #f8fafc; border-radius: 12px; padding: 32px; text-align: center; border: 2px dashed #e2e8f0; margin-bottom: 32px;">
-          <span style="font-size: 36px; font-weight: bold; color: #0f172a; letter-spacing: 8px; font-family: monospace;">${code}</span>
-        </div>
-        
-        <div style="background-color: #fffbeb; border-radius: 12px; padding: 20px; margin-bottom: 32px; border: 1px solid #fef3c7;">
-          <p style="font-size: 14px; color: #92400e; margin: 0;">
-            ⚠️ Este código expira em <strong>15 minutos</strong>. Se você não solicitou esta alteração, ignore este e-mail.
-          </p>
-        </div>
-      </div>
-      
-      <div style="padding: 24px; text-align: center; background-color: #f9fafb; border-top: 1px solid #e5e7eb;">
-        <p style="font-size: 12px; color: #9ca3af; margin: 0;">
-          &copy; ${new Date().getFullYear()} Nutrir - Gestão Nutricional Inteligente.
-        </p>
-      </div>
-    </div>
-  `;
-}
-
 export default transporter;
