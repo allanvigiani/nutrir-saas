@@ -36,7 +36,8 @@ import {
   CheckCircle2,
   Key,
   Share2,
-  ExternalLink
+  ExternalLink,
+  Calculator
 } from 'lucide-react';
 import { 
   Tabs, 
@@ -81,6 +82,7 @@ import { generateSecureToken } from '../lib/utils';
 import { FoodAutocomplete } from '../components/FoodAutocomplete';
 import { TacoFood } from '../data/taco';
 import { CustomFoodDialog } from '../components/CustomFoodDialog';
+import { NutritionalCalculator } from '../components/NutritionalCalculator';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -1644,6 +1646,9 @@ export const PatientProfile = () => {
           <TabsTrigger value="personal" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap">
             <User className="w-4 h-4" /> Dados Pessoais
           </TabsTrigger>
+          <TabsTrigger value="calculator" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap">
+            <Calculator className="w-4 h-4" /> Cálculo Nutricional
+          </TabsTrigger>
           <TabsTrigger value="consultations" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap">
             <Calendar className="w-4 h-4" /> Consultas
           </TabsTrigger>
@@ -1735,6 +1740,20 @@ export const PatientProfile = () => {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="calculator" className="mt-6">
+          <NutritionalCalculator 
+            patient={patient} 
+            latestConsultation={consultations[0]}
+            onApplyToMealPlan={(result) => {
+              setMealPlanName(`Plano Alimentar - ${result.getAjustado} kcal`);
+              // Default distribution based on the calculation could be set to new plan state here if needed
+              // For now, let's open the meal plan modal
+              setIsMealPlanModalOpen(true);
+              toast.success('Parâmetros prontos! Crie o plano alimentar com base neles.');
+            }}
+          />
         </TabsContent>
 
         <TabsContent value="consultations" className="mt-6">
