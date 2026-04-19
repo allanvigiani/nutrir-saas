@@ -25,12 +25,17 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
   placeholder = "Buscar alimento...",
   className
 }) => {
+  const formatKcal = (value: number) => Math.round(value);
+  const formatMacro = (value: number) => Math.round(value);
+  const formatBaseQuantity = (value: number) => Math.round(value);
+
   const [isOpen, setIsOpen] = useState(false);
   const [filteredFoods, setFilteredFoods] = useState<(TacoFood | CustomFood)[]>([]);
   const [customFoods, setCustomFoods] = useState<CustomFood[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
+  const selectingFromListRef = useRef(false);
 
   useEffect(() => {
     if (!auth.currentUser) return;
@@ -60,10 +65,16 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
 
       const combined = [...customFiltered, ...tacoFiltered].slice(0, 15);
       setFilteredFoods(combined);
-      setIsOpen(true);
+      if (selectingFromListRef.current) {
+        selectingFromListRef.current = false;
+        setIsOpen(false);
+      } else {
+        setIsOpen(true);
+      }
     } else {
       setFilteredFoods([]);
       setIsOpen(false);
+      selectingFromListRef.current = false;
     }
   }, [value, customFoods]);
 
@@ -119,6 +130,7 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
                 key={food.id}
                 className="w-full text-left px-4 py-3 hover:bg-slate-50 flex flex-col gap-1 transition-colors border-b border-slate-50 last:border-0"
                 onClick={() => {
+                  selectingFromListRef.current = true;
                   onSelect(food);
                   setIsOpen(false);
                 }}
@@ -133,13 +145,13 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
                   {value === food.name && <Check className="w-4 h-4 text-emerald-600" />}
                 </div>
                 <div className="flex gap-3 text-[10px] text-slate-500 uppercase font-bold tracking-wider">
-                  <span>{food.kcal} kcal</span>
-                  <span>P: {food.protein}g</span>
-                  <span>C: {food.carbs}g</span>
-                  <span>G: {food.fat}g</span>
-                  <span>Base: {food.baseQuantity}{food.baseUnit}</span>
+                  <span>{formatKcal(food.kcal)} kcal</span>
+                  <span>P: {formatMacro(food.protein)}g</span>
+                  <span>C: {formatMacro(food.carbs)}g</span>
+                  <span>G: {formatMacro(food.fat)}g</span>
+                  <span>Base: {formatBaseQuantity(food.baseQuantity)}{food.baseUnit}</span>
                   {food.serving && (
-                    <span className="text-emerald-600 font-bold">1 {food.serving.name} = {food.serving.weight}g</span>
+                    <span className="text-emerald-600 font-bold">1 {food.serving.name} = {Math.round(food.serving.weight)}g</span>
                   )}
                 </div>
               </button>

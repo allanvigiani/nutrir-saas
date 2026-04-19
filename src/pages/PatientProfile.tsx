@@ -639,16 +639,16 @@ export const PatientProfile = () => {
         // Calculate macros for 1 serving
         const ratio = food.serving.weight / (food.baseQuantity || 100);
         item.kcal = Math.round(food.kcal * ratio);
-        item.protein = Number((food.protein * ratio).toFixed(1));
-        item.carbs = Number((food.carbs * ratio).toFixed(1));
-        item.fat = Number((food.fat * ratio).toFixed(1));
+        item.protein = Math.round(food.protein * ratio);
+        item.carbs = Math.round(food.carbs * ratio);
+        item.fat = Math.round(food.fat * ratio);
       } else {
         item.unit = food.baseUnit;
         item.quantity = food.baseQuantity.toString();
-        item.kcal = food.kcal;
-        item.protein = food.protein;
-        item.carbs = food.carbs;
-        item.fat = food.fat;
+        item.kcal = Math.round(food.kcal);
+        item.protein = Math.round(food.protein);
+        item.carbs = Math.round(food.carbs);
+        item.fat = Math.round(food.fat);
       }
       
       item.base_kcal = food.kcal;
@@ -686,9 +686,9 @@ export const PatientProfile = () => {
         
         const ratio = effectiveWeight / item.base_quantity;
         item.kcal = Math.round((item.base_kcal || 0) * ratio);
-        item.protein = Number(((item.base_protein || 0) * ratio).toFixed(1));
-        item.carbs = Number(((item.base_carbs || 0) * ratio).toFixed(1));
-        item.fat = Number(((item.base_fat || 0) * ratio).toFixed(1));
+        item.protein = Math.round((item.base_protein || 0) * ratio);
+        item.carbs = Math.round((item.base_carbs || 0) * ratio);
+        item.fat = Math.round((item.base_fat || 0) * ratio);
       }
     } else {
       (item as any)[field] = value;
