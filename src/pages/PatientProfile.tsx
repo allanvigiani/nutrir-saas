@@ -240,8 +240,7 @@ export const PatientProfile = () => {
   const [isEditPatientModalOpen, setIsEditPatientModalOpen] = useState(false);
   const [editCpf, setEditCpf] = useState('');
   const [editPhone, setEditPhone] = useState('');
-  const [selectedExamFile, setSelectedExamFile] = useState<string | null>(null);
-  const [isUploadingFile, setIsUploadingFile] = useState(false);
+
   const [searchParams, setSearchParams] = useSearchParams();
 
   useEffect(() => {
@@ -1008,46 +1007,7 @@ export const PatientProfile = () => {
     setExpandedExams(prev => ({ ...prev, [examId]: !prev[examId] }));
   };
 
-  const handleImportPDFExam = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
 
-    setIsUploadingFile(true);
-    const toastId = toast.loading("Fazendo upload do arquivo...");
-
-    try {
-      const storagePath = `nutritionists/${user.uid}/exams/${id}/${Date.now()}_${file.name}`;
-      console.log("Tentando upload para:", storagePath);
-      console.log("Seu UID atual:", user.uid);
-      
-      const storageRef = ref(storage, storagePath);
-      
-      // Upload simples para evitar problemas com sessões resumíveis
-      const snapshot = await uploadBytes(storageRef, file);
-      console.log("Upload concluído com sucesso!");
-      
-      const downloadURL = await getDownloadURL(snapshot.ref);
-      console.log("URL gerada:", downloadURL);
-      
-      setSelectedExamFile(downloadURL);
-      toast.success("Arquivo anexado com sucesso!", { id: toastId });
-      setIsUploadingFile(false);
-    } catch (error: any) {
-      console.error("Erro detalhado no upload:", error);
-      let msg = "Erro desconhecido";
-      
-      if (error.code === 'storage/unauthorized') {
-        msg = "Sem permissão. Verifique se o Storage está ativado no Console do Firebase.";
-      } else if (error.code === 'storage/canceled') {
-        msg = "Upload cancelado.";
-      }
-      
-      toast.error(`Falha no upload: ${msg}`, { id: toastId });
-      setIsUploadingFile(false);
-    } finally {
-      e.target.value = '';
-    }
-  };
   const addExamMarker = () => {
     const newMarker: LabExamMarker = {
       id: Math.random().toString(36).substr(2, 9),
@@ -1086,7 +1046,7 @@ export const PatientProfile = () => {
         title: formData.get('title') as string,
         observations: formData.get('observations') as string,
         markers: examMarkers,
-        reportUrl: selectedExamFile,
+
         patient_id: id,
         nutritionist_id: user.uid,
         access_token: patient.access_token || null,
@@ -1105,7 +1065,7 @@ export const PatientProfile = () => {
       setIsLabExamModalOpen(false);
       setExamMarkers([]);
       setSelectedExam(null);
-      setSelectedExamFile(null);
+
       
       // Refresh exams
       const examsQuery = query(
@@ -2849,7 +2809,7 @@ export const PatientProfile = () => {
                 if (!open) {
                   setExamMarkers([]);
                   setSelectedExam(null);
-                  setSelectedExamFile(null);
+
                 }
               }}>
                 <PremiumFeature active={isLabExamLimitReached}>
@@ -2867,63 +2827,7 @@ export const PatientProfile = () => {
                   </DialogHeader>
                   <form key={selectedExam?.id || 'new'} onSubmit={onLabExamSubmit} className="flex-1 flex flex-col overflow-hidden">
                     <div className="flex-1 overflow-y-auto p-6 space-y-6">
-                      <div className="p-4 rounded-xl bg-blue-50 border border-blue-100 flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center">
-                            <FileText className="w-5 h-5" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-blue-900">Anexar PDF do Exame</p>
-                            <p className="text-xs text-blue-700">O arquivo ficará salvo para consulta posterior.</p>
-                          </div>
-                        </div>
-                        <div className="relative">
-                          <Input 
-                            type="file" 
-                            accept=".pdf" 
-                            className="hidden" 
-                            id="pdf-exam-upload" 
-                            onChange={handleImportPDFExam}
-                            disabled={isUploadingFile}
-                          />
-                          <label 
-                            htmlFor="pdf-exam-upload" 
-                            className={cn(
-                              buttonVariants({ variant: "outline", size: "sm" }),
-                              "bg-white border-blue-200 text-blue-600 hover:bg-blue-50 gap-2 cursor-pointer inline-flex items-center"
-                            )}
-                          >
-                            {isUploadingFile ? (
-                              <span className="flex items-center gap-2">
-                                <span className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></span>
-                                Fazendo upload...
-                              </span>
-                            ) : (
-                              <>
-                                <Download className="w-4 h-4" /> {selectedExamFile || selectedExam?.reportUrl ? 'Alterar PDF' : 'Selecionar PDF'}
-                              </>
-                            )}
-                          </label>
-                        </div>
-                      </div>
 
-                      {(selectedExamFile || selectedExam?.reportUrl) && (
-                        <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-emerald-700">
-                            <CheckCircle2 className="w-4 h-4" />
-                            <span className="text-xs font-medium">Arquivo PDF anexado</span>
-                          </div>
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="sm" 
-                            className="text-emerald-600 hover:text-emerald-700 h-7 text-xs"
-                            onClick={() => window.open(selectedExamFile || selectedExam?.reportUrl, '_blank')}
-                          >
-                            Visualizar
-                          </Button>
-                        </div>
-                      )}
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -3097,11 +3001,7 @@ export const PatientProfile = () => {
                               <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
                                 {exam.markers?.length || 0} marcadores
                               </span>
-                              {exam.reportUrl && (
-                                <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                                  <FileText className="w-3 h-3" /> PDF Anexado
-                                </span>
-                              )}
+
                             </div>
                           </div>
                         </div>
@@ -3139,27 +3039,7 @@ export const PatientProfile = () => {
                       
                       {expandedExams[exam.id] && (
                         <div className="p-4 bg-slate-50/30 border-t border-slate-100">
-                          {exam.reportUrl && (
-                            <div className="mb-4 p-3 rounded-lg bg-white border border-slate-100 flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
-                                  <FileText className="w-4 h-4" />
-                                </div>
-                                <div>
-                                  <p className="text-xs font-bold text-slate-900">Arquivo do Exame</p>
-                                  <p className="text-[10px] text-slate-500">Clique para visualizar ou baixar o PDF</p>
-                                </div>
-                              </div>
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
-                                className="h-8 gap-2 text-xs border-slate-200"
-                                onClick={() => window.open(exam.reportUrl, '_blank')}
-                              >
-                                <Download className="w-3 h-3" /> Visualizar PDF
-                              </Button>
-                            </div>
-                          )}
+
                           <div className="rounded-xl border border-slate-100 bg-white overflow-hidden">
                             <table className="w-full text-sm">
                               <thead>
