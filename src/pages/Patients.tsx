@@ -660,6 +660,7 @@ export const Patients = () => {
                   >
                     Ver Prontuário
                   </Button>
+                  {/* 
                   {!patient.access_token ? (
                     <Button 
                       variant="outline" 
@@ -679,6 +680,7 @@ export const Patients = () => {
                       ENVIAR WHATSAPP
                     </Button>
                   )}
+                  */}
                   <Button 
                     variant="outline" 
                     className="h-8 w-8 p-0" 

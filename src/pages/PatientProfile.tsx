@@ -1463,6 +1463,7 @@ export const PatientProfile = () => {
           </div>
         </div>
         <div className="flex gap-2">
+          {/* 
           {!patient.access_token ? (
             <Button 
               variant="outline" 
@@ -1482,6 +1483,7 @@ export const PatientProfile = () => {
               ENVIAR ACESSO WHATSAPP
             </Button>
           )}
+          */}
           <Dialog open={isConsultationModalOpen} onOpenChange={(open) => {
             setIsConsultationModalOpen(open);
             if (!open) {
