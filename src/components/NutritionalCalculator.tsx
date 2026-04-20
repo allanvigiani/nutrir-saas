@@ -16,13 +16,16 @@ import { NutritionCalculationInput, NutritionCalculationOutput } from '../server
 interface CalculatorProps {
   patient: Patient;
   latestConsultation?: Consultation;
-  onApplyToMealPlan?: (result: any) => void;
+  onSaveCalculation?: (input: NutritionCalculationInput, result: NutritionCalculationOutput, name: string) => Promise<void>;
+  onCreateMealPlan?: (input: NutritionCalculationInput, result: NutritionCalculationOutput) => void;
 }
 
-export const NutritionalCalculator = ({ patient, latestConsultation, onApplyToMealPlan }: CalculatorProps) => {
+export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalculation, onCreateMealPlan }: CalculatorProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<NutritionCalculationOutput | null>(null);
+  const [calculationName, setCalculationName] = useState('Cálculo Padrão');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Form State
   const [peso, setPeso] = useState<string>(latestConsultation?.weight?.toString() || '');
@@ -112,6 +115,44 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onApplyToMe
       return () => clearTimeout(timeoutId);
     }
   }, [peso, altura, idade, sexo, nivelAtividade, objetivo, condicoesClinicas, formulaOverride, ajusteObjetivoValor, percentualLip, percentualPtn, percentualCho, trimestreGestacao]);
+
+  const handleSave = async () => {
+    if (!onSaveCalculation || !result || !latestConsultation) {
+      if (!latestConsultation) toast.error('É necessária uma consulta para salvar o cálculo.');
+      return;
+    }
+    
+    if (!calculationName.trim()) {
+      toast.error('Dê um nome para este cálculo.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const input: NutritionCalculationInput = {
+        peso: parseFloat(peso),
+        altura: parseFloat(altura) > 3 ? parseFloat(altura) / 100 : parseFloat(altura),
+        idade: parseInt(idade),
+        sexo,
+        nivelAtividade: parseFloat(nivelAtividade),
+        objetivo: objetivo as any,
+        condicoesClinicas,
+        formulaOverride: formulaOverride as any || null,
+        ajusteObjetivoValor: ajusteObjetivoValor ? parseFloat(ajusteObjetivoValor) : null,
+        percentualLip: percentualLip ? parseFloat(percentualLip) : null,
+        percentualPtn: percentualPtn ? parseFloat(percentualPtn) : null,
+        percentualCho: percentualCho ? parseFloat(percentualCho) : null,
+        trimestreGestacao: trimestreGestacao ? parseInt(trimestreGestacao) as any : null
+      };
+      await onSaveCalculation(input, result, calculationName);
+      toast.success('Cálculo salvo com sucesso!');
+    } catch (error) {
+      console.error(error);
+      toast.error('Erro ao salvar o cálculo.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const toggleCondicao = (id: string) => {
     if (id === 'saudavel') {
@@ -306,7 +347,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onApplyToMe
                       <Input className={cn("h-8 text-xs", isPercentError && "border-red-300 focus-visible:ring-red-200")} type="number" placeholder="Auto" value={percentualCho} onChange={e => setPercentualCho(e.target.value)} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] text-slate-500 uppercase">Lipídio</Label>
+                      <Label className="text-[10px] text-slate-500 uppercase">Gorduras</Label>
                       <Input className={cn("h-8 text-xs", isPercentError && "border-red-300 focus-visible:ring-red-200")} type="number" placeholder="Auto" value={percentualLip} onChange={e => setPercentualLip(e.target.value)} />
                     </div>
                   </div>
@@ -362,13 +403,33 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onApplyToMe
                         Base: {result.get} kcal (TMB: {result.tmb} kcal)
                       </p>
                     </div>
-                    {onApplyToMealPlan && (
-                      <Button 
-                        onClick={() => onApplyToMealPlan(result)} 
-                        className="bg-white text-emerald-700 hover:bg-emerald-50 font-bold h-12 px-6 rounded-xl shadow-lg border-0 shrink-0 transition-transform active:scale-95"
-                      >
-                        Criar Plano Alimentar
-                      </Button>
+                    {onSaveCalculation && (
+                      <div className="flex flex-col items-end gap-2">
+                        <Input 
+                          value={calculationName}
+                          onChange={(e) => setCalculationName(e.target.value)}
+                          placeholder="Nome do Cálculo"
+                          className="h-8 bg-emerald-700/50 border-emerald-500/50 text-white placeholder:text-emerald-300 text-sm text-right max-w-[200px]"
+                        />
+                        <Button 
+                          onClick={handleSave} 
+                          disabled={isSaving || !latestConsultation}
+                          className="bg-white text-emerald-700 hover:bg-emerald-50 font-bold h-10 px-6 rounded-xl shadow-lg border-0 shrink-0 transition-transform active:scale-95"
+                        >
+                          {isSaving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+                          Salvar Cálculo
+                        </Button>
+                        {onCreateMealPlan && (
+                          <Button 
+                            variant="ghost"
+                            onClick={() => onCreateMealPlan(result as any, result as any)} // Passing result as both for simplicity since we just need result in MP
+                            className="text-emerald-100 hover:text-white hover:bg-emerald-700/50 text-xs h-8 px-4 border border-emerald-500/30 rounded-lg mt-1"
+                          >
+                            Criar Plano com este Cálculo
+                          </Button>
+                        )}
+                        {!latestConsultation && <span className="text-[10px] text-amber-200">Requer consulta base</span>}
+                      </div>
                     )}
                   </div>
                 </CardContent>

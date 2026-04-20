@@ -73,6 +73,7 @@ export interface MealPlan {
   id: string;
   patient_id: string;
   consultation_id?: string;
+  calculation_id?: string;
   nutritionist_id: string;
   name: string;
   generalInstructions?: string;
@@ -169,4 +170,15 @@ export interface Payment {
   description?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface NutritionCalculation {
+  id: string;
+  patient_id: string;
+  consultation_id: string;
+  nutritionist_id: string;
+  name: string;
+  input: any; // We'll keep it flexible or use NutritionCalculationInput if imported
+  result: any; // We'll keep it flexible or use NutritionCalculationOutput if imported
+  createdAt: string;
 }

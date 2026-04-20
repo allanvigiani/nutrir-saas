@@ -37,7 +37,8 @@ import {
   Key,
   Share2,
   ExternalLink,
-  Calculator
+  Calculator,
+  X
 } from 'lucide-react';
 import { 
   Tabs, 
@@ -72,7 +73,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../lib/firebase';
-import { Patient, Consultation, MealPlan, MealPlanItem, LabExam, LabExamMarker, CustomFood } from '../types';
+import { Patient, Consultation, MealPlan, MealPlanItem, LabExam, LabExamMarker, CustomFood, NutritionCalculation } from '../types';
 import { format, differenceInYears, parseISO, subMonths, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PremiumFeature } from '../components/PremiumFeature';
@@ -224,10 +225,13 @@ export const PatientProfile = () => {
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [mealPlans, setMealPlans] = useState<MealPlan[]>([]);
   const [exams, setExams] = useState<LabExam[]>([]);
+  const [calculations, setCalculations] = useState<NutritionCalculation[]>([]);
   const [hasHiddenHistory, setHasHiddenHistory] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isConsultationModalOpen, setIsConsultationModalOpen] = useState(false);
+  const [isCalculatorModalOpen, setIsCalculatorModalOpen] = useState(false);
+  const [selectedConsultationForCalc, setSelectedConsultationForCalc] = useState<Consultation | null>(null);
   const [isMealPlanModalOpen, setIsMealPlanModalOpen] = useState(false);
   const [isCustomFoodDialogOpen, setIsCustomFoodDialogOpen] = useState(false);
   const [initialFoodName, setInitialFoodName] = useState('');
@@ -271,6 +275,7 @@ export const PatientProfile = () => {
   const [waterIntake, setWaterIntake] = useState('');
   const [mealObservations, setMealObservations] = useState<Record<string, string>>({});
   const [mealPlanName, setMealPlanName] = useState('');
+  const [selectedCalculationForMealPlan, setSelectedCalculationForMealPlan] = useState<NutritionCalculation | null>(null);
   
   const isMealPlanLimitReached = nutritionist?.plan === 'free' && mealPlans.filter(p => p.status === 'active').length >= settings.free.maxMealPlans;
   const isLabExamLimitReached = nutritionist?.plan === 'free' && exams.length >= settings.free.maxExams;
@@ -997,42 +1002,7 @@ export const PatientProfile = () => {
     }
   };
 
-  const duplicateMealPlan = async (plan: MealPlan) => {
-    if (!user) return;
-    try {
-      const q = query(
-        collection(db, 'meal_plan_items'),
-        where('meal_plan_id', '==', plan.id),
-        where('nutritionist_id', '==', user.uid)
-      );
-      const querySnapshot = await getDocs(q);
-      const items = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return { 
-          meal: data.meal,
-          food: data.food,
-          quantity: data.quantity,
-          unit: data.unit,
-          kcal: data.kcal || 0,
-          protein: data.protein || 0,
-          carbs: data.carbs || 0,
-          fat: data.fat || 0
-        };
-      });
-      setMealItems(items as any);
-      setMealPlanName(plan.name ? `${plan.name} (Cópia)` : '');
-      setGeneralInstructions(plan.generalInstructions || '');
-      setWaterIntake(plan.waterIntake || '');
-      setMealObservations(plan.mealObservations || {});
-      setSelectedMealPlan(null); // Ensure it's treated as a new plan
-      setIsMealPlanModalOpen(true);
-      toast.info("Plano duplicado. Ajuste e salve para criar um novo.");
-    } catch (error) {
-      console.error("Error duplicating meal plan:", error);
-      toast.error("Erro ao duplicar plano.");
-      handleFirestoreError(error, OperationType.GET, `meal_plan_items`);
-    }
-  };
+
 
   const toggleExamExpansion = (examId: string) => {
     setExpandedExams(prev => ({ ...prev, [examId]: !prev[examId] }));
@@ -1175,6 +1145,27 @@ export const PatientProfile = () => {
     }
   };
 
+  const handleSaveCalculation = async (input: any, result: any, name: string) => {
+    if (!selectedConsultationForCalc || !user || !id) return;
+    try {
+      const newCalc = {
+        patient_id: id,
+        consultation_id: selectedConsultationForCalc.id,
+        nutritionist_id: user.uid,
+        name,
+        input,
+        result,
+        createdAt: new Date().toISOString()
+      };
+      const docRef = await addDoc(collection(db, 'nutrition_calculations'), newCalc);
+      setCalculations(prev => [{ id: docRef.id, ...newCalc } as NutritionCalculation, ...prev]);
+      setIsCalculatorModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  };
+
   useEffect(() => {
     if (isEditPatientModalOpen && patient) {
       setEditCpf(maskCPF(patient.cpf));
@@ -1304,6 +1295,26 @@ export const PatientProfile = () => {
             const examsSnap = await getDocs(examsQuery);
             let fetchedExams = examsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as LabExam));
 
+            // Fetch calculations
+            try {
+              const calculationsQuery = query(
+                collection(db, 'nutrition_calculations'),
+                where('patient_id', '==', id),
+                where('nutritionist_id', '==', user.uid)
+              );
+              const calculationsSnap = await getDocs(calculationsQuery);
+              const fetchedCalculations = calculationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as NutritionCalculation));
+              setCalculations(fetchedCalculations.sort((a, b) => {
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dateB - dateA;
+              }));
+            } catch (calcError) {
+              console.error("Erro ao buscar cálculos:", calcError);
+              // We don't toast here to avoid spamming if it's just a missing index, 
+              // the main catch block will handle the loading state.
+            }
+
             // Apply premium restrictions: history limit for free plan
             if (nutritionist?.plan === 'free') {
               const historyMonths = settings.free.historyMonths;
@@ -1329,6 +1340,8 @@ export const PatientProfile = () => {
             setExams(fetchedExams.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
           } catch (error) {
             console.error("Error fetching related patient data:", error);
+            setLoading(false);
+            toast.error("Alguns dados (consultas/planos) podem não ter sido carregados.");
             handleFirestoreError(error, OperationType.GET, 'related_data');
           }
         } else {
@@ -1453,7 +1466,7 @@ export const PatientProfile = () => {
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button nativeButton={false} variant="ghost" size="icon" render={<Link to="/patients" />}>
+          <Button nativeButton={false} variant="ghost" size="icon" render={<Link to="/patients" />} title="Voltar para lista de pacientes">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex items-center gap-4">
@@ -1469,6 +1482,7 @@ export const PatientProfile = () => {
                   className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                   onClick={() => setIsEditPatientModalOpen(true)}
                   disabled={patient.status === 'inactive'}
+                  title="Editar dados cadastrais"
                 >
                   <Edit className="w-4 h-4" />
                 </Button>
@@ -1646,9 +1660,7 @@ export const PatientProfile = () => {
           <TabsTrigger value="personal" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap">
             <User className="w-4 h-4" /> Dados Pessoais
           </TabsTrigger>
-          <TabsTrigger value="calculator" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap">
-            <Calculator className="w-4 h-4" /> Cálculo Nutricional
-          </TabsTrigger>
+
           <TabsTrigger value="consultations" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap">
             <Calendar className="w-4 h-4" /> Consultas
           </TabsTrigger>
@@ -1742,20 +1754,6 @@ export const PatientProfile = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="calculator" className="mt-6">
-          <NutritionalCalculator 
-            patient={patient} 
-            latestConsultation={consultations[0]}
-            onApplyToMealPlan={(result) => {
-              setMealPlanName(`Plano Alimentar - ${result.getAjustado} kcal`);
-              // Default distribution based on the calculation could be set to new plan state here if needed
-              // For now, let's open the meal plan modal
-              setIsMealPlanModalOpen(true);
-              toast.success('Parâmetros prontos! Crie o plano alimentar com base neles.');
-            }}
-          />
-        </TabsContent>
-
         <TabsContent value="consultations" className="mt-6">
           <Card className="border-none shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 pb-6">
@@ -1803,7 +1801,21 @@ export const PatientProfile = () => {
                           </span>
                           
                           <div className="flex gap-2">
-                            <Button variant="ghost" size="icon-sm" className="text-slate-400 hover:text-emerald-600 disabled:opacity-30" disabled={patient.status === 'inactive'} onClick={(e) => {
+                            <Button 
+                              variant="ghost" 
+                              size="icon-sm" 
+                              className="text-slate-400 hover:text-emerald-600 disabled:opacity-30" 
+                              disabled={patient.status === 'inactive'} 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedConsultationForCalc(consultation);
+                                setIsCalculatorModalOpen(true);
+                              }}
+                              title="Novo Cálculo Nutricional"
+                            >
+                              <Calculator className="w-4 h-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon-sm" className="text-slate-400 hover:text-emerald-600 disabled:opacity-30" disabled={patient.status === 'inactive'} title="Editar consulta" onClick={(e) => {
                               e.stopPropagation();
                               setSelectedConsultation(consultation);
                               resetConsultation({
@@ -1824,7 +1836,7 @@ export const PatientProfile = () => {
                             }}>
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 disabled:opacity-30" disabled={patient.status === 'inactive'} onClick={(e) => {
+                            <Button variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 disabled:opacity-30" disabled={patient.status === 'inactive'} title="Excluir consulta" onClick={(e) => {
                               e.stopPropagation();
                               setConsultationToDelete(consultation.id);
                               setIsDeleteConsultationConfirmOpen(true);
@@ -1897,12 +1909,114 @@ export const PatientProfile = () => {
                             </div>
                           </div>
 
-                          {consultation.observations && (
+                           {consultation.observations && (
                             <div className="pt-4 border-t border-slate-100">
                               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Observações Adicionais</h4>
                               <p className="text-sm text-slate-500 italic">{consultation.observations}</p>
                             </div>
                           )}
+
+                          <div className="pt-6 border-t border-slate-100 mt-6">
+                            <div className="flex justify-between items-center mb-4">
+                              <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                                <Calculator className="w-4 h-4 text-emerald-500" /> Cálculos Nutricionais
+                              </h4>
+                              <Button 
+                                size="sm" 
+                                variant="outline" 
+                                className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                                onClick={() => {
+                                  setSelectedConsultationForCalc(consultation);
+                                  setIsCalculatorModalOpen(true);
+                                }}
+                              >
+                                Novo Cálculo
+                              </Button>
+                            </div>
+                            
+                            {calculations.filter(c => c.consultation_id === consultation.id).length > 0 ? (
+                              <div className="grid gap-3">
+                                  {calculations.filter(c => c.consultation_id === consultation.id).map(calc => (
+                                    <div key={calc.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3">
+                                      <div className="flex justify-between items-start">
+                                        <div>
+                                          <p className="font-bold text-slate-800 text-sm">{calc.name}</p>
+                                          <p className="text-xs text-slate-500">{formatDateSafely(calc.createdAt, "dd 'de' MMMM 'de' yyyy")}</p>
+                                        </div>
+                                        <div className="text-right">
+                                          <p className="text-sm font-black text-emerald-600">{calc.result.getAjustado} kcal</p>
+                                          <p className="text-[10px] text-slate-400 uppercase font-bold">{calc.result.formulaUtilizada.replace('_', '/')}</p>
+                                        </div>
+                                      </div>
+                                      
+                                      <div className="grid grid-cols-3 gap-2">
+                                        <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase">Proteína</p>
+                                          <p className="text-xs font-bold text-slate-700">{calc.result.macronutrientes.ptnG}g</p>
+                                        </div>
+                                        <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase">Carbos</p>
+                                          <p className="text-xs font-bold text-slate-700">{calc.result.macronutrientes.choG}g</p>
+                                        </div>
+                                        <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
+                                          <p className="text-[10px] text-slate-400 font-bold uppercase">Gorduras</p>
+                                          <p className="text-xs font-bold text-slate-700">{calc.result.macronutrientes.lipG}g</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="pt-2 mt-2 border-t border-slate-200 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+                                        <div className="flex justify-between">
+                                          <span className="text-slate-400">Peso Utilizado:</span>
+                                          <span className="font-bold text-slate-600">{calc.result.pesoUtilizado} kg</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span className="text-slate-400">Gasto Energético:</span>
+                                          <span className="font-bold text-slate-600">{calc.result.get} kcal</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span className="text-slate-400">Nível Atividade:</span>
+                                          <span className="font-bold text-slate-600">{calc.input.nivelAtividade}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span className="text-slate-400">Objetivo:</span>
+                                          <span className="font-bold text-slate-600 capitalize">{calc.input.objetivo}</span>
+                                        </div>
+                                      </div>
+
+                                      {calc.result.alertas.length > 0 && (
+                                        <div className="bg-amber-50 p-2 rounded-lg border border-amber-100 mt-2">
+                                          <p className="text-[10px] font-bold text-amber-800 mb-1 flex items-center gap-1">
+                                            <AlertCircle className="w-3 h-3" /> Alertas
+                                          </p>
+                                          <ul className="space-y-1">
+                                            {calc.result.alertas.map((alerta: string, i: number) => (
+                                              <li key={i} className="text-[9px] text-amber-700 leading-tight">• {alerta}</li>
+                                            ))}
+                                          </ul>
+                                        </div>
+                                      )}
+
+                                      <div className="flex justify-end pt-2">
+                                        <Button 
+                                          size="sm" 
+                                          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm text-xs h-8"
+                                          onClick={() => {
+                                            setActiveTab('mealplans');
+                                            setSelectedCalculationForMealPlan(calc);
+                                            setMealPlanName(`Plano Alimentar - ${calc.result.getAjustado} kcal`);
+                                            setTimeout(() => setIsMealPlanModalOpen(true), 50);
+                                          }}
+                                        >
+                                          Criar Plano Alimentar
+                                        </Button>
+                                      </div>
+                                    </div>
+                                  ))}
+                              </div>
+                            ) : (
+                              <p className="text-xs text-slate-500 italic bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">Nenhum cálculo realizado para esta consulta.</p>
+                            )}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1944,6 +2058,14 @@ export const PatientProfile = () => {
                 <CardTitle className="text-lg">Planos Alimentares</CardTitle>
                 <CardDescription>Gerencie as dietas prescritas.</CardDescription>
               </div>
+              <div className="flex flex-col items-end text-right">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded-full mb-1">
+                  Jornada do Paciente
+                </span>
+                <p className="text-xs text-slate-500 max-w-[280px] leading-tight">
+                  Para criar um novo plano, acesse a aba <strong>Consultas</strong> e utilize o botão "Criar Plano Alimentar" dentro de um <strong>Cálculo Nutricional</strong>.
+                </p>
+              </div>
               <Dialog open={isMealPlanModalOpen} onOpenChange={(open) => {
                 setIsMealPlanModalOpen(open);
                 if (!open) {
@@ -1953,22 +2075,15 @@ export const PatientProfile = () => {
                   setMealObservations({});
                   setMealPlanName('');
                   setMealItems([]);
+                  setSelectedCalculationForMealPlan(null);
                 }
               }}>
-                <PremiumFeature active={isMealPlanLimitReached}>
-                  <DialogTrigger 
-                    render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" disabled={patient.status === 'inactive'} />}
-                    nativeButton={true}
-                  >
-                    <Plus className="w-4 h-4" /> Novo Plano
-                  </DialogTrigger>
-                </PremiumFeature>
                 <DialogContent className="max-w-6xl w-[98vw] h-[95vh] p-0 overflow-hidden flex flex-col rounded-2xl border-none shadow-2xl print-content-wrapper">
                   <div key={selectedMealPlan?.id || 'new'} className="flex flex-col h-full bg-slate-50 overflow-hidden">
                     {/* Header Bar */}
                     <div className="bg-white border-b px-6 py-4 flex items-center justify-between shrink-0 z-50 shadow-sm print:hidden">
                       <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <Button variant="ghost" size="icon" onClick={() => setIsMealPlanModalOpen(false)} className="shrink-0 hover:bg-slate-100 rounded-full">
+                        <Button variant="ghost" size="icon" onClick={() => setIsMealPlanModalOpen(false)} className="shrink-0 hover:bg-slate-100 rounded-full" title="Fechar editor de plano">
                           <ArrowLeft className="w-5 h-5" />
                         </Button>
                         <div className="flex-1 flex flex-col md:flex-row md:items-center gap-3 min-w-0">
@@ -2003,7 +2118,15 @@ export const PatientProfile = () => {
                             </div>
                             <div>
                               <p className="text-[10px] uppercase font-bold text-slate-400">Calorias</p>
-                              <p className="text-lg font-bold text-slate-900">{mealTotals.kcal} <span className="text-xs font-normal text-slate-400">kcal</span></p>
+                              <p className="text-lg font-bold text-slate-900">{mealTotals.kcal} <span className="text-xs font-normal text-slate-400">{selectedCalculationForMealPlan ? `/ ${selectedCalculationForMealPlan.result.getAjustado}` : ''} kcal</span></p>
+                              {selectedCalculationForMealPlan && (
+                                <div className="w-full bg-slate-100 h-1 rounded-full mt-1">
+                                  <div 
+                                    className="bg-orange-500 h-1 rounded-full transition-all" 
+                                    style={{ width: `${Math.min((mealTotals.kcal / selectedCalculationForMealPlan.result.getAjustado) * 100, 100)}%` }}
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                         </Card>
@@ -2014,7 +2137,15 @@ export const PatientProfile = () => {
                             </div>
                             <div>
                               <p className="text-[10px] uppercase font-bold text-slate-400">Proteínas</p>
-                              <p className="text-lg font-bold text-slate-900">{mealTotals.protein.toFixed(1)} <span className="text-xs font-normal text-slate-400">g</span></p>
+                              <p className="text-lg font-bold text-slate-900">{mealTotals.protein.toFixed(1)} <span className="text-xs font-normal text-slate-400">{selectedCalculationForMealPlan ? `/ ${selectedCalculationForMealPlan.result.macronutrientes.ptnG}g` : 'g'}</span></p>
+                              {selectedCalculationForMealPlan && (
+                                <div className="w-full bg-slate-100 h-1 rounded-full mt-1">
+                                  <div 
+                                    className="bg-blue-500 h-1 rounded-full transition-all" 
+                                    style={{ width: `${Math.min((mealTotals.protein / selectedCalculationForMealPlan.result.macronutrientes.ptnG) * 100, 100)}%` }}
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                         </Card>
@@ -2025,7 +2156,15 @@ export const PatientProfile = () => {
                             </div>
                             <div>
                               <p className="text-[10px] uppercase font-bold text-slate-400">Carbos</p>
-                              <p className="text-lg font-bold text-slate-900">{mealTotals.carbs.toFixed(1)} <span className="text-xs font-normal text-slate-400">g</span></p>
+                              <p className="text-lg font-bold text-slate-900">{mealTotals.carbs.toFixed(1)} <span className="text-xs font-normal text-slate-400">{selectedCalculationForMealPlan ? `/ ${selectedCalculationForMealPlan.result.macronutrientes.choG}g` : 'g'}</span></p>
+                              {selectedCalculationForMealPlan && (
+                                <div className="w-full bg-slate-100 h-1 rounded-full mt-1">
+                                  <div 
+                                    className="bg-emerald-500 h-1 rounded-full transition-all" 
+                                    style={{ width: `${Math.min((mealTotals.carbs / selectedCalculationForMealPlan.result.macronutrientes.choG) * 100, 100)}%` }}
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                         </Card>
@@ -2036,7 +2175,15 @@ export const PatientProfile = () => {
                             </div>
                             <div>
                               <p className="text-[10px] uppercase font-bold text-slate-400">Gorduras</p>
-                              <p className="text-lg font-bold text-slate-900">{mealTotals.fat.toFixed(1)} <span className="text-xs font-normal text-slate-400">g</span></p>
+                              <p className="text-lg font-bold text-slate-900">{mealTotals.fat.toFixed(1)} <span className="text-xs font-normal text-slate-400">{selectedCalculationForMealPlan ? `/ ${selectedCalculationForMealPlan.result.macronutrientes.lipG}g` : 'g'}</span></p>
+                              {selectedCalculationForMealPlan && (
+                                <div className="w-full bg-slate-100 h-1 rounded-full mt-1">
+                                  <div 
+                                    className="bg-purple-500 h-1 rounded-full transition-all" 
+                                    style={{ width: `${Math.min((mealTotals.fat / selectedCalculationForMealPlan.result.macronutrientes.lipG) * 100, 100)}%` }}
+                                  />
+                                </div>
+                              )}
                             </div>
                           </div>
                         </Card>
@@ -2215,10 +2362,11 @@ export const PatientProfile = () => {
                                                 variant="ghost" 
                                                 size="icon" 
                                                 className="w-8 h-8 text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                                                onClick={() => removeMealItem(globalIndex)}
-                                              >
-                                                <Trash2 className="w-4 h-4" />
-                                              </Button>
+                                                  onClick={() => removeMealItem(globalIndex)}
+                                                  title="Remover este alimento"
+                                                >
+                                                  <Trash2 className="w-4 h-4" />
+                                                </Button>
                                             </td>
                                           </tr>
                                         );
@@ -2291,16 +2439,14 @@ export const PatientProfile = () => {
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => viewMealPlan(plan)}>Visualizar</Button>
                         <Button variant="outline" size="sm" className="flex-1 disabled:opacity-50" onClick={() => editMealPlan(plan)} disabled={patient.status === 'inactive'}>Editar</Button>
-                        <PremiumFeature active={isMealPlanLimitReached}>
-                          <Button variant="outline" size="sm" className="flex-1 disabled:opacity-50" onClick={() => duplicateMealPlan(plan)} disabled={patient.status === 'inactive'}>Duplicar</Button>
-                        </PremiumFeature>
+
                         <Button variant="ghost" size="sm" className="px-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50" onClick={() => sendMealPlanByEmail(plan)} title="Enviar por E-mail">
                           <Mail className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="sm" className="px-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50" onClick={() => exportMealPlanPDF(plan)} title="Imprimir PDF">
                           <Printer className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="px-2 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30" onClick={() => deleteMealPlan(plan.id)} disabled={patient.status === 'inactive'}>
+                        <Button variant="ghost" size="sm" className="px-2 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30" onClick={() => deleteMealPlan(plan.id)} disabled={patient.status === 'inactive'} title="Excluir plano">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -2322,7 +2468,7 @@ export const PatientProfile = () => {
               {/* Header Bar */}
               <div className="bg-white border-b px-6 py-4 flex items-center justify-between shrink-0 z-50 shadow-sm print:hidden">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <Button variant="ghost" size="icon" onClick={() => setIsViewMealPlanModalOpen(false)} className="shrink-0 hover:bg-slate-100 rounded-full">
+                  <Button variant="ghost" size="icon" onClick={() => setIsViewMealPlanModalOpen(false)} className="shrink-0 hover:bg-slate-100 rounded-full" title="Fechar visualização">
                     <ArrowLeft className="w-5 h-5" />
                   </Button>
                   <div className="flex-1 flex flex-col md:flex-row md:items-center gap-3 min-w-0">
@@ -2809,6 +2955,7 @@ export const PatientProfile = () => {
                                 size="icon-sm" 
                                 className="text-red-500 hover:text-red-600 hover:bg-red-50"
                                 onClick={() => removeExamMarker(marker.id)}
+                                title="Remover este marcador"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -2963,6 +3110,7 @@ export const PatientProfile = () => {
                             variant="ghost" 
                             size="icon-sm" 
                             className="text-slate-400 hover:text-emerald-600 disabled:opacity-30"
+                            title="Editar exame"
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelectedExam(exam);
@@ -2977,6 +3125,7 @@ export const PatientProfile = () => {
                             variant="ghost" 
                             size="icon-sm" 
                             className="text-slate-400 hover:text-red-600 disabled:opacity-30"
+                            title="Excluir exame"
                             onClick={(e) => {
                               e.stopPropagation();
                               deleteLabExam(exam.id);
@@ -3258,6 +3407,37 @@ export const PatientProfile = () => {
           </PremiumFeature>
         </TabsContent>
       </Tabs>
+
+      {/* Modals */}
+      <Dialog open={isCalculatorModalOpen} onOpenChange={setIsCalculatorModalOpen}>
+        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden flex flex-col bg-slate-50">
+          <div className="bg-white px-6 py-4 border-b flex justify-between items-center shadow-sm z-10 shrink-0">
+            <div>
+              <h2 className="text-xl font-black text-slate-800">Cálculo Nutricional</h2>
+              <p className="text-sm text-slate-500">Consulta de {selectedConsultationForCalc ? formatDateSafely(selectedConsultationForCalc.date, "dd 'de' MMMM 'de' yyyy") : ''}</p>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => setIsCalculatorModalOpen(false)} title="Fechar calculadora">
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+          <div className="p-6 overflow-y-auto flex-1">
+            {patient && selectedConsultationForCalc && (
+              <NutritionalCalculator 
+                patient={patient}
+                latestConsultation={selectedConsultationForCalc}
+                onSaveCalculation={handleSaveCalculation}
+                onCreateMealPlan={(input, result) => {
+                  setIsCalculatorModalOpen(false);
+                  setActiveTab('mealplans');
+                  setSelectedCalculationForMealPlan({ result, input, name: 'Cálculo Temporário', createdAt: new Date().toISOString() } as any);
+                  setMealPlanName(`Plano Alimentar - ${result.getAjustado} kcal`);
+                  setTimeout(() => setIsMealPlanModalOpen(true), 100);
+                }}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit Patient Modal */}
       <Dialog open={isEditPatientModalOpen} onOpenChange={setIsEditPatientModalOpen}>

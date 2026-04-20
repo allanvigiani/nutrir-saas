@@ -281,6 +281,13 @@ service cloud.firestore {
              isValidDateTime(data.updatedAt);
     }
 
+    function isValidNutritionCalculation(data) {
+      return hasRequiredFields(['patient_id', 'consultation_id', 'nutritionist_id', 'name', 'input', 'result', 'createdAt']) &&
+             (data.nutritionist_id == request.auth.uid || isAdmin()) &&
+             isValidString(data.name, 100) &&
+             isValidDateTime(data.createdAt);
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
@@ -365,6 +372,13 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && isValidPayment(request.resource.data);
       allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidPayment(request.resource.data) && areImmutableFieldsUnchanged(['patient_id', 'nutritionist_id', 'createdAt']);
+      allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+    }
+
+    match /nutrition_calculations/{calcId} {
+      allow read: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidNutritionCalculation(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidNutritionCalculation(request.resource.data) && areImmutableFieldsUnchanged(['patient_id', 'nutritionist_id', 'consultation_id', 'createdAt']);
       allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
     }
   }
