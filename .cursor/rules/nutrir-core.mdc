@@ -1,0 +1,13 @@
+---
+description: Contexto e guardrails globais do Nutrir SaaS
+alwaysApply: true
+---
+
+# Nutrir SaaS - Regras Globais
+
+- Mantenha o idioma de negocio em portugues (paciente, nutricionista, anamnese, plano), preservando termos tecnicos em ingles quando padrao da API/lib.
+- Evite alterar fluxo critico sem necessidade em `src/pages/PatientProfile.tsx`; prefira mudancas pequenas, seguras e incrementalmente testaveis.
+- Sempre considerar controle de plano premium antes de liberar recursos pagos; reutilize `PremiumFeature`, `PremiumBanner`, `UpgradeModal` e checagens de `nutritionist.plan`.
+- Nao introduzir stack nova quando o projeto ja cobre a necessidade com React + TypeScript + Express + Firebase.
+- Manter import alias `@/` para codigo em `src` e evitar caminhos relativos profundos quando o alias for aplicavel.
+- Ao mexer em integracoes (Asaas, Google Calendar, SMTP), preserve validacoes, tratamento de erro e variaveis de ambiente existentes.

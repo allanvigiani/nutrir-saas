@@ -1,0 +1,14 @@
+---
+description: Padroes de API em src/server com factories e separacao de camadas
+globs: src/server/**/*.ts
+alwaysApply: false
+---
+
+# Backend Express + TypeScript
+
+- Siga a separacao por camadas: `routes` conectam dependencias, `controllers` tratam HTTP, `services` concentram regra de negocio.
+- Use factory functions (`createXService`, `createXController`) para injetar dependencias e facilitar testes unitarios.
+- Rotas devem apenas registrar endpoints e middlewares (ex.: `authenticate`) sem logica de negocio embutida.
+- Controllers devem validar input minimo, chamar service e retornar respostas HTTP previsiveis (`4xx` para entrada invalida, `5xx` para erro interno).
+- Services devem ser puros sempre que possivel, sem dependencia direta de `req/res`, e com tipos explicitos de entrada/saida.
+- Ao adicionar nova API, registrar no agregador `src/server/register-api-routes.ts` para manter um unico ponto de composicao.
