@@ -1,4 +1,5 @@
 import { getPremiumWelcomeTemplate, sendEmail } from "../../lib/mail.ts";
+import { logger } from "../logger.ts";
 import type { AsaasClient } from "../integrations/asaas.client.ts";
 import type { FirestoreHelpers } from "../types.ts";
 
@@ -36,6 +37,7 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           if (userDoc.exists) {
             const userData = userDoc.data;
             if (userData?.email) {
+              logger.info(`[Asaas Service] Enviando email de boas-vindas Premium`, { userId, email: userData.email });
               await sendEmail({
                 to: userData.email,
                 subject: "💎 Bem-vindo ao Plano Premium Nutrir!",
@@ -44,7 +46,7 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
             }
           }
         } catch (error) {
-          console.error("[Email] Erro ao enviar boas-vindas Premium no webhook:", error);
+          logger.error("[Email] Erro ao enviar boas-vindas Premium no webhook", error, { userId });
         }
         break;
       case "PAYMENT_OVERDUE":
@@ -244,7 +246,7 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           }
         }
       } catch (refundErr: any) {
-        console.error("[Refund] Erro ao processar estorno:", refundErr.message);
+        logger.error("[Refund] Erro ao processar estorno", refundErr, { email, subscriptionId: activeSub.id });
       }
     }
 
@@ -264,8 +266,9 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           updateData.hadRefundBefore = true;
         }
         await updateDocWithFallback("nutritionists", userDocId, updateData);
+        logger.info(`[Asaas Service] Assinatura cancelada com sucesso`, { email, refunded });
       } catch (fsError) {
-        console.error("Erro ao atualizar Firestore no cancelamento:", fsError);
+        logger.error("Erro ao atualizar Firestore no cancelamento", fsError, { email });
       }
     }
 

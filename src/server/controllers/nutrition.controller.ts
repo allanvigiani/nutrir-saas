@@ -1,3 +1,4 @@
+import { logger } from "../logger.ts";
 import { Request, Response } from 'express';
 import { NutritionCalculationInput } from '../services/nutrition.service.ts';
 
@@ -20,7 +21,7 @@ export function createNutritionController({ nutritionService }: NutritionControl
       const result = nutritionService.calculateNutrition(input);
       return res.status(200).json(result);
     } catch (error: any) {
-      console.error("Calculation error:", error);
+      logger.error("[Nutrition] Calculation error", error);
       return res.status(500).json({ error: error.message || "Internal server error" });
     }
   }

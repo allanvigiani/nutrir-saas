@@ -1,3 +1,5 @@
+import { logger } from "../logger.ts";
+
 type AuthMiddlewareDeps = {
   admin: {
     auth: () => {
@@ -19,7 +21,7 @@ export function createAuthenticateMiddleware({ admin }: AuthMiddlewareDeps) {
       req.user = decodedToken;
       return next();
     } catch (error) {
-      console.error("[Auth Middleware] Erro ao verificar token:", error);
+      logger.error("[Auth Middleware] Erro ao verificar token", error);
       return res.status(401).json({ error: "Não autorizado. Token inválido." });
     }
   };

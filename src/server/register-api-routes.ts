@@ -4,6 +4,7 @@ import { registerEmailRoutes } from "./routes/email.routes.ts";
 import { registerGoogleRoutes } from "./routes/google.routes.ts";
 import { registerHealthRoutes } from "./routes/health.routes.ts";
 import { registerNutritionRoutes } from "./routes/nutrition.routes.ts";
+import { logger } from "./logger.ts";
 
 type RegisterApiRoutesDeps = BaseRouteDeps & AsaasConfig & GoogleConfig;
 
@@ -13,4 +14,6 @@ export function registerApiRoutes(deps: RegisterApiRoutesDeps) {
   registerGoogleRoutes(deps);
   registerAsaasRoutes(deps);
   registerNutritionRoutes(deps);
+
+  logger.info("Rotas da API registradas com sucesso");
 }

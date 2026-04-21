@@ -1,3 +1,5 @@
+import { logger } from "../logger.ts";
+
 type EmailControllerDeps = {
   emailService: {
     sendTestEmail: (to: string) => Promise<void>;
@@ -43,7 +45,7 @@ export function createEmailController({ emailService }: EmailControllerDeps) {
       });
       return res.json({ success: true, message: "E-mail de boas-vindas enviado!" });
     } catch (error: any) {
-      console.error("[Email] Erro no endpoint de boas-vindas:", error);
+      logger.error("[Email] Erro no endpoint de boas-vindas", error);
       return res.status(500).json({ error: error.message });
     }
   }
@@ -63,7 +65,7 @@ export function createEmailController({ emailService }: EmailControllerDeps) {
       });
       return res.json({ success: true, message: "Plano alimentar enviado com sucesso!" });
     } catch (error: any) {
-      console.error("[Email] Erro ao enviar plano alimentar:", error);
+      logger.error("[Email] Erro ao enviar plano alimentar", error);
       return res.status(500).json({ error: error.message });
     }
   }
