@@ -7,6 +7,7 @@ import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../lib/firebase';
 import { Eye, EyeOff } from 'lucide-react';
+import { remoteLogger } from '../lib/remote-logger';
 
 enum OperationType {
   CREATE = 'create',
@@ -93,9 +94,12 @@ export const Login = () => {
         console.error("Failed to update last login:", error);
       });
 
+      remoteLogger.info("Login realizado com sucesso (Email/Senha)", { userId: user.uid, email: user.email });
+
       toast.success('Login realizado com sucesso!');
       navigate('/');
     } catch (error: any) {
+      remoteLogger.error("Erro no login (Email/Senha)", error, { email: data.email });
       console.error("Login error:", error);
       if (error.code === 'auth/operation-not-allowed') {
         toast.error('O login por e-mail/senha não está habilitado no console do Firebase.');
@@ -134,6 +138,8 @@ export const Login = () => {
         lastLogin: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       });
+
+      remoteLogger.info("Login realizado com sucesso (Google)", { userId: user.uid, email: user.email });
 
       toast.success('Login com Google realizado com sucesso!');
       navigate('/');

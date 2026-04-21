@@ -59,6 +59,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../lib/firebase';
 import { signOut, updatePassword } from 'firebase/auth';
 import { toast } from 'sonner';
+import { remoteLogger } from '../lib/remote-logger';
 import { CustomFood } from '../types';
 import { CustomFoodDialog } from '../components/CustomFoodDialog';
 import { useSubscription } from '../hooks/useSubscription';
@@ -403,6 +404,9 @@ export const Settings = () => {
   };
 
   const handleLogout = () => {
+    if (auth.currentUser) {
+      remoteLogger.info("Logout realizado (Configurações)", { userId: auth.currentUser.uid, email: auth.currentUser.email });
+    }
     signOut(auth);
   };
 

@@ -16,6 +16,7 @@ import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
+import { remoteLogger } from '../lib/remote-logger';
 import { useAuth } from '../contexts/AuthContext';
 
 const SidebarItem = ({ 
@@ -45,6 +46,9 @@ export const Sidebar = () => {
   const { user, nutritionist } = useAuth();
 
   const handleLogout = () => {
+    if (auth.currentUser) {
+      remoteLogger.info("Logout realizado", { userId: auth.currentUser.uid, email: auth.currentUser.email });
+    }
     signOut(auth);
   };
 

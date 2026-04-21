@@ -8,6 +8,7 @@ import { doc, setDoc, getDocs, query, where, collection, getDoc } from 'firebase
 import { auth, db, googleProvider } from '../lib/firebase';
 import { Eye, EyeOff } from 'lucide-react';
 import { maskCPF, maskCNPJ, maskPhone } from '../lib/utils';
+import { remoteLogger } from '../lib/remote-logger';
 
 enum OperationType {
   CREATE = 'create',
@@ -176,6 +177,7 @@ export const Register = () => {
           updatedAt: new Date().toISOString(),
           lastLogin: new Date().toISOString(),
         });
+        remoteLogger.info("Novo usuário cadastrado (Email/Senha)", { userId: user.uid, email: data.email });
       } catch (error) {
         handleFirestoreError(error, OperationType.WRITE, `nutritionists/${user.uid}`);
       }
@@ -183,6 +185,7 @@ export const Register = () => {
       toast.success('Conta criada com sucesso!');
       navigate('/');
     } catch (error: any) {
+      remoteLogger.error("Erro no cadastro (Email/Senha)", error, { email: data.email });
       console.error("Registration error:", error);
       if (error.code === 'auth/operation-not-allowed') {
         toast.error('O cadastro por e-mail/senha não está habilitado no console do Firebase.');
