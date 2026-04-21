@@ -6,6 +6,7 @@ import { createRequire } from "module";
 import { createFirestoreHelpers } from "./src/server/firestore-helpers.ts";
 import { registerApiRoutes } from "./src/server/register-api-routes.ts";
 import { createAuthenticateMiddleware } from "./src/server/middlewares/auth.ts";
+import { logger } from "./src/server/logger.ts";
 
 const require = createRequire(import.meta.url);
 const firebaseConfig = require("./firebase-applet-config.json");
@@ -46,7 +47,7 @@ async function startServer() {
 
   app.use((req, res, next) => {
     if (req.path.startsWith("/api/asaas-webhook")) {
-      console.log(`[Request Log] ${req.method} ${req.path}`);
+      logger.info(`Webhook Request`, { method: req.method, path: req.path });
     }
     next();
   });
@@ -67,7 +68,7 @@ async function startServer() {
   });
 
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error("Erro não tratado:", err);
+    logger.error("Erro não tratado na rota", err, { path: req.path });
     res.status(500).json({ error: err.message || "Erro interno do servidor" });
   });
 
@@ -86,7 +87,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+    logger.info(`Servidor rodando na porta ${PORT}`);
   });
 }
 
