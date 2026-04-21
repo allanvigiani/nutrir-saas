@@ -1,80 +1,89 @@
 import pino from "pino";
+import { Axiom } from "@axiomhq/js";
 
 /**
- * Abstração de Logging para o Sistema.
- * 
- * Esta estrutura permite que você mude de plataforma (Axiom, Google Cloud, BetterStack)
- * apenas alterando a configuração do 'transport' neste arquivo, sem tocar no resto do código.
+ * Abstração de Logging para o Sistema (Versão Compatível com Vercel Hobby/Grátis).
  */
 
-// Consideramos ambientes de "nuvem" tanto produção quanto homologação
 const isCloudEnv = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "homolog";
+const axiomDataset = process.env.AXIOM_DATASET || "nutrir-saas";
+const axiomToken = process.env.AXIOM_TOKEN;
 
-// Configuração do Transport (Onde os logs serão enviados)
-const transport = pino.transport({
-  targets: [
-    // Em produção, envia para o Axiom
-    ...(isCloudEnv && process.env.AXIOM_TOKEN
-      ? [
-          {
-            target: "@axiomhq/pino",
-            options: {
-              dataset: process.env.AXIOM_DATASET || "nutrir-saas",
-              token: process.env.AXIOM_TOKEN,
-            },
-            level: "info",
-          },
-        ]
-      : []),
-    // No console (Dev), exibe os logs de forma legível
-    {
-      target: "pino-pretty",
-      options: {
-        colorize: true,
-        translateTime: "HH:MM:ss Z",
-        ignore: "pid,hostname",
-      },
-      level: "debug",
+// Cliente Axiom (usado apenas em nuvem)
+const axiom = axiomToken ? new Axiom({ token: axiomToken }) : null;
+
+// Logger para Console (usado em Dev para debug visual)
+const consoleLogger = pino({
+  transport: {
+    target: "pino-pretty",
+    options: {
+      colorize: true,
+      translateTime: "HH:MM:ss Z",
+      ignore: "pid,hostname",
     },
-  ],
+  },
+  level: "debug",
 });
-
-// Instância base do Pino
-const pinoLogger = pino(transport);
 
 /**
  * Interface Genérica de Logger
  */
 export const logger = {
-  /**
-   * Log de Informação Geral
-   */
   info: (message: string, context?: Record<string, any>) => {
-    pinoLogger.info(context || {}, message);
+    // 1. Sempre logar no console (Vercel também captura isso)
+    consoleLogger.info(context || {}, message);
+
+    // 2. Se estiver na nuvem, enviar para o Axiom via SDK (compatível com Serverless)
+    if (isCloudEnv && axiom) {
+      axiom.ingest(axiomDataset, [{ 
+        level: "info", 
+        message, 
+        ...context, 
+        _time: new Date().toISOString() 
+      }]);
+    }
   },
 
-  /**
-   * Log de Erro
-   */
   error: (message: string, error?: any, context?: Record<string, any>) => {
     const errorData = error instanceof Error 
       ? { message: error.message, stack: error.stack }
       : error;
 
-    pinoLogger.error({ ...context, error: errorData }, message);
+    consoleLogger.error({ ...context, error: errorData }, message);
+
+    if (isCloudEnv && axiom) {
+      axiom.ingest(axiomDataset, [{ 
+        level: "error", 
+        message, 
+        error: errorData, 
+        ...context, 
+        _time: new Date().toISOString() 
+      }]);
+    }
   },
 
-  /**
-   * Log de Aviso
-   */
   warn: (message: string, context?: Record<string, any>) => {
-    pinoLogger.warn(context || {}, message);
+    consoleLogger.warn(context || {}, message);
+
+    if (isCloudEnv && axiom) {
+      axiom.ingest(axiomDataset, [{ 
+        level: "warn", 
+        message, 
+        ...context, 
+        _time: new Date().toISOString() 
+      }]);
+    }
+  },
+
+  debug: (message: string, context?: Record<string, any>) => {
+    consoleLogger.debug(context || {}, message);
+    // Debug geralmente não enviamos para o Axiom para economizar volume
   },
 
   /**
-   * Log de Debug (útil em desenvolvimento)
+   * Garante que os logs foram enviados antes de encerrar (opcional na maioria dos casos)
    */
-  debug: (message: string, context?: Record<string, any>) => {
-    pinoLogger.debug(context || {}, message);
-  },
+  flush: async () => {
+    if (axiom) await axiom.flush();
+  }
 };
