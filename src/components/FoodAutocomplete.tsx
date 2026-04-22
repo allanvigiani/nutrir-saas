@@ -4,17 +4,19 @@ import { Input } from './ui/input';
 import { Search, Check, Plus } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { TacoFood, tacoData } from '../data/taco';
+import { TbcaFood, tbcaData } from '../data/tbca';
 import { db, auth } from '../lib/firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { CustomFood } from '../types';
 
 interface FoodAutocompleteProps {
   value: string;
-  onSelect: (food: TacoFood | CustomFood) => void;
+  onSelect: (food: TacoFood | TbcaFood | CustomFood) => void;
   onChange: (value: string) => void;
   onAddNew?: (name: string) => void;
   placeholder?: string;
   className?: string;
+  dataSource?: 'TACO' | 'TBCA' | 'Todas';
 }
 
 export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
@@ -23,14 +25,15 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
   onChange,
   onAddNew,
   placeholder = "Buscar alimento...",
-  className
+  className,
+  dataSource = 'Todas'
 }) => {
   const formatKcal = (value: number) => Math.round(value);
   const formatMacro = (value: number) => Math.round(value);
   const formatBaseQuantity = (value: number) => Math.round(value);
 
   const [isOpen, setIsOpen] = useState(false);
-  const [filteredFoods, setFilteredFoods] = useState<(TacoFood | CustomFood)[]>([]);
+  const [filteredFoods, setFilteredFoods] = useState<(TacoFood | TbcaFood | CustomFood)[]>([]);
   const [customFoods, setCustomFoods] = useState<CustomFood[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -55,15 +58,26 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
 
   useEffect(() => {
     if (value.length > 1) {
-      const tacoFiltered = tacoData.filter(food =>
-        food.name.toLowerCase().includes(value.toLowerCase())
-      );
+      let tacoFiltered: any[] = [];
+      let tbcaFiltered: any[] = [];
+
+      if (dataSource === 'TACO' || dataSource === 'Todas') {
+        tacoFiltered = tacoData.filter(food =>
+          food.name.toLowerCase().includes(value.toLowerCase())
+        );
+      }
+
+      if (dataSource === 'TBCA' || dataSource === 'Todas') {
+        tbcaFiltered = tbcaData.filter(food =>
+          food.name.toLowerCase().includes(value.toLowerCase())
+        );
+      }
       
       const customFiltered = customFoods.filter(food =>
         food.name.toLowerCase().includes(value.toLowerCase())
       );
 
-      const combined = [...customFiltered, ...tacoFiltered].slice(0, 15);
+      const combined = [...customFiltered, ...tacoFiltered, ...tbcaFiltered].slice(0, 15);
       setFilteredFoods(combined);
       if (selectingFromListRef.current) {
         selectingFromListRef.current = false;
@@ -76,7 +90,7 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
       setIsOpen(false);
       selectingFromListRef.current = false;
     }
-  }, [value, customFoods]);
+  }, [value, customFoods, dataSource]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

@@ -275,6 +275,7 @@ export const PatientProfile = () => {
   const [mealObservations, setMealObservations] = useState<Record<string, string>>({});
   const [mealPlanName, setMealPlanName] = useState('');
   const [selectedCalculationForMealPlan, setSelectedCalculationForMealPlan] = useState<NutritionCalculation | null>(null);
+  const [foodDataSource, setFoodDataSource] = useState<'TACO' | 'TBCA' | 'Todas'>('Todas');
   
   const isMealPlanLimitReached = nutritionist?.plan === 'free' && mealPlans.filter(p => p.status === 'active').length >= settings.free.maxMealPlans;
   const isLabExamLimitReached = nutritionist?.plan === 'free' && exams.length >= settings.free.maxExams;
@@ -2057,6 +2058,19 @@ export const PatientProfile = () => {
                               placeholder="Nome do Plano Alimentar"
                             />
                           </div>
+                          <div className="flex items-center gap-2">
+                            <Label className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Fonte:</Label>
+                            <Select value={foodDataSource} onValueChange={(v: any) => setFoodDataSource(v)}>
+                              <SelectTrigger className="h-8 w-[120px] rounded-xl border-slate-200 bg-white text-xs font-bold text-slate-600 focus:ring-emerald-500/20">
+                                <SelectValue placeholder="Fonte" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Todas">Todas</SelectItem>
+                                <SelectItem value="TACO">TACO</SelectItem>
+                                <SelectItem value="TBCA">TBCA</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 shrink-0 ml-4">
@@ -2249,6 +2263,7 @@ export const PatientProfile = () => {
                                                   setIsCustomFoodDialogOpen(true);
                                                 }}
                                                 placeholder="Ex: Arroz Integral"
+                                                dataSource={foodDataSource}
                                               />
                                             </td>
                                             <td className="px-4 py-3">
