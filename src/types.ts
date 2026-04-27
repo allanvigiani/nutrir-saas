@@ -79,6 +79,7 @@ export interface MealPlan {
   generalInstructions?: string;
   waterIntake?: string;
   mealObservations?: Record<string, string>;
+  customMeals?: { id: string; label: string; time?: string; icon?: string }[];
   access_token?: string;
   status: 'active' | 'archived';
   createdAt: string;
@@ -89,7 +90,7 @@ export interface MealPlanItem {
   id: string;
   meal_plan_id: string;
   nutritionist_id: string;
-  meal: 'breakfast' | 'morning_snack' | 'lunch' | 'afternoon_snack' | 'dinner' | 'supper';
+  meal: string;
   food: string;
   quantity: string;
   unit: string;

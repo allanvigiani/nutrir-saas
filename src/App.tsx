@@ -15,6 +15,7 @@ import { Financial } from './pages/Financial';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { PatientAccess } from './pages/PatientAccess';
 import { SubscriptionSuccess } from './pages/SubscriptionSuccess';
+import { MealPlanEdit } from './pages/MealPlanEdit';
 import { Toaster } from './components/ui/sonner';
 import { TooltipProvider } from './components/ui/tooltip';
 
@@ -47,6 +48,7 @@ export default function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/patients" element={<Patients />} />
                 <Route path="/patients/:id" element={<PatientProfile />} />
+                <Route path="/patients/:patientId/meal-plan/:planId" element={<MealPlanEdit />} />
                 <Route path="/schedule" element={<Schedule />} />
                 <Route path="/financial" element={<Financial />} />
                 <Route path="/settings" element={<Settings />} />

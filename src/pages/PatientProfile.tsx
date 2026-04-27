@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { 
-  User, 
-  Calendar, 
-  FileText, 
-  Beaker, 
-  TrendingUp, 
+import {
+  User,
+  Calendar,
+  FileText,
+  Beaker,
+  TrendingUp,
   FileSpreadsheet,
   Download,
   ArrowLeft,
@@ -40,30 +40,30 @@ import {
   Calculator,
   X
 } from 'lucide-react';
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
 } from '../components/ui/tabs';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
+import {
+  Card,
+  CardContent,
+  CardHeader,
   CardTitle,
   CardDescription
 } from '../components/ui/card';
 import { Button, buttonVariants } from '../components/ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { useSettings } from '../contexts/SettingsContext';
-import { 
-  doc, 
-  getDoc, 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  orderBy, 
+import {
+  doc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  orderBy,
   deleteDoc,
   addDoc,
   updateDoc,
@@ -79,11 +79,12 @@ import { ptBR } from 'date-fns/locale';
 import { PremiumFeature } from '../components/PremiumFeature';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { maskCPF, maskPhone } from '../lib/masks';
-import { generateSecureToken } from '../lib/utils';
+import { generateSecureToken, cn } from '../lib/utils';
 import { FoodAutocomplete } from '../components/FoodAutocomplete';
 import { TacoFood } from '../data/taco';
 import { CustomFoodDialog } from '../components/CustomFoodDialog';
 import { NutritionalCalculator } from '../components/NutritionalCalculator';
+import { MealPlanEditor } from '../components/MealPlanEditor';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -157,36 +158,36 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 }
 import { toast } from 'sonner';
 
-import { 
-  LineChart, 
-  Line, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   BarChart,
   Bar,
   Legend
 } from 'recharts';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
   DialogFooter
 } from '../components/ui/dialog';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '../components/ui/select';
 import {
   DropdownMenu,
@@ -197,6 +198,34 @@ import {
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+
+
+const SummaryCard = ({ label, value, total, unit, color, progressColor, icon: Icon }: any) => (
+  <Card className="border-none shadow-sm bg-white overflow-hidden rounded-2xl ring-1 ring-slate-100 hover:shadow-md transition-all duration-300">
+    <div className="p-4 flex items-center gap-4">
+      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-inner", color)}>
+        <Icon className="w-5 h-5" />
+      </div>
+      <div className="flex-1">
+        <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1">{label}</p>
+        <p className="text-lg font-bold text-slate-900 leading-none">
+          {Number(value).toFixed(1)}
+          <span className="text-xs font-medium text-slate-300 ml-1">
+            {total ? `/ ${Number(total).toFixed(0)}` : ''} {unit}
+          </span>
+        </p>
+        {total && (
+          <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2.5 overflow-hidden">
+            <div
+              className={cn("h-full rounded-full transition-all duration-500", progressColor)}
+              style={{ width: `${Math.min((value / total) * 100, 100)}%` }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  </Card>
+);
 
 const consultationSchema = z.object({
   date: z.string().min(1, 'Data é obrigatória'),
@@ -232,7 +261,6 @@ export const PatientProfile = () => {
   const [isConsultationModalOpen, setIsConsultationModalOpen] = useState(false);
   const [isCalculatorModalOpen, setIsCalculatorModalOpen] = useState(false);
   const [selectedConsultationForCalc, setSelectedConsultationForCalc] = useState<Consultation | null>(null);
-  const [isMealPlanModalOpen, setIsMealPlanModalOpen] = useState(false);
   const [isCustomFoodDialogOpen, setIsCustomFoodDialogOpen] = useState(false);
   const [initialFoodName, setInitialFoodName] = useState('');
   const [activeMealItemIndex, setActiveMealItemIndex] = useState<number | null>(null);
@@ -269,23 +297,10 @@ export const PatientProfile = () => {
   const [isGeneratingToken, setIsGeneratingToken] = useState(false);
   const [selectedMealPlan, setSelectedMealPlan] = useState<MealPlan | null>(null);
   const [selectedMealPlanItems, setSelectedMealPlanItems] = useState<MealPlanItem[]>([]);
-  const [mealItems, setMealItems] = useState<DraftMealItem[]>([]);
-  const [generalInstructions, setGeneralInstructions] = useState('');
-  const [waterIntake, setWaterIntake] = useState('');
-  const [mealObservations, setMealObservations] = useState<Record<string, string>>({});
-  const [mealPlanName, setMealPlanName] = useState('');
-  const [selectedCalculationForMealPlan, setSelectedCalculationForMealPlan] = useState<NutritionCalculation | null>(null);
-  const [foodDataSource, setFoodDataSource] = useState<'TACO' | 'TBCA' | 'Todas'>('Todas');
-  
+
   const isMealPlanLimitReached = nutritionist?.plan === 'free' && mealPlans.filter(p => p.status === 'active').length >= settings.free.maxMealPlans;
   const isLabExamLimitReached = nutritionist?.plan === 'free' && exams.length >= settings.free.maxExams;
 
-  const mealTotals = mealItems.reduce((acc, item) => ({
-    kcal: acc.kcal + (Number(item.kcal) || 0),
-    protein: acc.protein + (Number(item.protein) || 0),
-    carbs: acc.carbs + (Number(item.carbs) || 0),
-    fat: acc.fat + (Number(item.fat) || 0),
-  }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
 
   const viewMealTotals = selectedMealPlanItems.reduce((acc, item) => ({
     kcal: acc.kcal + (Number(item.kcal) || 0),
@@ -294,34 +309,27 @@ export const PatientProfile = () => {
     fat: acc.fat + (Number(item.fat) || 0),
   }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
 
-  const mealTypes = [
-    { id: 'breakfast', label: 'Café da Manhã', icon: Sun, color: 'bg-amber-50 border-amber-100 text-amber-700' },
-    { id: 'morning_snack', label: 'Lanche da Manhã', icon: Apple, color: 'bg-rose-50 border-rose-100 text-rose-700' },
-    { id: 'lunch', label: 'Almoço', icon: Utensils, color: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
-    { id: 'afternoon_snack', label: 'Lanche da Tarde', icon: Coffee, color: 'bg-orange-50 border-orange-100 text-orange-700' },
-    { id: 'dinner', label: 'Jantar', icon: Moon, color: 'bg-indigo-50 border-indigo-100 text-indigo-700' },
-    { id: 'supper', label: 'Ceia', icon: CloudMoon, color: 'bg-slate-50 border-slate-100 text-slate-700' },
-  ];
+  const defaultMealTypes: any[] = [];
 
   const generateMealPlanPDF = (plan: MealPlan, items: MealPlanItem[]) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
-    
+
     // Header background
     doc.setFillColor(5, 150, 105); // emerald-600
     doc.rect(0, 0, pageWidth, 45, 'F');
-    
+
     // Title
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
     doc.text('PLANO ALIMENTAR', pageWidth / 2, 20, { align: 'center' });
-    
+
     // Nutritionist Info in Header
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
     doc.text(`Nutricionista: ${nutritionist?.name || 'Não informado'}`, pageWidth / 2, 28, { align: 'center' });
-    
+
     let headerY = 33;
     if (nutritionist?.crn) {
       doc.text(`CRN: ${nutritionist.crn}`, pageWidth / 2, headerY, { align: 'center' });
@@ -344,7 +352,7 @@ export const PatientProfile = () => {
     doc.text('Paciente:', 14, 70);
     doc.setFont('helvetica', 'normal');
     doc.text(patient?.name || 'Não informado', 35, 70);
-    
+
     doc.setFont('helvetica', 'bold');
     doc.text('Data:', 14, 77);
     doc.setFont('helvetica', 'normal');
@@ -365,14 +373,15 @@ export const PatientProfile = () => {
     }
 
     // Group items by meal
-    const order = ['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner', 'supper'];
-    
-    order.forEach((mealId) => {
-      const mealItems = items.filter(i => i.meal === mealId);
+    const mealsToDisplay = plan.customMeals && plan.customMeals.length > 0 ? plan.customMeals : defaultMealTypes;
+
+    mealsToDisplay.forEach((meal) => {
+      const mealItems = items.filter(i => i.meal === meal.id);
       if (mealItems.length === 0) return;
 
-      const mealLabel = mealTypes.find(m => m.id === mealId)?.label || mealId;
-      const observation = plan.mealObservations?.[mealId];
+      const mealLabel = meal.label;
+      const mealTime = meal.time ? ` (${meal.time})` : '';
+      const observation = plan.mealObservations?.[meal.id];
 
       // Meal Header
       doc.setFillColor(248, 250, 252); // slate-50
@@ -380,8 +389,8 @@ export const PatientProfile = () => {
       doc.setTextColor(5, 150, 105); // emerald-600
       doc.setFontSize(12);
       doc.setFont('helvetica', 'bold');
-      doc.text(mealLabel.toUpperCase(), 18, currentY + 7);
-      
+      doc.text(`${mealLabel.toUpperCase()}${mealTime}`, 18, currentY + 7);
+
       currentY += 12;
 
       // Table for this meal
@@ -417,7 +426,7 @@ export const PatientProfile = () => {
       if (observation) {
         doc.setFillColor(255, 251, 235); // amber-50
         doc.setDrawColor(251, 191, 36); // amber-400
-        
+
         const splitObs = doc.splitTextToSize(observation, pageWidth - 36);
         const obsHeight = (splitObs.length * 5) + 6;
 
@@ -429,12 +438,12 @@ export const PatientProfile = () => {
 
         doc.rect(14, currentY, pageWidth - 28, obsHeight, 'F');
         doc.line(14, currentY, 14, currentY + obsHeight); // Left border accent
-        
+
         doc.setTextColor(146, 64, 14); // amber-800
         doc.setFontSize(9);
         doc.setFont('helvetica', 'italic');
         doc.text(splitObs, 18, currentY + 5);
-        
+
         currentY += obsHeight + 10;
       } else {
         currentY += 5;
@@ -459,7 +468,7 @@ export const PatientProfile = () => {
       doc.setFont('helvetica', 'bold');
       doc.text('ORIENTAÇÕES GERAIS', 14, currentY + 10);
       doc.line(14, currentY + 12, pageWidth - 14, currentY + 12);
-      
+
       doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
       const splitInstructions = doc.splitTextToSize(plan.generalInstructions, pageWidth - 28);
@@ -520,7 +529,7 @@ export const PatientProfile = () => {
     doc.setFontSize(9);
     doc.setTextColor(71, 85, 105); // slate-600
     doc.text('Assinatura do Profissional', pageWidth / 2, currentY + 5, { align: 'center' });
-    
+
     // Stamp Box
     doc.setDrawColor(203, 213, 225); // slate-300
     doc.rect(pageWidth - 54, currentY - 15, 40, 25);
@@ -553,7 +562,7 @@ export const PatientProfile = () => {
   const sendMealPlanByEmail = async (plan: MealPlan) => {
     if (!user || !patient) return;
     const toastId = toast.loading("Preparando e-mail com plano alimentar...");
-    
+
     try {
       const q = query(
         collection(db, 'meal_plan_items'),
@@ -562,7 +571,7 @@ export const PatientProfile = () => {
       );
       const querySnapshot = await getDocs(q);
       const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlanItem));
-      
+
       const doc = generateMealPlanPDF(plan, items);
       const pdfBase64 = doc.output('datauristring').split(',')[1];
       const fileName = `Plano_Alimentar_${patient.name.replace(/\s+/g, '_')}.pdf`;
@@ -570,7 +579,7 @@ export const PatientProfile = () => {
       const token = await user.getIdToken();
       const response = await fetch('/api/send-meal-plan', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
@@ -604,7 +613,7 @@ export const PatientProfile = () => {
       );
       const querySnapshot = await getDocs(q);
       const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlanItem));
-      
+
       handleExportPDF(plan, items);
       toast.success("PDF gerado com sucesso!", { id: toastId });
     } catch (error) {
@@ -613,97 +622,6 @@ export const PatientProfile = () => {
     }
   };
 
-  const addMealItem = (mealType: string = 'breakfast') => {
-    setMealItems([...mealItems, { 
-      meal: mealType, 
-      food: '', 
-      quantity: '', 
-      unit: 'g',
-      kcal: 0,
-      protein: 0,
-      carbs: 0,
-      fat: 0
-    }]);
-  };
-
-  const removeMealItem = (index: number) => {
-    setMealItems(mealItems.filter((_, i) => i !== index));
-  };
-
-  const updateMealItem = (index: number, field: string, value: any) => {
-    const newItems = [...mealItems];
-    const item = { ...newItems[index] };
-    
-    if (field === 'food_object') {
-      const food = value as TacoFood | CustomFood;
-      item.food = food.name;
-      
-      // If the food has a serving option (slice, spoon, etc.), use it as default
-      if (food.serving) {
-        item.unit = food.serving.name;
-        item.quantity = "1";
-        
-        // Calculate macros for 1 serving
-        const ratio = food.serving.weight / (food.baseQuantity || 100);
-        item.kcal = Math.round(food.kcal * ratio);
-        item.protein = Math.round(food.protein * ratio);
-        item.carbs = Math.round(food.carbs * ratio);
-        item.fat = Math.round(food.fat * ratio);
-      } else {
-        item.unit = food.baseUnit;
-        item.quantity = food.baseQuantity.toString();
-        item.kcal = Math.round(food.kcal);
-        item.protein = Math.round(food.protein);
-        item.carbs = Math.round(food.carbs);
-        item.fat = Math.round(food.fat);
-      }
-      
-      item.base_kcal = food.kcal;
-      item.base_protein = food.protein;
-      item.base_carbs = food.carbs;
-      item.base_fat = food.fat;
-      item.base_quantity = food.baseQuantity;
-      item.serving_name = food.serving?.name;
-      item.serving_weight = food.serving?.weight;
-    } else if (field === 'food') {
-      item.food = value;
-      item.base_kcal = null;
-      item.base_protein = null;
-      item.base_carbs = null;
-      item.base_fat = null;
-      item.base_quantity = null;
-      item.serving_name = null;
-      item.serving_weight = null;
-    } else if (field === 'quantity' || field === 'unit') {
-      if (field === 'quantity') item.quantity = value;
-      if (field === 'unit') item.unit = value;
-      
-      const newQty = parseFloat(item.quantity);
-      if (!isNaN(newQty) && item.base_quantity && item.base_quantity > 0) {
-        let effectiveWeight = newQty;
-        
-        // Normalize unit comparison (e.g., 'un' vs 'unidade')
-        const isServingUnit = item.unit === item.serving_name || 
-                            (item.unit === 'un' && item.serving_name === 'unidade') ||
-                            (item.unit === 'unidade' && item.serving_name === 'un');
-
-        if (isServingUnit && item.serving_weight) {
-          effectiveWeight = newQty * item.serving_weight;
-        }
-        
-        const ratio = effectiveWeight / item.base_quantity;
-        item.kcal = Math.round((item.base_kcal || 0) * ratio);
-        item.protein = Math.round((item.base_protein || 0) * ratio);
-        item.carbs = Math.round((item.base_carbs || 0) * ratio);
-        item.fat = Math.round((item.base_fat || 0) * ratio);
-      }
-    } else {
-      (item as any)[field] = value;
-    }
-    
-    newItems[index] = item;
-    setMealItems(newItems);
-  };
 
   const { register: regConsultation, handleSubmit: handleConsultationSubmit, reset: resetConsultation, formState: { isSubmitting: isConsultationSubmitting } } = useForm<any>({
     resolver: zodResolver(consultationSchema),
@@ -729,7 +647,7 @@ export const PatientProfile = () => {
     if (!user || !id) return;
     try {
       const imc = data.height > 0 ? data.weight / ((data.height / 100) * (data.height / 100)) : 0;
-      
+
       // Clean up optional numbers to ensure they are finite or null
       const cleanData = { ...data };
       const optionalNumberFields = ['fatPercentage', 'waist', 'hip', 'abdomen', 'arm'];
@@ -773,11 +691,11 @@ export const PatientProfile = () => {
           handleFirestoreError(error, OperationType.CREATE, createPath);
         }
       }
-      
+
       setIsConsultationModalOpen(false);
       setSelectedConsultation(null);
       resetConsultation();
-      
+
       // Refresh data
       const consultationsQuery = query(
         collection(db, 'consultations'),
@@ -803,7 +721,7 @@ export const PatientProfile = () => {
       toast.success('Consulta excluída com sucesso!');
       setIsDeleteConsultationConfirmOpen(false);
       setConsultationToDelete(null);
-      
+
       // Refresh data
       const consultationsQuery = query(
         collection(db, 'consultations'),
@@ -819,99 +737,6 @@ export const PatientProfile = () => {
     }
   };
 
-  const onMealPlanSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!user || !id) return;
-
-    // Premium check: Free plan allows only a limited number of active meal plans
-    if (!selectedMealPlan && nutritionist?.plan === 'free') {
-      const activePlans = mealPlans.filter(p => p.status === 'active');
-      const maxMealPlans = settings.free.maxMealPlans;
-      if (activePlans.length >= maxMealPlans) {
-        toast.error(`O plano gratuito permite apenas ${maxMealPlans} plano(s) alimentar(es) ativo(s) por paciente.`);
-        return;
-      }
-    }
-    try {
-      let mealPlanId = selectedMealPlan?.id;
-
-      if (selectedMealPlan) {
-        // Update existing
-        await updateDoc(doc(db, 'meal_plans', selectedMealPlan.id), {
-          name: mealPlanName,
-          generalInstructions,
-          waterIntake,
-          mealObservations,
-          access_token: patient.access_token || null,
-          updatedAt: new Date().toISOString(),
-        });
-        
-        // Delete old items
-        const itemsQuery = query(
-          collection(db, 'meal_plan_items'), 
-          where('meal_plan_id', '==', selectedMealPlan.id),
-          where('nutritionist_id', '==', user.uid)
-        );
-        const itemsSnap = await getDocs(itemsQuery);
-        for (const itemDoc of itemsSnap.docs) {
-          await deleteDoc(doc(db, 'meal_plan_items', itemDoc.id));
-        }
-      } else {
-        // Create new
-        const mealPlanRef = await addDoc(collection(db, 'meal_plans'), {
-          patient_id: id,
-          nutritionist_id: user.uid,
-          access_token: patient.access_token || null,
-          name: mealPlanName,
-          generalInstructions,
-          waterIntake,
-          mealObservations,
-          status: 'active',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
-        mealPlanId = mealPlanRef.id;
-      }
-
-      // Add items
-      for (const item of mealItems) {
-        // Sanitize item to remove undefined values
-        const sanitizedItem = Object.fromEntries(
-          Object.entries(item).filter(([_, v]) => v !== undefined)
-        );
-        
-        await addDoc(collection(db, 'meal_plan_items'), {
-          ...sanitizedItem,
-          meal_plan_id: mealPlanId,
-          nutritionist_id: user.uid,
-          access_token: patient.access_token || null,
-        });
-      }
-
-      toast.success(selectedMealPlan ? 'Plano alimentar atualizado!' : 'Plano alimentar criado com sucesso!');
-      setIsMealPlanModalOpen(false);
-      setMealItems([]);
-      setGeneralInstructions('');
-      setWaterIntake('');
-      setMealObservations({});
-      setMealPlanName('');
-      setSelectedMealPlan(null);
-      
-      // Refresh data
-      const mealPlansQuery = query(
-        collection(db, 'meal_plans'),
-        where('patient_id', '==', id),
-        where('nutritionist_id', '==', user.uid)
-      );
-      const mealPlansSnap = await getDocs(mealPlansQuery);
-      const fetchedPlans = mealPlansSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlan));
-      setMealPlans(fetchedPlans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-    } catch (error) {
-      console.error("Error saving meal plan:", error);
-      toast.error('Erro ao salvar plano alimentar.');
-      handleFirestoreError(error, OperationType.WRITE, 'meal_plans');
-    }
-  };
 
   const viewMealPlan = async (plan: MealPlan) => {
     if (!user) return;
@@ -933,40 +758,8 @@ export const PatientProfile = () => {
     }
   };
 
-  const editMealPlan = async (plan: MealPlan) => {
-    if (!user) return;
-    setSelectedMealPlan(plan);
-    setMealPlanName(plan.name || '');
-    setGeneralInstructions(plan.generalInstructions || '');
-    setWaterIntake(plan.waterIntake || '');
-    setMealObservations(plan.mealObservations || {});
-    try {
-      const q = query(
-        collection(db, 'meal_plan_items'),
-        where('meal_plan_id', '==', plan.id),
-        where('nutritionist_id', '==', user.uid)
-      );
-      const querySnapshot = await getDocs(q);
-      const items = querySnapshot.docs.map(doc => {
-        const data = doc.data();
-        return { 
-          meal: data.meal,
-          food: data.food,
-          quantity: data.quantity,
-          unit: data.unit,
-          kcal: data.kcal || 0,
-          protein: data.protein || 0,
-          carbs: data.carbs || 0,
-          fat: data.fat || 0
-        };
-      });
-      setMealItems(items as any);
-      setIsMealPlanModalOpen(true);
-    } catch (error) {
-      console.error("Error fetching meal plan items for edit:", error);
-      toast.error("Erro ao carregar plano para edição.");
-      handleFirestoreError(error, OperationType.GET, `meal_plan_items`);
-    }
+  const editMealPlan = (plan: MealPlan) => {
+    navigate(`/patients/${id}/meal-plan/${plan.id}`);
   };
 
   const deleteMealPlan = async (planId: string) => {
@@ -980,7 +773,7 @@ export const PatientProfile = () => {
     try {
       // Delete items first
       const itemsQuery = query(
-        collection(db, 'meal_plan_items'), 
+        collection(db, 'meal_plan_items'),
         where('meal_plan_id', '==', mealPlanToDelete),
         where('nutritionist_id', '==', user.uid)
       );
@@ -1040,7 +833,7 @@ export const PatientProfile = () => {
     }
 
     const formData = new FormData(e.currentTarget);
-    
+
     try {
       const examData = {
         date: formData.get('date') as string,
@@ -1062,12 +855,12 @@ export const PatientProfile = () => {
         await addDoc(collection(db, 'lab_exams'), examData);
         toast.success('Exame registrado com sucesso!');
       }
-      
+
       setIsLabExamModalOpen(false);
       setExamMarkers([]);
       setSelectedExam(null);
 
-      
+
       // Refresh exams
       const examsQuery = query(
         collection(db, 'lab_exams'),
@@ -1092,7 +885,7 @@ export const PatientProfile = () => {
 
   const confirmDeleteLabExam = async () => {
     if (!user || !labExamToDelete) return;
-    
+
     try {
       await deleteDoc(doc(db, 'lab_exams', labExamToDelete));
       toast.success('Exame excluído com sucesso!');
@@ -1175,16 +968,16 @@ export const PatientProfile = () => {
     try {
       // Duplicate check: CPF and Email must be unique for the same nutritionist
       const patientsRef = collection(db, 'patients');
-      
+
       // Check CPF
       const cpfQuery = query(
-        patientsRef, 
+        patientsRef,
         where('nutritionist_id', '==', user.uid),
         where('cpf', '==', cpf)
       );
       const cpfSnapshot = await getDocs(cpfQuery);
       const duplicateCpf = cpfSnapshot.docs.find(doc => doc.id !== id);
-      
+
       if (duplicateCpf) {
         toast.error('Já existe um paciente cadastrado com este CPF.');
         return;
@@ -1192,7 +985,7 @@ export const PatientProfile = () => {
 
       // Check Email
       const emailQuery = query(
-        patientsRef, 
+        patientsRef,
         where('nutritionist_id', '==', user.uid),
         where('email', '==', email)
       );
@@ -1220,7 +1013,7 @@ export const PatientProfile = () => {
     const fetchPatientData = () => {
       setLoading(true);
       const docRef = doc(db, 'patients', id);
-      
+
       const unsubscribe = onSnapshot(docRef, async (docSnap) => {
         if (docSnap.exists()) {
           const data = { id: docSnap.id, ...docSnap.data() } as Patient;
@@ -1236,7 +1029,7 @@ export const PatientProfile = () => {
             );
             const consultationsSnap = await getDocs(consultationsQuery);
             let fetchedConsultations = consultationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Consultation));
-            
+
             // Fetch meal plans
             const mealPlansQuery = query(
               collection(db, 'meal_plans'),
@@ -1280,7 +1073,7 @@ export const PatientProfile = () => {
             if (nutritionist?.plan === 'free') {
               const historyMonths = settings.free.historyMonths;
               const historyLimitDate = subMonths(new Date(), historyMonths);
-              
+
               const originalConsultationsCount = fetchedConsultations.length;
               const originalExamsCount = fetchedExams.length;
 
@@ -1328,13 +1121,13 @@ export const PatientProfile = () => {
 
   const generateAccessToken = async () => {
     if (!patient || !id) return;
-    
+
     setIsGeneratingToken(true);
     const toastId = toast.loading('Gerando link de acesso e atualizando registros...');
-    
+
     try {
       const token = generateSecureToken();
-      
+
       // 1. Atualizar o paciente
       await updateDoc(doc(db, 'patients', id), {
         access_token: token,
@@ -1344,11 +1137,11 @@ export const PatientProfile = () => {
       // 2. Propagar o token para registros existentes (Consultas, Planos, Exames, Agendamentos)
       const collectionsToUpdate = ['consultations', 'meal_plans', 'lab_exams', 'appointments'];
       let totalUpdated = 0;
-      
+
       for (const colName of collectionsToUpdate) {
         const q = query(collection(db, colName), where('patient_id', '==', id));
         const snapshot = await getDocs(q);
-        
+
         if (!snapshot.empty) {
           const batch = writeBatch(db);
           snapshot.docs.forEach((docSnap) => {
@@ -1391,12 +1184,12 @@ export const PatientProfile = () => {
       toast.error('VITE_WHATSAPP_BASE_URL não configurada.');
       return;
     }
-    
+
     const baseUrl = window.location.origin;
     const accessUrl = `${baseUrl}/patient-access/${id}?token=${patient.access_token}`;
-    
+
     const message = `Olá ${patient.name}! Aqui está seu link exclusivo para acessar seu plano alimentar e evolução no Nutrir: ${accessUrl}\n\nPara sua segurança, ao acessar, digite os 3 últimos dígitos do seu CPF.`;
-    
+
     const whatsappUrl = `${whatsappBaseUrl}/55${patient.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, '_blank');
   };
@@ -1437,9 +1230,9 @@ export const PatientProfile = () => {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-bold text-slate-900">{patient.name}</h1>
-                <Button 
-                  variant="ghost" 
-                  size="icon-sm" 
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
                   className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
                   onClick={() => setIsEditPatientModalOpen(true)}
                   disabled={patient.status === 'inactive'}
@@ -1505,7 +1298,7 @@ export const PatientProfile = () => {
               });
             }
           }}>
-            <DialogTrigger 
+            <DialogTrigger
               render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" disabled={patient.status === 'inactive'} onClick={() => {
                 setSelectedConsultation(null);
                 resetConsultation({
@@ -1596,17 +1389,17 @@ export const PatientProfile = () => {
                 </div>
 
                 <DialogFooter className="gap-2 sm:gap-0">
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => setIsConsultationModalOpen(false)}
                     className="rounded-xl h-8 px-4 border-slate-200 text-slate-600 text-sm hover:bg-slate-50 transition-all active:scale-95"
                   >
                     Cancelar
                   </Button>
-                  <Button 
-                    type="submit" 
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" 
+                  <Button
+                    type="submit"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                     disabled={isConsultationSubmitting}
                   >
                     {isConsultationSubmitting ? 'Salvando...' : (selectedConsultation ? 'Salvar Alterações' : 'Finalizar Consulta')}
@@ -1724,9 +1517,9 @@ export const PatientProfile = () => {
                 <CardTitle className="text-lg font-bold">Histórico de Consultas</CardTitle>
                 <CardDescription>Visualize todos os atendimentos realizados.</CardDescription>
               </div>
-              <Button 
-                size="sm" 
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" 
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                 onClick={() => setIsConsultationModalOpen(true)}
                 disabled={patient.status === 'inactive'}
               >
@@ -1738,7 +1531,7 @@ export const PatientProfile = () => {
                 <div className="space-y-4">
                   {consultations.map((consultation) => (
                     <div key={consultation.id} className="border border-slate-100 rounded-xl overflow-hidden transition-all duration-200 hover:shadow-sm">
-                      <div 
+                      <div
                         className={cn(
                           "flex items-center justify-between p-4 cursor-pointer transition-colors",
                           expandedConsultations[consultation.id] ? "bg-slate-50 border-b border-slate-100" : "bg-white hover:bg-slate-50"
@@ -1762,13 +1555,13 @@ export const PatientProfile = () => {
                           )}>
                             {consultation.status === 'realized' ? 'Realizada' : 'Cancelada'}
                           </span>
-                          
+
                           <div className="flex gap-2">
-                            <Button 
-                              variant="ghost" 
-                              size="icon-sm" 
-                              className="text-slate-400 hover:text-emerald-600 disabled:opacity-30" 
-                              disabled={patient.status === 'inactive'} 
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="text-slate-400 hover:text-emerald-600 disabled:opacity-30"
+                              disabled={patient.status === 'inactive'}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedConsultationForCalc(consultation);
@@ -1815,7 +1608,7 @@ export const PatientProfile = () => {
                           )}
                         </div>
                       </div>
-                      
+
                       {expandedConsultations[consultation.id] && (
                         <div className="p-6 bg-white space-y-8 animate-in fade-in slide-in-from-top-2 duration-200">
                           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
@@ -1872,7 +1665,7 @@ export const PatientProfile = () => {
                             </div>
                           </div>
 
-                           {consultation.observations && (
+                          {consultation.observations && (
                             <div className="pt-4 border-t border-slate-100">
                               <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Observações Adicionais</h4>
                               <p className="text-sm text-slate-500 italic">{consultation.observations}</p>
@@ -1884,97 +1677,102 @@ export const PatientProfile = () => {
                               <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
                                 <Calculator className="w-4 h-4 text-emerald-500" /> Cálculos Nutricionais
                               </h4>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                                onClick={() => {
-                                  setSelectedConsultationForCalc(consultation);
-                                  setIsCalculatorModalOpen(true);
-                                }}
-                              >
-                                Novo Cálculo
-                              </Button>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 h-8 text-xs"
+                                    onClick={() => navigate(`/patients/${id}/meal-plan/new`, { state: { consultationId: consultation.id } })}
+                                  >
+                                    <Plus className="w-3.5 h-3.5 mr-1" /> Criar Plano
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 h-8 text-xs"
+                                    onClick={() => {
+                                      setSelectedConsultationForCalc(consultation);
+                                      setIsCalculatorModalOpen(true);
+                                    }}
+                                  >
+                                    <Calculator className="w-3.5 h-3.5 mr-1" /> Novo Cálculo
+                                  </Button>
+                                </div>
                             </div>
-                            
+
                             {calculations.filter(c => c.consultation_id === consultation.id).length > 0 ? (
                               <div className="grid gap-3">
-                                  {calculations.filter(c => c.consultation_id === consultation.id).map(calc => (
-                                    <div key={calc.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3">
-                                      <div className="flex justify-between items-start">
-                                        <div>
-                                          <p className="font-bold text-slate-800 text-sm">{calc.name}</p>
-                                          <p className="text-xs text-slate-500">{formatDateSafely(calc.createdAt, "dd 'de' MMMM 'de' yyyy")}</p>
-                                        </div>
-                                        <div className="text-right">
-                                          <p className="text-sm font-black text-emerald-600">{calc.result.getAjustado} kcal</p>
-                                          <p className="text-[10px] text-slate-400 uppercase font-bold">{calc.result.formulaUtilizada.replace('_', '/')}</p>
-                                        </div>
+                                {calculations.filter(c => c.consultation_id === consultation.id).map(calc => (
+                                  <div key={calc.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3">
+                                    <div className="flex justify-between items-start">
+                                      <div>
+                                        <p className="font-bold text-slate-800 text-sm">{calc.name}</p>
+                                        <p className="text-xs text-slate-500">{formatDateSafely(calc.createdAt, "dd 'de' MMMM 'de' yyyy")}</p>
                                       </div>
-                                      
-                                      <div className="grid grid-cols-3 gap-2">
-                                        <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
-                                          <p className="text-[10px] text-slate-400 font-bold uppercase">Proteína</p>
-                                          <p className="text-xs font-bold text-slate-700">{calc.result.macronutrientes.ptnG}g</p>
-                                        </div>
-                                        <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
-                                          <p className="text-[10px] text-slate-400 font-bold uppercase">Carbos</p>
-                                          <p className="text-xs font-bold text-slate-700">{calc.result.macronutrientes.choG}g</p>
-                                        </div>
-                                        <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
-                                          <p className="text-[10px] text-slate-400 font-bold uppercase">Gorduras</p>
-                                          <p className="text-xs font-bold text-slate-700">{calc.result.macronutrientes.lipG}g</p>
-                                        </div>
-                                      </div>
-
-                                      <div className="pt-2 mt-2 border-t border-slate-200 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
-                                        <div className="flex justify-between">
-                                          <span className="text-slate-400">Peso Utilizado:</span>
-                                          <span className="font-bold text-slate-600">{calc.result.pesoUtilizado} kg</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-slate-400">Gasto Energético:</span>
-                                          <span className="font-bold text-slate-600">{calc.result.get} kcal</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-slate-400">Nível Atividade:</span>
-                                          <span className="font-bold text-slate-600">{calc.input.nivelAtividade}</span>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="text-slate-400">Objetivo:</span>
-                                          <span className="font-bold text-slate-600 capitalize">{calc.input.objetivo}</span>
-                                        </div>
-                                      </div>
-
-                                      {calc.result.alertas.length > 0 && (
-                                        <div className="bg-amber-50 p-2 rounded-lg border border-amber-100 mt-2">
-                                          <p className="text-[10px] font-bold text-amber-800 mb-1 flex items-center gap-1">
-                                            <AlertCircle className="w-3 h-3" /> Alertas
-                                          </p>
-                                          <ul className="space-y-1">
-                                            {calc.result.alertas.map((alerta: string, i: number) => (
-                                              <li key={i} className="text-[9px] text-amber-700 leading-tight">• {alerta}</li>
-                                            ))}
-                                          </ul>
-                                        </div>
-                                      )}
-
-                                      <div className="flex justify-end pt-2">
-                                        <Button 
-                                          size="sm" 
-                                          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm text-xs h-8"
-                                          onClick={() => {
-                                            setActiveTab('mealplans');
-                                            setSelectedCalculationForMealPlan(calc);
-                                            setMealPlanName(`Plano Alimentar - ${calc.result.getAjustado} kcal`);
-                                            setTimeout(() => setIsMealPlanModalOpen(true), 50);
-                                          }}
-                                        >
-                                          Criar Plano Alimentar
-                                        </Button>
+                                      <div className="text-right">
+                                        <p className="text-sm font-black text-emerald-600">{calc.result.getAjustado} kcal</p>
+                                        <p className="text-[10px] text-slate-400 uppercase font-bold">{calc.result.formulaUtilizada.replace('_', '/')}</p>
                                       </div>
                                     </div>
-                                  ))}
+
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase">Proteína</p>
+                                        <p className="text-xs font-bold text-slate-700">{calc.result.macronutrientes.ptnG}g</p>
+                                      </div>
+                                      <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase">Carboidratos</p>
+                                        <p className="text-xs font-bold text-slate-700">{calc.result.macronutrientes.choG}g</p>
+                                      </div>
+                                      <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
+                                        <p className="text-[10px] text-slate-400 font-bold uppercase">Gorduras</p>
+                                        <p className="text-xs font-bold text-slate-700">{calc.result.macronutrientes.lipG}g</p>
+                                      </div>
+                                    </div>
+
+                                    <div className="pt-2 mt-2 border-t border-slate-200 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+                                      <div className="flex justify-between">
+                                        <span className="text-slate-400">Peso Utilizado:</span>
+                                        <span className="font-bold text-slate-600">{calc.result.pesoUtilizado} kg</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-slate-400">Gasto Energético:</span>
+                                        <span className="font-bold text-slate-600">{calc.result.get} kcal</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-slate-400">Nível Atividade:</span>
+                                        <span className="font-bold text-slate-600">{calc.input.nivelAtividade}</span>
+                                      </div>
+                                      <div className="flex justify-between">
+                                        <span className="text-slate-400">Objetivo:</span>
+                                        <span className="font-bold text-slate-600 capitalize">{calc.input.objetivo}</span>
+                                      </div>
+                                    </div>
+
+                                    {calc.result.alertas.length > 0 && (
+                                      <div className="bg-amber-50 p-2 rounded-lg border border-amber-100 mt-2">
+                                        <p className="text-[10px] font-bold text-amber-800 mb-1 flex items-center gap-1">
+                                          <AlertCircle className="w-3 h-3" /> Alertas
+                                        </p>
+                                        <ul className="space-y-1">
+                                          {calc.result.alertas.map((alerta: string, i: number) => (
+                                            <li key={i} className="text-[9px] text-amber-700 leading-tight">• {alerta}</li>
+                                          ))}
+                                        </ul>
+                                      </div>
+                                    )}
+
+                                    <div className="flex justify-end pt-2">
+                                      <Button
+                                        size="sm"
+                                        className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm text-xs h-8"
+                                        onClick={() => navigate(`/patients/${id}/meal-plan/new`, { state: { calculation: calc } })}
+                                      >
+                                        Criar Plano Alimentar
+                                      </Button>
+                                    </div>
+                                  </div>
+                                ))}
                               </div>
                             ) : (
                               <p className="text-xs text-slate-500 italic bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">Nenhum cálculo realizado para esta consulta.</p>
@@ -2002,7 +1800,7 @@ export const PatientProfile = () => {
                       <p className="text-xs text-emerald-700">Existem consultas mais antigas que não estão visíveis no plano gratuito.</p>
                     </div>
                   </div>
-                  <Button 
+                  <Button
                     onClick={() => setIsUpgradeModalOpen(true)}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl h-8 px-4 text-xs gap-2 shrink-0"
                   >
@@ -2021,380 +1819,12 @@ export const PatientProfile = () => {
                 <CardTitle className="text-lg">Planos Alimentares</CardTitle>
                 <CardDescription>Gerencie as dietas prescritas.</CardDescription>
               </div>
-              <div className="flex flex-col items-end text-right">
-                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded-full mb-1">
+              <div className="flex flex-col items-end text-right gap-3">
+                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded-full">
                   Jornada do Paciente
                 </span>
-                <p className="text-xs text-slate-500 max-w-[280px] leading-tight">
-                  Para criar um novo plano, acesse a aba <strong>Consultas</strong> e utilize o botão "Criar Plano Alimentar" dentro de um <strong>Cálculo Nutricional</strong>.
-                </p>
               </div>
-              <Dialog open={isMealPlanModalOpen} onOpenChange={(open) => {
-                setIsMealPlanModalOpen(open);
-                if (!open) {
-                  setSelectedMealPlan(null);
-                  setGeneralInstructions('');
-                  setWaterIntake('');
-                  setMealObservations({});
-                  setMealPlanName('');
-                  setMealItems([]);
-                  setSelectedCalculationForMealPlan(null);
-                }
-              }}>
-                <DialogContent className="max-w-6xl w-[98vw] h-[95vh] p-0 overflow-hidden flex flex-col rounded-2xl border-none shadow-2xl print-content-wrapper">
-                  <div key={selectedMealPlan?.id || 'new'} className="flex flex-col h-full bg-slate-50 overflow-hidden">
-                    {/* Header Bar */}
-                    <div className="bg-white border-b px-6 py-4 flex items-center justify-between shrink-0 z-50 shadow-sm print:hidden">
-                      <div className="flex items-center gap-4 flex-1 min-w-0">
-                        <Button variant="ghost" size="icon" onClick={() => setIsMealPlanModalOpen(false)} className="shrink-0 hover:bg-slate-100 rounded-full" title="Fechar editor de plano">
-                          <ArrowLeft className="w-5 h-5" />
-                        </Button>
-                        <div className="flex-1 flex flex-col md:flex-row md:items-center gap-3 min-w-0">
-                          <div className="flex-1 min-w-[150px] max-w-[400px]">
-                            <Input 
-                              value={mealPlanName}
-                              onChange={(e) => setMealPlanName(e.target.value)}
-                              className="text-lg font-bold border-slate-200 bg-white h-8 rounded-xl focus-visible:ring-emerald-500 transition-all placeholder:text-slate-300"
-                              placeholder="Nome do Plano Alimentar"
-                            />
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Label className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">Fonte:</Label>
-                            <Select value={foodDataSource} onValueChange={(v: any) => setFoodDataSource(v)}>
-                              <SelectTrigger className="h-8 w-[120px] rounded-xl border-slate-200 bg-white text-xs font-bold text-slate-600 focus:ring-emerald-500/20">
-                                <SelectValue placeholder="Fonte" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Todas">Todas</SelectItem>
-                                <SelectItem value="TACO">TACO</SelectItem>
-                                <SelectItem value="TBCA">TBCA</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 shrink-0 ml-4">
-                        <Button 
-                          size="sm" 
-                          onClick={onMealPlanSubmit} 
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-lg shadow-emerald-200 active:scale-95 disabled:opacity-50"
-                        >
-                          <Save className="w-4 h-4" /> <span className="hidden md:inline">Salvar Plano</span>
-                        </Button>
-                      </div>
-                    </div>
 
-                    <div className="flex-1 overflow-y-auto p-6 space-y-8 print:p-0">
-                      {/* Nutritional Summary */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4">
-                        <Card className="border-none shadow-sm bg-white overflow-hidden print:border print:border-slate-100">
-                          <div className="p-4 flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center print:bg-white print:border print:border-orange-100">
-                              <Activity className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <p className="text-[10px] uppercase font-bold text-slate-400">Calorias</p>
-                              <p className="text-lg font-bold text-slate-900">{mealTotals.kcal} <span className="text-xs font-normal text-slate-400">{selectedCalculationForMealPlan ? `/ ${selectedCalculationForMealPlan.result.getAjustado}` : ''} kcal</span></p>
-                              {selectedCalculationForMealPlan && (
-                                <div className="w-full bg-slate-100 h-1 rounded-full mt-1">
-                                  <div 
-                                    className="bg-orange-500 h-1 rounded-full transition-all" 
-                                    style={{ width: `${Math.min((mealTotals.kcal / selectedCalculationForMealPlan.result.getAjustado) * 100, 100)}%` }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </Card>
-                        <Card className="border-none shadow-sm bg-white overflow-hidden print:border print:border-slate-100">
-                          <div className="p-4 flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center print:bg-white print:border print:border-blue-100">
-                              <Dna className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <p className="text-[10px] uppercase font-bold text-slate-400">Proteínas</p>
-                              <p className="text-lg font-bold text-slate-900">{mealTotals.protein.toFixed(1)} <span className="text-xs font-normal text-slate-400">{selectedCalculationForMealPlan ? `/ ${selectedCalculationForMealPlan.result.macronutrientes.ptnG}g` : 'g'}</span></p>
-                              {selectedCalculationForMealPlan && (
-                                <div className="w-full bg-slate-100 h-1 rounded-full mt-1">
-                                  <div 
-                                    className="bg-blue-500 h-1 rounded-full transition-all" 
-                                    style={{ width: `${Math.min((mealTotals.protein / selectedCalculationForMealPlan.result.macronutrientes.ptnG) * 100, 100)}%` }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </Card>
-                        <Card className="border-none shadow-sm bg-white overflow-hidden print:border print:border-slate-100">
-                          <div className="p-4 flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center print:bg-white print:border print:border-emerald-100">
-                              <Zap className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <p className="text-[10px] uppercase font-bold text-slate-400">Carbos</p>
-                              <p className="text-lg font-bold text-slate-900">{mealTotals.carbs.toFixed(1)} <span className="text-xs font-normal text-slate-400">{selectedCalculationForMealPlan ? `/ ${selectedCalculationForMealPlan.result.macronutrientes.choG}g` : 'g'}</span></p>
-                              {selectedCalculationForMealPlan && (
-                                <div className="w-full bg-slate-100 h-1 rounded-full mt-1">
-                                  <div 
-                                    className="bg-emerald-500 h-1 rounded-full transition-all" 
-                                    style={{ width: `${Math.min((mealTotals.carbs / selectedCalculationForMealPlan.result.macronutrientes.choG) * 100, 100)}%` }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </Card>
-                        <Card className="border-none shadow-sm bg-white overflow-hidden print:border print:border-slate-100">
-                          <div className="p-4 flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center print:bg-white print:border print:border-purple-100">
-                              <Droplets className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <p className="text-[10px] uppercase font-bold text-slate-400">Gorduras</p>
-                              <p className="text-lg font-bold text-slate-900">{mealTotals.fat.toFixed(1)} <span className="text-xs font-normal text-slate-400">{selectedCalculationForMealPlan ? `/ ${selectedCalculationForMealPlan.result.macronutrientes.lipG}g` : 'g'}</span></p>
-                              {selectedCalculationForMealPlan && (
-                                <div className="w-full bg-slate-100 h-1 rounded-full mt-1">
-                                  <div 
-                                    className="bg-purple-500 h-1 rounded-full transition-all" 
-                                    style={{ width: `${Math.min((mealTotals.fat / selectedCalculationForMealPlan.result.macronutrientes.lipG) * 100, 100)}%` }}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </Card>
-                      </div>
-
-                      {/* Water Intake & General Instructions */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                          <Card className="border-none shadow-sm bg-white overflow-hidden p-6 space-y-4 h-full">
-                            <div className="flex items-center gap-3 text-blue-600 mb-2">
-                              <div className="p-2 rounded-xl bg-blue-50">
-                                <Droplets className="w-5 h-5" />
-                              </div>
-                              <h4 className="font-bold uppercase tracking-wider text-xs">Meta de Água</h4>
-                            </div>
-                            <div className="space-y-2">
-                              <Label className="text-xs text-slate-500">Quantidade Diária</Label>
-                              <Input 
-                                placeholder="Ex: 2.5 Litros"
-                                value={waterIntake}
-                                onChange={(e) => setWaterIntake(e.target.value)}
-                                className="rounded-xl border-slate-200 focus:border-blue-500 focus:ring-blue-500/20"
-                              />
-                            </div>
-                          </Card>
-                        </div>
-                        <div>
-                          <Card className="border-none shadow-sm bg-white overflow-hidden p-6 space-y-4 h-full">
-                            <div className="flex items-center gap-3 text-emerald-600 mb-2">
-                              <div className="p-2 rounded-xl bg-emerald-50">
-                                <Activity className="w-5 h-5" />
-                              </div>
-                              <h4 className="font-bold uppercase tracking-wider text-xs">Orientações Gerais</h4>
-                            </div>
-                            <Textarea 
-                              placeholder="Orientações gerais para o paciente..."
-                              className="min-h-[100px] rounded-xl border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 resize-none flex-1"
-                              value={generalInstructions}
-                              onChange={(e) => setGeneralInstructions(e.target.value)}
-                            />
-                          </Card>
-                        </div>
-                      </div>
-
-                      {/* Meals */}
-                      <div className="space-y-8">
-                        {mealTypes.map((mealType) => {
-                          const items = mealItems.filter(i => i.meal === mealType.id);
-                          const Icon = mealType.icon;
-                          
-                          return (
-                            <div key={mealType.id} className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden transition-all hover:shadow-md print:border-emerald-100 print:shadow-none">
-                              <div className={cn("px-6 py-4 flex items-center justify-between border-b print:bg-emerald-50 print:border-emerald-100", mealType.color)}>
-                                <div className="flex items-center gap-3">
-                                  <div className="p-2 rounded-lg bg-white/20 print:bg-emerald-600 print:text-white">
-                                    <Icon className="w-5 h-5" />
-                                  </div>
-                                  <div>
-                                    <span className="font-bold text-lg print:text-emerald-900">{mealType.label}</span>
-                                    <span className="ml-2 text-xs opacity-80 font-medium print:text-emerald-700">{items.length} {items.length === 1 ? 'alimento' : 'alimentos'}</span>
-                                  </div>
-                                </div>
-                                <Button 
-                                  variant="ghost" 
-                                  size="sm" 
-                                  className="h-9 gap-2 rounded-xl bg-white/10 hover:bg-white/20 text-inherit border border-white/20 print:hidden"
-                                  onClick={() => addMealItem(mealType.id)}
-                                >
-                                  <Plus className="w-4 h-4" /> Adicionar Alimento
-                                </Button>
-                              </div>
-                              
-                              <div className="overflow-x-auto">
-                                <table className="w-full text-sm min-w-[800px]">
-                                  <thead>
-                                    <tr className="bg-slate-50/50 text-slate-500 text-left border-b print:bg-slate-50">
-                                      <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Alimento</th>
-                                      <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] w-28">Qtd</th>
-                                      <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] w-28 print:hidden">Unidade</th>
-                                      <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] w-20 text-center">Kcal</th>
-                                      <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] w-20 text-center">P (g)</th>
-                                      <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] w-20 text-center">C (g)</th>
-                                      <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] w-20 text-center">G (g)</th>
-                                      <th className="px-6 py-4 w-12 text-center print:hidden"></th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-100">
-                                    {items.length > 0 ? (
-                                      items.map((item, idx) => {
-                                        const globalIndex = mealItems.findIndex(i => i === item);
-                                        return (
-                                          <tr key={idx} className="hover:bg-slate-50/30 transition-colors group print:hover:bg-transparent">
-                                            <td className="px-6 py-3">
-                                              <FoodAutocomplete
-                                                value={item.food}
-                                                onChange={(v) => updateMealItem(globalIndex, 'food', v)}
-                                                onSelect={(food) => updateMealItem(globalIndex, 'food_object', food)}
-                                                onAddNew={(name) => {
-                                                  setInitialFoodName(name);
-                                                  setActiveMealItemIndex(globalIndex);
-                                                  setIsCustomFoodDialogOpen(true);
-                                                }}
-                                                placeholder="Ex: Arroz Integral"
-                                                dataSource={foodDataSource}
-                                              />
-                                            </td>
-                                            <td className="px-4 py-3">
-                                              <div className="flex items-center gap-1">
-                                                <Input 
-                                                  value={item.quantity} 
-                                                  onChange={(e) => updateMealItem(globalIndex, 'quantity', e.target.value)}
-                                                  className="border-none p-0 h-auto focus-visible:ring-0 bg-transparent text-slate-600 print:text-slate-700"
-                                                  placeholder="0"
-                                                />
-                                                <span className="hidden print:inline text-slate-500">{item.unit}</span>
-                                              </div>
-                                            </td>
-                                            <td className="px-4 py-3 print:hidden">
-                                              <Select 
-                                                value={item.unit} 
-                                                onValueChange={(v) => updateMealItem(globalIndex, 'unit', v)}
-                                              >
-                                                <SelectTrigger className="border-none p-0 h-auto focus:ring-0 bg-transparent shadow-none text-slate-600">
-                                                  <SelectValue>
-                                                    {item.unit}
-                                                  </SelectValue>
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                  <SelectItem value="g">g</SelectItem>
-                                                  <SelectItem value="un">un</SelectItem>
-                                                  <SelectItem value="ml">ml</SelectItem>
-                                                  <SelectItem value="colher">colher</SelectItem>
-                                                  <SelectItem value="fatia">fatia</SelectItem>
-                                                  {item.serving_name && !['g', 'un', 'ml', 'colher', 'fatia', 'unidade'].includes(item.serving_name) && (
-                                                    <SelectItem value={item.serving_name}>{item.serving_name}</SelectItem>
-                                                  )}
-                                                  {item.serving_name === 'unidade' && (
-                                                    <SelectItem value="unidade">unidade</SelectItem>
-                                                  )}
-                                                </SelectContent>
-                                              </Select>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                              <Input 
-                                                type="number"
-                                                value={item.kcal} 
-                                                onChange={(e) => updateMealItem(globalIndex, 'kcal', Number(e.target.value))}
-                                                className="border-none p-0 h-auto focus-visible:ring-0 bg-transparent text-center text-slate-600 print:text-slate-700"
-                                              />
-                                            </td>
-                                            <td className="px-4 py-3">
-                                              <Input 
-                                                type="number"
-                                                value={item.protein} 
-                                                onChange={(e) => updateMealItem(globalIndex, 'protein', Number(e.target.value))}
-                                                className="border-none p-0 h-auto focus-visible:ring-0 bg-transparent text-center text-slate-600 print:text-slate-700"
-                                              />
-                                            </td>
-                                            <td className="px-4 py-3">
-                                              <Input 
-                                                type="number"
-                                                value={item.carbs} 
-                                                onChange={(e) => updateMealItem(globalIndex, 'carbs', Number(e.target.value))}
-                                                className="border-none p-0 h-auto focus-visible:ring-0 bg-transparent text-center text-slate-600 print:text-slate-700"
-                                              />
-                                            </td>
-                                            <td className="px-4 py-3">
-                                              <Input 
-                                                type="number"
-                                                value={item.fat} 
-                                                onChange={(e) => updateMealItem(globalIndex, 'fat', Number(e.target.value))}
-                                                className="border-none p-0 h-auto focus-visible:ring-0 bg-transparent text-center text-slate-600 print:text-slate-700"
-                                              />
-                                            </td>
-                                            <td className="px-6 py-3 text-center print:hidden">
-                                              <Button 
-                                                variant="ghost" 
-                                                size="icon" 
-                                                className="w-8 h-8 text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                                                  onClick={() => removeMealItem(globalIndex)}
-                                                  title="Remover este alimento"
-                                                >
-                                                  <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            </td>
-                                          </tr>
-                                        );
-                                      })
-                                    ) : (
-                                      <tr>
-                                        <td colSpan={8} className="px-6 py-12 text-center text-slate-400 italic bg-slate-50/20">
-                                          Nenhum alimento adicionado a esta refeição.
-                                        </td>
-                                      </tr>
-                                    )}
-                                  </tbody>
-                                </table>
-                              </div>
-                              
-                              {/* Meal Observation */}
-                              <div className="p-4 bg-slate-50/50 border-t border-slate-100 print:hidden">
-                                <div className="flex items-start gap-3">
-                                  <div className="mt-1 p-1.5 rounded-lg bg-amber-100 text-amber-600 shrink-0">
-                                    <MessageSquare className="w-3.5 h-3.5" />
-                                  </div>
-                                  <div className="flex-1">
-                                    <Label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Observações da Refeição</Label>
-                                    <Textarea 
-                                      placeholder="Ex: Beber 200ml de água antes desta refeição..."
-                                      className="min-h-[60px] text-sm bg-white border-slate-200 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl resize-none"
-                                      value={mealObservations[mealType.id] || ''}
-                                      onChange={(e) => setMealObservations(prev => ({ ...prev, [mealType.id]: e.target.value }))}
-                                    />
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <CustomFoodDialog 
-                open={isCustomFoodDialogOpen}
-                onOpenChange={setIsCustomFoodDialogOpen}
-                initialName={initialFoodName}
-                onSuccess={(food) => {
-                  if (activeMealItemIndex !== null) {
-                    updateMealItem(activeMealItemIndex, 'food_object', food);
-                  }
-                }}
-              />
             </CardHeader>
             <CardContent>
               {mealPlans.length > 0 ? (
@@ -2431,8 +1861,11 @@ export const PatientProfile = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-slate-500">
-                  Nenhum plano alimentar cadastrado.
+                <div className="text-center py-12">
+                  <p className="text-slate-500 mb-2 font-medium">Nenhum plano alimentar criado.</p>
+                  <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                    Os planos alimentares são criados vinculados a uma consulta ou a partir de um cálculo nutricional.
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -2501,50 +1934,10 @@ export const PatientProfile = () => {
 
                 {/* Nutritional Summary */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4">
-                  <Card className="border-none shadow-sm bg-white overflow-hidden print:border print:border-slate-100">
-                    <div className="p-4 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center print:bg-white print:border print:border-orange-100">
-                        <Activity className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase font-bold text-slate-400">Calorias</p>
-                        <p className="text-lg font-bold text-slate-900">{viewMealTotals.kcal} <span className="text-xs font-normal text-slate-400">kcal</span></p>
-                      </div>
-                    </div>
-                  </Card>
-                  <Card className="border-none shadow-sm bg-white overflow-hidden print:border print:border-slate-100">
-                    <div className="p-4 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center print:bg-white print:border print:border-blue-100">
-                        <Dna className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase font-bold text-slate-400">Proteínas</p>
-                        <p className="text-lg font-bold text-slate-900">{viewMealTotals.protein.toFixed(1)} <span className="text-xs font-normal text-slate-400">g</span></p>
-                      </div>
-                    </div>
-                  </Card>
-                  <Card className="border-none shadow-sm bg-white overflow-hidden print:border print:border-slate-100">
-                    <div className="p-4 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center print:bg-white print:border print:border-emerald-100">
-                        <Zap className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase font-bold text-slate-400">Carbos</p>
-                        <p className="text-lg font-bold text-slate-900">{viewMealTotals.carbs.toFixed(1)} <span className="text-xs font-normal text-slate-400">g</span></p>
-                      </div>
-                    </div>
-                  </Card>
-                  <Card className="border-none shadow-sm bg-white overflow-hidden print:border print:border-slate-100">
-                    <div className="p-4 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center print:bg-white print:border print:border-purple-100">
-                        <Droplets className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-[10px] uppercase font-bold text-slate-400">Gorduras</p>
-                        <p className="text-lg font-bold text-slate-900">{viewMealTotals.fat.toFixed(1)} <span className="text-xs font-normal text-slate-400">g</span></p>
-                      </div>
-                    </div>
-                  </Card>
+                  <SummaryCard label="Calorias" value={viewMealTotals.kcal} unit="kcal" icon={Activity} color="bg-orange-50 text-orange-600" progressColor="bg-orange-500" />
+                  <SummaryCard label="Proteínas" value={viewMealTotals.protein} unit="g" icon={Dna} color="bg-blue-50 text-blue-600" progressColor="bg-blue-500" />
+                  <SummaryCard label="Carboidratos" value={viewMealTotals.carbs} unit="g" icon={Zap} color="bg-emerald-50 text-emerald-600" progressColor="bg-emerald-500" />
+                  <SummaryCard label="Gorduras" value={viewMealTotals.fat} unit="g" icon={Droplets} color="bg-purple-50 text-purple-600" progressColor="bg-purple-500" />
                 </div>
 
                 {/* Water Intake & General Instructions */}
@@ -2580,72 +1973,108 @@ export const PatientProfile = () => {
 
                 {/* Meal Sections */}
                 <div className="space-y-8">
-                  {mealTypes.map((meal) => {
-                    const items = selectedMealPlanItems.filter(item => item.meal === meal.id);
-                    if (items.length === 0) return null;
+                  {(selectedMealPlan?.customMeals && selectedMealPlan.customMeals.length > 0
+                    ? selectedMealPlan.customMeals
+                    : defaultMealTypes).map((meal) => {
+                      const items = selectedMealPlanItems.filter(item => item.meal === meal.id);
+                      if (items.length === 0) return null;
+                      
+                      const mealTotals = items.reduce((acc, item) => ({
+                        kcal: acc.kcal + (Number(item.kcal) || 0),
+                        protein: acc.protein + (Number(item.protein) || 0),
+                        carbs: acc.carbs + (Number(item.carbs) || 0),
+                        fat: acc.fat + (Number(item.fat) || 0),
+                      }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
 
-                    return (
-                      <Card key={meal.id} className="border-none shadow-sm bg-white overflow-hidden rounded-2xl print:shadow-none print:border print:border-slate-100 break-inside-avoid">
-                        <div className={cn("px-6 py-4 flex items-center justify-between border-b print:bg-slate-50", meal.color)}>
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 rounded-xl bg-white/50 backdrop-blur-sm shadow-sm print:bg-white">
-                              <meal.icon className="w-5 h-5" />
-                            </div>
-                            <div>
-                              <h4 className="font-bold text-lg leading-none">{meal.label}</h4>
-                              <p className="text-[10px] uppercase font-bold opacity-60 mt-1">{items.length} {items.length === 1 ? 'alimento' : 'alimentos'}</p>
+                      const getIcon = (label: string) => {
+                        const l = label.toLowerCase();
+                        if (l.includes('café') || l.includes('desjejum')) return Coffee;
+                        if (l.includes('almoço')) return Utensils;
+                        if (l.includes('jantar') || l.includes('noite')) return Moon;
+                        if (l.includes('lanche')) return Apple;
+                        if (l.includes('ceia')) return CloudMoon;
+                        if (l.includes('treino')) return Activity;
+                        if (l.includes('suco') || l.includes('vitamina') || l.includes('shake')) return Droplets;
+                        return Activity;
+                      };
+
+                      const Icon = getIcon(meal.label);
+
+                      return (
+                        <Card key={meal.id} className="border-none shadow-sm bg-white overflow-hidden rounded-2xl print:shadow-none print:border print:border-slate-100 break-inside-avoid relative">
+                          <div className={cn("absolute top-0 left-0 w-1.5 h-full transition-colors", meal.color.split(' ')[0])} />
+                          <div className={cn("px-6 py-5 flex items-center justify-between border-b print:bg-slate-50", meal.color.split(' ')[0], "bg-opacity-5")}>
+                            <div className="flex items-center gap-4">
+                              <div className={cn("p-2.5 rounded-2xl bg-white shadow-sm ring-1 ring-black/5 print:bg-white", meal.color.split(' ')[2])}>
+                                <Icon className="w-6 h-6" />
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-3">
+                                  <h4 className="font-bold text-xl leading-none">{meal.label}</h4>
+                                  {meal.time && <span className="text-xs font-black opacity-40 bg-black/5 px-2 py-0.5 rounded-full uppercase tracking-tighter">{meal.time}</span>}
+                                </div>
+                                <div className="flex items-center gap-2 mt-1.5">
+                                  <span className="text-[10px] uppercase font-black opacity-40 tracking-widest">{items.length} {items.length === 1 ? 'alimento' : 'alimentos'}</span>
+                                  <span className="w-1 h-1 rounded-full bg-black/10" />
+                                  <div className="flex items-center gap-2 text-[10px] font-bold opacity-60">
+                                    <span>{mealTotals.kcal.toFixed(0)} kcal</span>
+                                    <span>P: {mealTotals.protein.toFixed(1)}g</span>
+                                    <span>C: {mealTotals.carbs.toFixed(1)}g</span>
+                                    <span>G: {mealTotals.fat.toFixed(1)}g</span>
+                                  </div>
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                        
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-sm min-w-[800px]">
-                            <thead>
-                              <tr className="bg-slate-50/50 text-slate-500 text-left border-b print:bg-slate-50">
-                                <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Alimento</th>
-                                <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Qtd</th>
-                                <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Unidade</th>
-                                <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Kcal</th>
-                                <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">P (g)</th>
-                                <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">C (g)</th>
-                                <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">G (g)</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
-                              {items.map((item, idx) => (
-                                <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                  <td className="px-6 py-4 font-medium text-slate-800">{item.food}</td>
-                                  <td className="px-4 py-4 text-slate-600 text-center">{item.quantity}</td>
-                                  <td className="px-4 py-4 text-slate-600 text-center">{item.unit}</td>
-                                  <td className="px-4 py-4 text-slate-600 text-center font-mono">{item.kcal || 0}</td>
-                                  <td className="px-4 py-4 text-slate-600 text-center font-mono">{item.protein || 0}</td>
-                                  <td className="px-4 py-4 text-slate-600 text-center font-mono">{item.carbs || 0}</td>
-                                  <td className="px-4 py-4 text-slate-600 text-center font-mono">{item.fat || 0}</td>
+
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm min-w-[800px]">
+                              <thead>
+                                <tr className="bg-slate-50/50 text-slate-500 text-left border-b print:bg-slate-50">
+                                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Alimento</th>
+                                  <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Qtd</th>
+                                  <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Unidade</th>
+                                  <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Kcal</th>
+                                  <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">P (g)</th>
+                                  <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">C (g)</th>
+                                  <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">G (g)</th>
                                 </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                        
-                        {/* Meal Observation in View Modal */}
-                        {selectedMealPlan?.mealObservations?.[meal.id] && (
-                          <div className="p-4 bg-amber-50/30 border-t border-amber-100/50">
-                            <div className="flex items-start gap-3">
-                              <div className="mt-0.5 p-1.5 rounded-lg bg-amber-100 text-amber-600 shrink-0">
-                                <MessageSquare className="w-3.5 h-3.5" />
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-[10px] uppercase font-bold text-amber-700/60 mb-1">Observações da Refeição</p>
-                                <p className="text-sm text-slate-700 leading-relaxed italic">
-                                  "{selectedMealPlan.mealObservations[meal.id]}"
-                                </p>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {items.map((item, idx) => (
+                                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                    <td className="px-6 py-4 font-medium text-slate-800">{item.food}</td>
+                                    <td className="px-4 py-4 text-slate-600 text-center">{item.quantity}</td>
+                                    <td className="px-4 py-4 text-slate-600 text-center">{item.unit}</td>
+                                    <td className="px-4 py-4 text-slate-600 text-center font-mono">{item.kcal || 0}</td>
+                                    <td className="px-4 py-4 text-slate-600 text-center font-mono">{item.protein || 0}</td>
+                                    <td className="px-4 py-4 text-slate-600 text-center font-mono">{item.carbs || 0}</td>
+                                    <td className="px-4 py-4 text-slate-600 text-center font-mono">{item.fat || 0}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {/* Meal Observation in View Modal */}
+                          {selectedMealPlan?.mealObservations?.[meal.id] && (
+                            <div className="p-4 bg-amber-50/30 border-t border-amber-100/50">
+                              <div className="flex items-start gap-3">
+                                <div className="mt-0.5 p-1.5 rounded-lg bg-amber-100 text-amber-600 shrink-0">
+                                  <MessageSquare className="w-3.5 h-3.5" />
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-[10px] uppercase font-bold text-amber-700/60 mb-1">Observações da Refeição</p>
+                                  <p className="text-sm text-slate-700 leading-relaxed italic">
+                                    "{selectedMealPlan.mealObservations[meal.id]}"
+                                  </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        )}
-                      </Card>
-                    );
-                  })}
+                          )}
+                        </Card>
+                      );
+                    })}
                 </div>
 
                 {/* Print Signature */}
@@ -2746,7 +2175,7 @@ export const PatientProfile = () => {
                 <p className="text-lg font-bold text-slate-900">{viewMealTotals.protein.toFixed(1)} g</p>
               </div>
               <div className="p-4 border border-slate-100 rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-400">Carbos</p>
+                <p className="text-[10px] uppercase font-bold text-slate-400">Carboidratos</p>
                 <p className="text-lg font-bold text-slate-900">{viewMealTotals.carbs.toFixed(1)} g</p>
               </div>
               <div className="p-4 border border-slate-100 rounded-xl text-center">
@@ -2754,7 +2183,7 @@ export const PatientProfile = () => {
                 <p className="text-lg font-bold text-slate-900">{viewMealTotals.fat.toFixed(1)} g</p>
               </div>
             </div>
-            
+
             {selectedMealPlan?.generalInstructions && (
               <div className="mb-8">
                 <h4 className="font-bold text-emerald-800 text-sm uppercase tracking-widest mb-2">Orientações Gerais</h4>
@@ -2765,45 +2194,51 @@ export const PatientProfile = () => {
             )}
 
             <div className="space-y-8">
-              {mealTypes.map((meal) => {
-                const items = selectedMealPlanItems.filter(item => item.meal === meal.id);
-                if (items.length === 0) return null;
+              {(selectedMealPlan?.customMeals && selectedMealPlan.customMeals.length > 0
+                ? selectedMealPlan.customMeals
+                : defaultMealTypes).map((meal) => {
+                  const items = selectedMealPlanItems.filter(item => item.meal === meal.id);
+                  if (items.length === 0) return null;
+                  const Icon = (meal as any).icon || Activity;
 
-                return (
-                  <div key={meal.id} className="border border-slate-100 rounded-2xl overflow-hidden break-inside-avoid">
-                    <div className={cn("px-6 py-3 border-b flex items-center gap-3", meal.color)}>
-                      <meal.icon className="w-5 h-5" />
-                      <h4 className="font-bold text-lg">{meal.label}</h4>
-                    </div>
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-slate-50 text-slate-500 text-left border-b">
-                          <th className="px-6 py-3 font-bold uppercase text-[10px]">Alimento</th>
-                          <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Qtd</th>
-                          <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Unidade</th>
-                          <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Kcal</th>
-                          <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">P (g)</th>
-                          <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">C (g)</th>
-                          <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">G (g)</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {items.map((item, idx) => (
-                          <tr key={idx}>
-                            <td className="px-6 py-3 font-medium text-slate-800">{item.food}</td>
-                            <td className="px-4 py-3 text-slate-600 text-center">{item.quantity}</td>
-                            <td className="px-4 py-3 text-slate-600 text-center">{item.unit}</td>
-                            <td className="px-4 py-3 text-slate-600 text-center">{item.kcal || 0}</td>
-                            <td className="px-4 py-3 text-slate-600 text-center">{item.protein || 0}</td>
-                            <td className="px-4 py-3 text-slate-600 text-center">{item.carbs || 0}</td>
-                            <td className="px-4 py-3 text-slate-600 text-center">{item.fat || 0}</td>
+                  return (
+                    <div key={meal.id} className="border border-slate-100 rounded-2xl overflow-hidden break-inside-avoid">
+                      <div className={cn("px-6 py-3 border-b flex items-center gap-3", meal.color)}>
+                        <Icon className="w-5 h-5" />
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-bold text-lg">{meal.label}</h4>
+                          {meal.time && <span className="text-xs font-bold opacity-60 bg-black/5 px-1.5 py-0.5 rounded">{meal.time}</span>}
+                        </div>
+                      </div>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-slate-50 text-slate-500 text-left border-b">
+                            <th className="px-6 py-3 font-bold uppercase text-[10px]">Alimento</th>
+                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Qtd</th>
+                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Unidade</th>
+                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Kcal</th>
+                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">P (g)</th>
+                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">C (g)</th>
+                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">G (g)</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                );
-              })}
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {items.map((item, idx) => (
+                            <tr key={idx}>
+                              <td className="px-6 py-3 font-medium text-slate-800">{item.food}</td>
+                              <td className="px-4 py-3 text-slate-600 text-center">{item.quantity}</td>
+                              <td className="px-4 py-3 text-slate-600 text-center">{item.unit}</td>
+                              <td className="px-4 py-3 text-slate-600 text-center">{item.kcal || 0}</td>
+                              <td className="px-4 py-3 text-slate-600 text-center">{item.protein || 0}</td>
+                              <td className="px-4 py-3 text-slate-600 text-center">{item.carbs || 0}</td>
+                              <td className="px-4 py-3 text-slate-600 text-center">{item.fat || 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
             </div>
 
             <div className="flex flex-col items-center mt-20 pt-10 border-t border-slate-100">
@@ -2830,7 +2265,7 @@ export const PatientProfile = () => {
                 }
               }}>
                 <PremiumFeature active={isLabExamLimitReached}>
-                  <DialogTrigger 
+                  <DialogTrigger
                     render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" disabled={patient.status === 'inactive'} />}
                     nativeButton={true}
                   >
@@ -2847,154 +2282,154 @@ export const PatientProfile = () => {
 
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="date">Data do Exame</Label>
-                        <Input id="date" name="date" type="date" required defaultValue={selectedExam?.date || new Date().toISOString().split('T')[0]} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="title">Título</Label>
-                        <Input id="title" name="title" placeholder="Ex: Exame laboratorial" required defaultValue={selectedExam?.title || ''} />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-slate-800">Resultados</h3>
-                        <Button type="button" variant="outline" size="sm" onClick={addExamMarker} className="gap-2">
-                          <Plus className="w-4 h-4" /> Adicionar marcador
-                        </Button>
+                        <div className="space-y-2">
+                          <Label htmlFor="date">Data do Exame</Label>
+                          <Input id="date" name="date" type="date" required defaultValue={selectedExam?.date || new Date().toISOString().split('T')[0]} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="title">Título</Label>
+                          <Input id="title" name="title" placeholder="Ex: Exame laboratorial" required defaultValue={selectedExam?.title || ''} />
+                        </div>
                       </div>
 
                       <div className="space-y-4">
-                        {examMarkers.map((marker, index) => (
-                          <div key={marker.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/30 space-y-4 relative">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Marcador {index + 1}</span>
-                              <Button 
-                                type="button" 
-                                variant="ghost" 
-                                size="icon-sm" 
-                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                                onClick={() => removeExamMarker(marker.id)}
-                                title="Remover este marcador"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-bold text-slate-800">Resultados</h3>
+                          <Button type="button" variant="outline" size="sm" onClick={addExamMarker} className="gap-2">
+                            <Plus className="w-4 h-4" /> Adicionar marcador
+                          </Button>
+                        </div>
+
+                        <div className="space-y-4">
+                          {examMarkers.map((marker, index) => (
+                            <div key={marker.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/30 space-y-4 relative">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Marcador {index + 1}</span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                  onClick={() => removeExamMarker(marker.id)}
+                                  title="Remover este marcador"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                  <Label>Tipo</Label>
+                                  <Select value={marker.type} onValueChange={(val) => updateExamMarker(marker.id, 'type', val)}>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Selecione o tipo">
+                                        {marker.type}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="Glicemia">Glicemia</SelectItem>
+                                      <SelectItem value="Hormonal">Hormonal</SelectItem>
+                                      <SelectItem value="Lipídico">Lipídico</SelectItem>
+                                      <SelectItem value="Hepático">Hepático</SelectItem>
+                                      <SelectItem value="Renal">Renal</SelectItem>
+                                      <SelectItem value="Hemograma">Hemograma</SelectItem>
+                                      <SelectItem value="Outros">Outros</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Nome do Marcador</Label>
+                                  <Input
+                                    placeholder="Ex: Glicemia em jejum"
+                                    value={marker.name}
+                                    onChange={(e) => updateExamMarker(marker.id, 'name', e.target.value)}
+                                    required
+                                  />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="space-y-2">
+                                  <Label>Resultado</Label>
+                                  <Input
+                                    placeholder="95"
+                                    value={marker.result}
+                                    onChange={(e) => updateExamMarker(marker.id, 'result', e.target.value)}
+                                    required
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Unidade</Label>
+                                  <Input
+                                    placeholder="mg/dL"
+                                    value={marker.unit}
+                                    onChange={(e) => updateExamMarker(marker.id, 'unit', e.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Referência</Label>
+                                  <Input
+                                    placeholder="70-99"
+                                    value={marker.reference}
+                                    onChange={(e) => updateExamMarker(marker.id, 'reference', e.target.value)}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Status</Label>
+                                  <Select value={marker.status} onValueChange={(val: any) => updateExamMarker(marker.id, 'status', val)}>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Status">
+                                        {marker.status === 'normal' ? 'Normal' :
+                                          marker.status === 'alto' ? 'Alto' :
+                                            marker.status === 'baixo' ? 'Baixo' :
+                                              marker.status === 'atencao' ? 'Atenção' : undefined}
+                                      </SelectValue>
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="normal">Normal</SelectItem>
+                                      <SelectItem value="alto">Alto</SelectItem>
+                                      <SelectItem value="baixo">Baixo</SelectItem>
+                                      <SelectItem value="atencao">Atenção</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
                             </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <Label>Tipo</Label>
-                                <Select value={marker.type} onValueChange={(val) => updateExamMarker(marker.id, 'type', val)}>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecione o tipo">
-                                      {marker.type}
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="Glicemia">Glicemia</SelectItem>
-                                    <SelectItem value="Hormonal">Hormonal</SelectItem>
-                                    <SelectItem value="Lipídico">Lipídico</SelectItem>
-                                    <SelectItem value="Hepático">Hepático</SelectItem>
-                                    <SelectItem value="Renal">Renal</SelectItem>
-                                    <SelectItem value="Hemograma">Hemograma</SelectItem>
-                                    <SelectItem value="Outros">Outros</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Nome do Marcador</Label>
-                                <Input 
-                                  placeholder="Ex: Glicemia em jejum" 
-                                  value={marker.name} 
-                                  onChange={(e) => updateExamMarker(marker.id, 'name', e.target.value)}
-                                  required
-                                />
-                              </div>
+                          ))}
+                          {examMarkers.length === 0 && (
+                            <div className="text-center py-8 border-2 border-dashed border-slate-100 rounded-xl text-slate-400 text-sm">
+                              Nenhum marcador adicionado. Clique em "Adicionar marcador" para começar.
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                              <div className="space-y-2">
-                                <Label>Resultado</Label>
-                                <Input 
-                                  placeholder="95" 
-                                  value={marker.result} 
-                                  onChange={(e) => updateExamMarker(marker.id, 'result', e.target.value)}
-                                  required
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Unidade</Label>
-                                <Input 
-                                  placeholder="mg/dL" 
-                                  value={marker.unit} 
-                                  onChange={(e) => updateExamMarker(marker.id, 'unit', e.target.value)}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Referência</Label>
-                                <Input 
-                                  placeholder="70-99" 
-                                  value={marker.reference} 
-                                  onChange={(e) => updateExamMarker(marker.id, 'reference', e.target.value)}
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <Label>Status</Label>
-                                <Select value={marker.status} onValueChange={(val: any) => updateExamMarker(marker.id, 'status', val)}>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Status">
-                                      {marker.status === 'normal' ? 'Normal' : 
-                                       marker.status === 'alto' ? 'Alto' : 
-                                       marker.status === 'baixo' ? 'Baixo' : 
-                                       marker.status === 'atencao' ? 'Atenção' : undefined}
-                                    </SelectValue>
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="normal">Normal</SelectItem>
-                                    <SelectItem value="alto">Alto</SelectItem>
-                                    <SelectItem value="baixo">Baixo</SelectItem>
-                                    <SelectItem value="atencao">Atenção</SelectItem>
-                                  </SelectContent>
-                                </Select>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        {examMarkers.length === 0 && (
-                          <div className="text-center py-8 border-2 border-dashed border-slate-100 rounded-xl text-slate-400 text-sm">
-                            Nenhum marcador adicionado. Clique em "Adicionar marcador" para começar.
-                          </div>
-                        )}
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="observations">Observações</Label>
+                        <Textarea
+                          id="observations"
+                          name="observations"
+                          placeholder="Observações gerais do exame..."
+                          className="min-h-[100px]"
+                          defaultValue={selectedExam?.observations || ''}
+                        />
                       </div>
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="observations">Observações</Label>
-                      <Textarea 
-                        id="observations" 
-                        name="observations" 
-                        placeholder="Observações gerais do exame..." 
-                        className="min-h-[100px]" 
-                        defaultValue={selectedExam?.observations || ''}
-                      />
-                    </div>
-                  </div>
-                  <DialogFooter className="p-6 bg-slate-50 border-t gap-2 sm:gap-0">
-                    <Button 
-                      type="button" 
-                      variant="outline" 
-                      onClick={() => setIsLabExamModalOpen(false)}
-                      className="rounded-xl h-8 px-4 border-slate-200 text-slate-600 text-sm hover:bg-slate-50 transition-all active:scale-95"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button 
-                      type="submit" 
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
-                    >
-                      {selectedExam ? 'Atualizar Exame' : 'Salvar Exame'}
-                    </Button>
-                  </DialogFooter>
-                </form>
+                    <DialogFooter className="p-6 bg-slate-50 border-t gap-2 sm:gap-0">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsLabExamModalOpen(false)}
+                        className="rounded-xl h-8 px-4 border-slate-200 text-slate-600 text-sm hover:bg-slate-50 transition-all active:scale-95"
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="submit"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
+                      >
+                        {selectedExam ? 'Atualizar Exame' : 'Salvar Exame'}
+                      </Button>
+                    </DialogFooter>
+                  </form>
                 </DialogContent>
               </Dialog>
             </CardHeader>
@@ -3003,7 +2438,7 @@ export const PatientProfile = () => {
                 <div className="space-y-4">
                   {exams.map((exam) => (
                     <div key={exam.id} className="rounded-xl border border-slate-100 overflow-hidden">
-                      <div 
+                      <div
                         className="flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
                         onClick={() => toggleExamExpansion(exam.id)}
                       >
@@ -3023,9 +2458,9 @@ export const PatientProfile = () => {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button 
-                            variant="ghost" 
-                            size="icon-sm" 
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
                             className="text-slate-400 hover:text-emerald-600 disabled:opacity-30"
                             title="Editar exame"
                             onClick={(e) => {
@@ -3038,9 +2473,9 @@ export const PatientProfile = () => {
                           >
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon-sm" 
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
                             className="text-slate-400 hover:text-red-600 disabled:opacity-30"
                             title="Excluir exame"
                             onClick={(e) => {
@@ -3053,7 +2488,7 @@ export const PatientProfile = () => {
                           </Button>
                         </div>
                       </div>
-                      
+
                       {expandedExams[exam.id] && (
                         <div className="p-4 bg-slate-50/30 border-t border-slate-100">
 
@@ -3086,9 +2521,9 @@ export const PatientProfile = () => {
                                       <span className={cn(
                                         "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
                                         marker.status === 'normal' ? "bg-emerald-50 text-emerald-600" :
-                                        marker.status === 'alto' ? "bg-red-50 text-red-600" :
-                                        marker.status === 'baixo' ? "bg-orange-50 text-orange-600" :
-                                        "bg-blue-50 text-blue-600"
+                                          marker.status === 'alto' ? "bg-red-50 text-red-600" :
+                                            marker.status === 'baixo' ? "bg-orange-50 text-orange-600" :
+                                              "bg-blue-50 text-blue-600"
                                       )}>
                                         {marker.status}
                                       </span>
@@ -3125,7 +2560,7 @@ export const PatientProfile = () => {
                       <p className="text-xs text-emerald-700">Existem exames mais antigos que não estão visíveis no plano gratuito.</p>
                     </div>
                   </div>
-                  <Button 
+                  <Button
                     onClick={() => setIsUpgradeModalOpen(true)}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl h-8 px-4 text-xs gap-2 shrink-0"
                   >
@@ -3150,10 +2585,10 @@ export const PatientProfile = () => {
                     <Select value={evolutionMetric} onValueChange={(val: any) => setEvolutionMetric(val)}>
                       <SelectTrigger className="w-[200px]">
                         <SelectValue>
-                          {evolutionMetric === 'weight' ? 'Peso (kg)' : 
-                           evolutionMetric === 'fatPercentage' ? 'Gordura Corporal (%)' : 
-                           evolutionMetric === 'imc' ? 'IMC' : 
-                           evolutionMetric === 'measurements' ? 'Medidas (cm)' : undefined}
+                          {evolutionMetric === 'weight' ? 'Peso (kg)' :
+                            evolutionMetric === 'fatPercentage' ? 'Gordura Corporal (%)' :
+                              evolutionMetric === 'imc' ? 'IMC' :
+                                evolutionMetric === 'measurements' ? 'Medidas (cm)' : undefined}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
@@ -3171,87 +2606,87 @@ export const PatientProfile = () => {
                       <ResponsiveContainer width="100%" height="100%" debounce={100}>
                         <LineChart data={[...consultations].reverse()}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                          <XAxis 
-                            dataKey="date" 
+                          <XAxis
+                            dataKey="date"
                             tickFormatter={(date) => formatDateSafely(date, 'dd/MM')}
                             stroke="#94a3b8"
                             fontSize={12}
                           />
                           <YAxis stroke="#94a3b8" fontSize={12} />
-                          <Tooltip 
+                          <Tooltip
                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                             labelFormatter={(date) => formatDateSafely(date, 'dd/MM/yyyy')}
                           />
-                          <Legend verticalAlign="top" height={36}/>
-                          
+                          <Legend verticalAlign="top" height={36} />
+
                           {evolutionMetric === 'weight' && (
-                            <Line 
+                            <Line
                               name="Peso (kg)"
-                              type="monotone" 
-                              dataKey="weight" 
-                              stroke="#10b981" 
-                              strokeWidth={3} 
+                              type="monotone"
+                              dataKey="weight"
+                              stroke="#10b981"
+                              strokeWidth={3}
                               dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
                               activeDot={{ r: 6, strokeWidth: 0 }}
                             />
                           )}
-                          
+
                           {evolutionMetric === 'fatPercentage' && (
-                            <Line 
+                            <Line
                               name="Gordura (%)"
-                              type="monotone" 
-                              dataKey="fatPercentage" 
-                              stroke="#f59e0b" 
-                              strokeWidth={3} 
+                              type="monotone"
+                              dataKey="fatPercentage"
+                              stroke="#f59e0b"
+                              strokeWidth={3}
                               dot={{ r: 4, fill: '#f59e0b', strokeWidth: 2, stroke: '#fff' }}
                               activeDot={{ r: 6, strokeWidth: 0 }}
                             />
                           )}
-  
+
                           {evolutionMetric === 'imc' && (
-                            <Line 
+                            <Line
                               name="IMC"
-                              type="monotone" 
-                              dataKey="imc" 
-                              stroke="#3b82f6" 
-                              strokeWidth={3} 
+                              type="monotone"
+                              dataKey="imc"
+                              stroke="#3b82f6"
+                              strokeWidth={3}
                               dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
                               activeDot={{ r: 6, strokeWidth: 0 }}
                             />
                           )}
-  
+
                           {evolutionMetric === 'measurements' && (
                             <>
-                              <Line 
+                              <Line
                                 name="Cintura (cm)"
-                                type="monotone" 
-                                dataKey="waist" 
-                                stroke="#6366f1" 
-                                strokeWidth={2} 
+                                type="monotone"
+                                dataKey="waist"
+                                stroke="#6366f1"
+                                strokeWidth={2}
                                 dot={{ r: 3, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }}
                               />
-                              <Line 
+                              <Line
                                 name="Quadril (cm)"
-                                type="monotone" 
-                                dataKey="hip" 
-                                stroke="#ec4899" 
-                                strokeWidth={2} 
+                                type="monotone"
+                                dataKey="hip"
+                                stroke="#ec4899"
+                                strokeWidth={2}
                                 dot={{ r: 3, fill: '#ec4899', strokeWidth: 2, stroke: '#fff' }}
                               />
-                              <Line 
+                              <Line
                                 name="Abdômen (cm)"
-                                type="monotone" 
-                                dataKey="abdomen" 
-                                stroke="#8b5cf6" 
-                                strokeWidth={2} 
+                                type="monotone"
+                                dataKey="abdomen"
+                                stroke="#8b5cf6"
+                                strokeWidth={2}
                                 dot={{ r: 3, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
                               />
-                              <Line 
+                              <Line
                                 name="Braço (cm)"
-                                type="monotone" 
-                                dataKey="arm" 
-                                stroke="#06b6d4" 
-                                strokeWidth={2} 
+                                type="monotone"
+                                dataKey="arm"
+                                stroke="#06b6d4"
+                                strokeWidth={2}
                                 dot={{ r: 3, fill: '#06b6d4', strokeWidth: 2, stroke: '#fff' }}
                               />
                             </>
@@ -3266,7 +2701,7 @@ export const PatientProfile = () => {
                   </div>
                 </CardContent>
               </Card>
-  
+
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Tabela Comparativa</CardTitle>
@@ -3319,16 +2754,17 @@ export const PatientProfile = () => {
           </div>
           <div className="p-6 overflow-y-auto flex-1">
             {patient && selectedConsultationForCalc && (
-              <NutritionalCalculator 
+              <NutritionalCalculator
                 patient={patient}
                 latestConsultation={selectedConsultationForCalc}
                 onSaveCalculation={handleSaveCalculation}
                 onCreateMealPlan={(input, result) => {
                   setIsCalculatorModalOpen(false);
-                  setActiveTab('mealplans');
-                  setSelectedCalculationForMealPlan({ result, input, name: 'Cálculo Temporário', createdAt: new Date().toISOString() } as any);
-                  setMealPlanName(`Plano Alimentar - ${result.getAjustado} kcal`);
-                  setTimeout(() => setIsMealPlanModalOpen(true), 100);
+                  navigate(`/patients/${id}/meal-plan/new`, {
+                    state: {
+                      calculation: { result, input, name: 'Cálculo Temporário', createdAt: new Date().toISOString() }
+                    }
+                  });
                 }}
               />
             )}
@@ -3355,24 +2791,24 @@ export const PatientProfile = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefone</Label>
-                <Input 
-                  id="phone" 
-                  name="phone" 
-                  value={editPhone} 
+                <Input
+                  id="phone"
+                  name="phone"
+                  value={editPhone}
                   onChange={(e) => setEditPhone(maskPhone(e.target.value))}
-                  required 
-                  className="bg-slate-50 border-none rounded-xl h-8 text-sm" 
+                  required
+                  className="bg-slate-50 border-none rounded-xl h-8 text-sm"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cpf">CPF</Label>
-                <Input 
-                  id="cpf" 
-                  name="cpf" 
-                  value={editCpf} 
+                <Input
+                  id="cpf"
+                  name="cpf"
+                  value={editCpf}
                   onChange={(e) => setEditCpf(maskCPF(e.target.value))}
-                  required 
-                  className="bg-slate-50 border-none rounded-xl h-8 text-sm" 
+                  required
+                  className="bg-slate-50 border-none rounded-xl h-8 text-sm"
                 />
               </div>
               <div className="space-y-2">
@@ -3384,9 +2820,9 @@ export const PatientProfile = () => {
                 <Select name="gender" value={gender} onValueChange={(v: any) => setGender(v)}>
                   <SelectTrigger className="bg-slate-50 border-none rounded-xl h-8 text-sm">
                     <SelectValue placeholder="Selecione o gênero">
-                      {gender === 'male' ? 'Masculino' : 
-                       gender === 'female' ? 'Feminino' : 
-                       gender === 'other' ? 'Outro' : undefined}
+                      {gender === 'male' ? 'Masculino' :
+                        gender === 'female' ? 'Feminino' :
+                          gender === 'other' ? 'Outro' : undefined}
                     </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
@@ -3416,16 +2852,16 @@ export const PatientProfile = () => {
               </div>
             </div>
             <DialogFooter className="mt-6 gap-2 sm:gap-0">
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={() => setIsEditPatientModalOpen(false)}
                 className="rounded-xl h-8 px-4 border-slate-200 text-slate-600 text-sm hover:bg-slate-50 transition-all active:scale-95"
               >
                 Cancelar
               </Button>
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
               >
                 Salvar Alterações
@@ -3435,14 +2871,11 @@ export const PatientProfile = () => {
         </DialogContent>
       </Dialog>
 
-      <UpgradeModal 
-        isOpen={isUpgradeModalOpen} 
-        onClose={() => setIsUpgradeModalOpen(false)} 
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
       />
     </div>
   );
 };
 
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
-}

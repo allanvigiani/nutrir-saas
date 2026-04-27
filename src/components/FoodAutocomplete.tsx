@@ -16,7 +16,7 @@ interface FoodAutocompleteProps {
   onAddNew?: (name: string) => void;
   placeholder?: string;
   className?: string;
-  dataSource?: 'TACO' | 'TBCA' | 'Todas';
+  dataSource?: 'TACO' | 'TBCA' | 'Todas' | 'Custom';
 }
 
 export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
@@ -73,9 +73,12 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
         );
       }
       
-      const customFiltered = customFoods.filter(food =>
-        food.name.toLowerCase().includes(value.toLowerCase())
-      );
+      let customFiltered: any[] = [];
+      if (dataSource === 'Custom' || dataSource === 'Todas') {
+        customFiltered = customFoods.filter(food =>
+          food.name.toLowerCase().includes(value.toLowerCase())
+        );
+      }
 
       const combined = [...customFiltered, ...tacoFiltered, ...tbcaFiltered].slice(0, 15);
       setFilteredFoods(combined);
