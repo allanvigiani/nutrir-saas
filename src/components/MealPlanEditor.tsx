@@ -23,6 +23,7 @@ import {
   Calculator,
   Search,
   Sparkles,
+  ChevronRight,
   Info
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -73,6 +74,60 @@ interface MealPlanEditorProps {
 
 const DEFAULT_MEAL_TYPES: MealType[] = [];
 
+const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, icon: Icon, variant = 'grid' }: any) => {
+  const percentage = total ? Math.min((value / total) * 100, 100) : 0;
+  const isSidebar = variant === 'sidebar';
+  
+  return (
+    <motion.div 
+      whileHover={isSidebar ? { x: 4 } : { y: -2, scale: 1.01 }}
+      className={cn(
+        "bg-white rounded-[1.5rem] border border-slate-100 relative overflow-hidden transition-all duration-300",
+        isSidebar ? "p-5 shadow-sm hover:shadow-md hover:border-emerald-100" : "p-4 shadow-sm"
+      )}
+    >
+      <div className={cn("flex items-start justify-between", isSidebar ? "mb-4" : "mb-2")}>
+        <div className={cn("rounded-xl flex items-center justify-center shadow-inner", 
+          isSidebar ? "w-10 h-10" : "w-9 h-9",
+          iconBg
+        )}>
+          <Icon className={cn(isSidebar ? "w-5 h-5" : "w-4.5 h-4.5", color)} />
+        </div>
+        <div className="text-right">
+          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{label}</p>
+          <div className="flex items-baseline justify-end gap-1">
+            <span className={cn("font-black leading-none tracking-tighter", isSidebar ? "text-2xl" : "text-lg", color)}>
+              {Number(value).toFixed(0)}
+            </span>
+            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{unit}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest">
+          <span className="text-slate-400">Atingido</span>
+          {total ? (
+            <span className={cn("font-black", percentage >= 100 ? "text-emerald-500" : "text-slate-500")}>
+              {percentage.toFixed(0)}% <span className="text-slate-300 font-medium">de {total.toFixed(0)}</span>
+            </span>
+          ) : (
+            <span className="text-slate-300">Sem meta</span>
+          )}
+        </div>
+        <div className="w-full bg-slate-50 h-2 rounded-full overflow-hidden shadow-inner ring-1 ring-slate-100/50">
+          <motion.div
+            initial={{ width: 0 }}
+            animate={{ width: `${percentage}%` }}
+            transition={{ duration: 1.5, ease: [0.19, 1, 0.22, 1] }}
+            className={cn("h-full rounded-full shadow-sm", progressColor, percentage > 100 && "bg-rose-500")}
+          />
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
 const MealItemRow = React.memo(({
   item,
   index,
@@ -105,13 +160,13 @@ const MealItemRow = React.memo(({
             onAddNew={(name) => onAddNewFood(name, index)}
             placeholder="Qual o alimento?"
             dataSource={foodDataSource as any}
-            className="bg-slate-50/50 group-hover:bg-white rounded-xl transition-all h-10"
+            className="bg-white hover:bg-white border-slate-200 focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 rounded-xl transition-all h-10 shadow-sm"
           />
         </div>
 
         {/* Quantity & Unit */}
         <div className="md:col-span-3 flex items-center gap-2">
-          <div className="flex-1 bg-slate-50/50 group-hover:bg-white rounded-xl h-10 px-3 ring-1 ring-slate-100/50 transition-all flex items-center">
+          <div className="flex-1 bg-white border border-slate-200 focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 rounded-xl h-10 px-3 transition-all flex items-center shadow-sm">
             <Input
               value={item.quantity}
               onChange={(e) => onUpdate(index, 'quantity', e.target.value)}
@@ -123,7 +178,7 @@ const MealItemRow = React.memo(({
             value={item.unit}
             onValueChange={(v) => onUpdate(index, 'unit', v)}
           >
-            <SelectTrigger className="flex-1 border-none h-10 focus:ring-0 bg-slate-50/50 group-hover:bg-white rounded-xl px-3 ring-1 ring-slate-100/50 text-slate-500 font-semibold text-[10px] uppercase tracking-widest transition-all">
+            <SelectTrigger className="flex-1 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 h-10 rounded-xl px-3 text-slate-600 font-bold text-[10px] uppercase tracking-widest transition-all shadow-sm">
               <SelectValue>{item.unit}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -150,7 +205,7 @@ const MealItemRow = React.memo(({
               type="number"
               value={item.kcal}
               onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-transparent text-center text-slate-900 font-bold w-14 mx-auto"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-slate-50/50 hover:bg-slate-100/50 focus:bg-white rounded-lg text-center text-slate-900 font-bold w-14 mx-auto transition-all shadow-inner focus:shadow-none"
             />
           </div>
           <div className="text-center border-l border-slate-100 pl-2">
@@ -159,7 +214,7 @@ const MealItemRow = React.memo(({
               type="number"
               value={item.protein}
               onChange={(e) => onUpdate(index, 'protein', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-transparent text-center text-slate-600 font-semibold w-10 mx-auto"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-slate-50/50 hover:bg-slate-100/50 focus:bg-white rounded-lg text-center text-slate-600 font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
             />
           </div>
           <div className="text-center border-l border-slate-100 pl-2">
@@ -168,7 +223,7 @@ const MealItemRow = React.memo(({
               type="number"
               value={item.carbs}
               onChange={(e) => onUpdate(index, 'carbs', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-transparent text-center text-slate-600 font-semibold w-10 mx-auto"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-slate-50/50 hover:bg-slate-100/50 focus:bg-white rounded-lg text-center text-slate-600 font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
             />
           </div>
           <div className="text-center border-l border-slate-100 pl-2">
@@ -177,7 +232,7 @@ const MealItemRow = React.memo(({
               type="number"
               value={item.fat}
               onChange={(e) => onUpdate(index, 'fat', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-transparent text-center text-slate-600 font-semibold w-10 mx-auto"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-slate-50/50 hover:bg-slate-100/50 focus:bg-white rounded-lg text-center text-slate-600 font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
             />
           </div>
         </div>
@@ -281,8 +336,8 @@ export const MealPlanEditor = ({
         item.base_carbs = food.carbs;
         item.base_fat = food.fat;
         item.base_quantity = food.baseQuantity;
-        item.serving_name = food.serving?.name;
-        item.serving_weight = food.serving?.weight;
+        item.serving_name = food.serving?.name || null;
+        item.serving_weight = food.serving?.weight || null;
       } else if (field === 'food') {
         item.food = value;
         item.base_kcal = null;
@@ -341,17 +396,6 @@ export const MealPlanEditor = ({
     setMealItems(prev => prev.filter(item => item.meal !== id));
   };
 
-  const getMealIcon = (label: string) => {
-    const l = label.toLowerCase();
-    if (l.includes('café') || l.includes('desjejum')) return Coffee;
-    if (l.includes('almoço')) return Utensils;
-    if (l.includes('jantar') || l.includes('noite')) return Moon;
-    if (l.includes('lanche')) return Apple;
-    if (l.includes('ceia')) return CloudMoon;
-    if (l.includes('treino')) return Activity;
-    if (l.includes('suco') || l.includes('vitamina') || l.includes('shake')) return Droplets;
-    return Sun;
-  };
 
   const calculateMealTotals = (mealId: string) => {
     return mealItems.filter(i => i.meal === mealId).reduce((acc, item) => ({
@@ -363,93 +407,64 @@ export const MealPlanEditor = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#F8FAFC] overflow-hidden font-geist">
-      {/* Premium Header */}
-      <motion.div 
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100 px-6 py-4 print:hidden"
+    <div className="flex h-full bg-[#F8FAFC] overflow-hidden font-geist">
+      {/* Left Sidebar - Nutritional Intelligence */}
+      <motion.aside 
+        initial={{ x: -320, opacity: 0 }}
+        animate={{ x: 0, opacity: 1 }}
+        className="w-[320px] bg-white border-r border-slate-200 flex flex-col h-full hidden lg:flex shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onClose}
-              className="rounded-full hover:bg-slate-100 transition-all h-10 w-10 shrink-0"
-            >
-              <ArrowLeft className="w-5 h-5 text-slate-600" />
-            </Button>
-            <div>
-              <h1 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
-                Editor de Plano
-              </h1>
-              <p className="text-[10px] text-slate-400 font-medium">Personalize a estratégia nutricional</p>
+        <div className="p-8 border-b border-slate-100 bg-slate-50/30">
+          <div className="flex items-center gap-4 mb-2">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-600/20">
+              <Activity className="w-5 h-5 text-white" />
             </div>
-          </div>
-
-          <div className="hidden lg:flex items-center gap-1 p-1.5 bg-slate-100/50 rounded-2xl border border-slate-100 shadow-inner">
-            {[
-              { id: 'Todas', label: 'Todas', icon: Search },
-              { id: 'TACO', label: 'TACO', icon: Activity },
-              { id: 'TBCA', label: 'TBCA', icon: Zap },
-              { id: 'Custom', label: 'Meus', icon: Plus },
-            ].map((source) => (
-              <button
-                key={source.id}
-                onClick={() => setCurrentFoodDataSource(source.id as any)}
-                className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 rounded-xl text-[10px] font-bold transition-all whitespace-nowrap uppercase tracking-tight",
-                  currentFoodDataSource === source.id
-                    ? "bg-white text-emerald-600 shadow-md ring-1 ring-slate-200/10"
-                    : "text-slate-400 hover:text-slate-600 hover:bg-white/50"
-                )}
-              >
-                <source.icon className={cn("w-3.5 h-3.5", currentFoodDataSource === source.id ? "text-emerald-500" : "text-slate-300")} />
-                {source.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={() => onSave({
-                name: mealPlanName,
-                items: mealItems,
-                generalInstructions,
-                waterIntake,
-                mealObservations,
-                customMeals: mealTypes
-              })}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-9 px-6 font-bold text-xs gap-2 shadow-sm transition-all active:scale-95"
-            >
-              <Save className="w-3.5 h-3.5" /> Salvar Plano
-            </Button>
+            <div>
+              <h2 className="text-sm font-black text-slate-800 tracking-tight uppercase">Dashboard</h2>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Nutricional</p>
+            </div>
           </div>
         </div>
-      </motion.div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="max-w-7xl mx-auto p-6 lg:p-10 space-y-10">
-          
-          {/* Dashboard Section - Sticky */}
-          <section className="sticky top-0 z-40 bg-[#F8FAFC]/95 backdrop-blur-md py-4 -mx-2 px-2 border-b border-slate-200/50 shadow-sm">
-            <div className="flex items-center justify-between px-2 mb-4">
-              <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Activity className="w-3.5 h-3.5 text-emerald-500" />
-                Painel Nutricional
-              </h2>
-              {selectedCalculation && (
-                <div className="flex items-center gap-2 text-[9px] font-bold text-slate-400 bg-slate-100/50 px-2 py-0.5 rounded-full border border-slate-100">
-                  <Calculator className="w-3 h-3" />
-                  Meta: {selectedCalculation.result.getAjustado.toFixed(0)} kcal
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-50/20">
+          {selectedCalculation && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-5 rounded-3xl bg-slate-900 text-white shadow-2xl shadow-slate-200 relative overflow-hidden group"
+            >
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                <Calculator className="w-16 h-16" />
+              </div>
+              <div className="relative">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                    <Calculator className="w-3.5 h-3.5 text-emerald-400" />
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Meta Sugerida</span>
                 </div>
-              )}
-            </div>
+                <div className="flex items-baseline gap-1.5 mb-1">
+                  <span className="text-4xl font-black tracking-tighter text-emerald-400">
+                    {selectedCalculation.result.getAjustado.toFixed(0)}
+                  </span>
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">kcal</span>
+                </div>
+                <p className="text-[10px] font-medium text-slate-400 leading-relaxed">
+                  Baseado no cálculo de TMB e nível de atividade selecionado.
+                </p>
+              </div>
+            </motion.div>
+          )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between px-2">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Macronutrientes</span>
+              <div className="w-12 h-px bg-slate-100" />
+            </div>
+            
+            <div className="grid gap-4">
               <SummaryCard
-                label="Calorias"
+                label="Energia Total"
                 value={mealTotals.kcal}
                 total={selectedCalculation?.result.getAjustado}
                 unit="kcal"
@@ -457,6 +472,7 @@ export const MealPlanEditor = ({
                 iconBg="bg-orange-50"
                 progressColor="bg-orange-500"
                 icon={Activity}
+                variant="sidebar"
               />
               <SummaryCard
                 label="Proteínas"
@@ -467,6 +483,7 @@ export const MealPlanEditor = ({
                 iconBg="bg-blue-50"
                 progressColor="bg-blue-500"
                 icon={Dna}
+                variant="sidebar"
               />
               <SummaryCard
                 label="Carboidratos"
@@ -477,6 +494,7 @@ export const MealPlanEditor = ({
                 iconBg="bg-emerald-50"
                 progressColor="bg-emerald-500"
                 icon={Zap}
+                variant="sidebar"
               />
               <SummaryCard
                 label="Gorduras"
@@ -487,44 +505,137 @@ export const MealPlanEditor = ({
                 iconBg="bg-purple-50"
                 progressColor="bg-purple-500"
                 icon={Droplets}
+                variant="sidebar"
               />
             </div>
-          </section>
+          </div>
 
-          {/* Main Config */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        </div>
+
+        <div className="p-6 border-t border-slate-100 bg-slate-50/30">
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100">
+             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Sincronizado em tempo real</p>
+          </div>
+        </div>
+      </motion.aside>
+
+      {/* Main Editor Area */}
+      <div className="flex-1 flex flex-col min-w-0 relative">
+        {/* Command Center Header */}
+        <motion.div 
+          initial={{ y: -20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-slate-200 px-6 py-3 print:hidden"
+        >
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-8">
+            <div className="flex items-center gap-5">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onClose}
+                className="rounded-xl border-slate-200 hover:bg-slate-50 transition-all h-9 w-9 shrink-0 shadow-sm"
+              >
+                <ArrowLeft className="w-4 h-4 text-slate-500" />
+              </Button>
+              
+              <div className="flex flex-col">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">
+                  <span>Plano Alimentar</span>
+                  <ChevronRight className="w-3 h-3" />
+                  <span className="text-emerald-600">Edição</span>
+                </div>
+                <h1 className="text-base font-bold text-slate-900 tracking-tight leading-none truncate max-w-[200px] lg:max-w-md">
+                  {mealPlanName || 'Novo Plano Alimentar'}
+                </h1>
+              </div>
+            </div>
+
+            <div className="hidden lg:flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 shadow-inner">
+              <div className="px-3 text-[9px] font-bold text-slate-400 uppercase tracking-tight border-r border-slate-200 mr-1">
+                Base de Dados
+              </div>
+              {[
+                { id: 'Todas', label: 'Todas', icon: Search },
+                { id: 'TACO', label: 'TACO', icon: Activity },
+                { id: 'TBCA', label: 'TBCA', icon: Zap },
+                { id: 'Custom', label: 'Própria', icon: Plus },
+              ].map((source) => (
+                <button
+                  key={source.id}
+                  onClick={() => setCurrentFoodDataSource(source.id as any)}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap tracking-wide",
+                    currentFoodDataSource === source.id
+                      ? "bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/10"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-white/40"
+                  )}
+                >
+                  <source.icon className={cn("w-3.5 h-3.5", currentFoodDataSource === source.id ? "text-emerald-500" : "text-slate-400")} />
+                  {source.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => onSave({
+                  name: mealPlanName,
+                  items: mealItems,
+                  generalInstructions,
+                  waterIntake,
+                  mealObservations,
+                  customMeals: mealTypes
+                })}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-10 px-6 font-bold text-xs gap-2 shadow-lg shadow-emerald-600/10 transition-all active:scale-95 group"
+              >
+                <Save className="w-3.5 h-3.5 transition-transform group-hover:scale-110" /> 
+                <span>Salvar Alterações</span>
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <div className="max-w-5xl mx-auto w-full p-6 lg:p-10 space-y-12">
+            
+            {/* Top Config Section */}
             <motion.div 
-              whileHover={{ y: -2 }}
-              className="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.03)] relative overflow-hidden"
             >
-              <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
-                <Edit2 className="w-32 h-32 text-slate-900" />
+              <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
+                <Edit2 className="w-48 h-48 text-slate-900" />
               </div>
 
-              <div className="space-y-8 relative">
-                <div className="space-y-2">
-                  <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-widest ml-1">Identificação do Plano</Label>
-                  <Input
-                    value={mealPlanName}
-                    onChange={(e) => setMealPlanName(e.target.value)}
-                    className="text-lg font-bold border-none bg-slate-50/50 focus:bg-white h-11 rounded-xl transition-all shadow-inner focus:shadow-none"
-                    placeholder="Ex: Estratégia de Cutting..."
-                  />
+              <div className="space-y-10 relative">
+                <div className="grid grid-cols-1 gap-10">
+                  <div className="space-y-3">
+                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-[0.2em] ml-1">Identificação do Plano</Label>
+                    <Input
+                      value={mealPlanName}
+                      onChange={(e) => setMealPlanName(e.target.value)}
+                      className="text-2xl font-black border-2 border-slate-100 bg-white focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 h-16 rounded-2xl transition-all shadow-sm px-6"
+                      placeholder="Ex: Estratégia de Cutting..."
+                    />
+                  </div>
+
                 </div>
                 
-                <div className="pt-8 border-t border-slate-50">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center">
+                <div className="pt-10 border-t border-slate-50">
+                  <div className="flex items-center gap-4 mb-5">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
                       <MessageSquare className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div>
-                      <h4 className="text-xs font-bold uppercase tracking-widest text-slate-800">Orientações Gerais</h4>
-                      <p className="text-[10px] text-slate-400">Instruções para o dia a dia</p>
+                      <h4 className="text-sm font-black text-slate-800 tracking-tight uppercase">Orientações Gerais</h4>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Instruções comportamentais</p>
                     </div>
                   </div>
                   <Textarea
                     placeholder="Quais as orientações principais para este plano?"
-                    className="min-h-[100px] rounded-xl border-none bg-slate-50/50 focus:bg-white shadow-inner focus:shadow-none resize-none transition-all text-sm font-medium leading-relaxed"
+                    className="min-h-[140px] rounded-[1.5rem] border-2 border-slate-100 bg-white focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm resize-none transition-all text-base font-medium leading-relaxed p-6"
                     value={generalInstructions}
                     onChange={(e) => setGeneralInstructions(e.target.value)}
                   />
@@ -532,282 +643,205 @@ export const MealPlanEditor = ({
               </div>
             </motion.div>
 
-            <motion.div 
-              whileHover={{ y: -2 }}
-              className="bg-white rounded-[2rem] p-8 border border-slate-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] flex flex-col relative overflow-hidden"
-            >
-              <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
-                <Droplets className="w-32 h-32 text-blue-900" />
-              </div>
-
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
-                  <Droplets className="w-5 h-5 text-blue-600" />
-                </div>
+            {/* Meals Section */}
+            <div className="space-y-12 pb-24">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-2">
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-800">Meta de Água</h4>
-                  <p className="text-[10px] text-slate-400">Cálculo de hidratação</p>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                    Cronograma de Refeições
+                  </h2>
+                  <p className="text-xs text-slate-400 font-medium mt-1 ml-11">Estruture os horários e alimentos do paciente</p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="px-4 py-2 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
+                      {mealItems.length} Alimentos selecionados
+                    </span>
+                  </div>
                 </div>
               </div>
 
-              <div className="relative group/water my-auto">
-                <Input
-                  value={waterIntake}
-                  onChange={(e) => setWaterIntake(e.target.value)}
-                  placeholder="2.5"
-                  className="text-3xl font-bold border-none bg-slate-50/50 h-16 px-6 rounded-xl w-full text-blue-600 transition-all placeholder:text-slate-200 text-center shadow-inner"
-                />
-                <div className="mt-3 text-center font-bold text-blue-400 uppercase tracking-widest text-[9px]">Litros por Dia</div>
-              </div>
+              <AnimatePresence mode="popLayout">
+                {mealTypes.map((mealType, mealIdx) => {
+                  const items = mealItems.filter(i => i.meal === mealType.id);
+                  const totals = calculateMealTotals(mealType.id);
 
-              <div className="mt-8">
-                <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100/50 relative">
-                  <Sparkles className="absolute -top-1.5 -right-1.5 w-4 h-4 text-blue-300" />
-                  <p className="text-[10px] text-blue-700 font-bold leading-relaxed italic text-center">
-                    "A hidratação correta é a chave para a absorção eficiente de nutrientes."
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Meals Section */}
-          <div className="space-y-8 pb-24">
-            <div className="flex items-center justify-between px-2">
-              <h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                <Utensils className="w-3.5 h-3.5 text-emerald-500" />
-                Cronograma de Refeições
-              </h2>
-            </div>
-
-            <AnimatePresence mode="popLayout">
-              {mealTypes.map((mealType, mealIdx) => {
-                const items = mealItems.filter(i => i.meal === mealType.id);
-                const totals = calculateMealTotals(mealType.id);
-                const MealIcon = getMealIcon(mealType.label);
-
-                return (
-                  <motion.div
-                    key={mealType.id}
-                    layout
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="group/meal relative bg-white/50 hover:bg-white rounded-3xl border border-slate-100 hover:border-emerald-100 p-6 transition-all duration-500"
-                  >
-                    {/* Meal Header */}
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-white shadow-md shadow-slate-200/50 ring-1 ring-slate-100 flex items-center justify-center shrink-0">
-                          <MealIcon className="w-6 h-6 text-emerald-500" />
-                        </div>
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={mealType.label}
-                              onChange={(e) => updateMealType(mealType.id, 'label', e.target.value)}
-                              className="font-bold text-lg border-none bg-transparent h-9 px-0 w-full lg:w-[250px] text-slate-900 focus:ring-0 placeholder:text-slate-200"
-                              placeholder="Título da Refeição"
-                            />
-                            <div className="flex items-center gap-2 px-3 py-1 bg-slate-50 rounded-xl border border-slate-100 shadow-inner shrink-0 h-9">
-                              <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  return (
+                    <motion.div
+                      key={mealType.id}
+                      layout
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="group/meal relative bg-white/50 hover:bg-white rounded-3xl border border-slate-100 hover:border-emerald-100 p-6 transition-all duration-500 shadow-sm hover:shadow-xl"
+                    >
+                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+                        <div className="flex items-center gap-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
                               <Input
-                                type="time"
-                                value={mealType.time || ''}
-                                onChange={(e) => updateMealType(mealType.id, 'time', e.target.value)}
-                                className="w-16 h-6 border-none bg-transparent text-xs font-bold p-0 focus:ring-0 text-slate-600"
+                                value={mealType.label}
+                                onChange={(e) => updateMealType(mealType.id, 'label', e.target.value)}
+                                className="font-black text-xl border-none bg-slate-50/50 hover:bg-slate-100/50 focus:bg-white h-11 px-4 w-full lg:w-[320px] text-slate-900 focus:ring-2 focus:ring-emerald-500/20 rounded-xl placeholder:text-slate-200 transition-all shadow-inner focus:shadow-none"
+                                placeholder="Título da Refeição"
                               />
+                              <div className="flex items-center gap-2 px-4 py-1.5 bg-white rounded-xl border-2 border-slate-100 focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 shadow-sm shrink-0 h-11 transition-all">
+                                <Clock className="w-4 h-4 text-slate-400" />
+                                <Input
+                                  type="time"
+                                  value={mealType.time || ''}
+                                  onChange={(e) => updateMealType(mealType.id, 'time', e.target.value)}
+                                  className="w-[85px] h-6 border-none bg-transparent text-sm font-bold p-0 focus:ring-0 text-slate-600 [&::-webkit-calendar-picker-indicator]:hidden"
+                                />
+                              </div>
                             </div>
                           </div>
                         </div>
+
+                        <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-50">
+                          <div className="flex items-center gap-3 px-3 py-1.5 bg-emerald-50/50 rounded-xl border border-emerald-100/50">
+                            <div className="text-center">
+                              <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-tighter">Energia</p>
+                              <p className="text-xs font-bold text-slate-800">{totals.kcal.toFixed(0)}<span className="text-[9px] ml-0.5">kcal</span></p>
+                            </div>
+                            <div className="w-px h-5 bg-emerald-100" />
+                            <div className="text-center">
+                              <p className="text-[8px] font-bold text-blue-500 uppercase tracking-tighter">Prot</p>
+                              <p className="text-xs font-bold text-slate-800">{totals.protein.toFixed(1)}g</p>
+                            </div>
+                            <div className="w-px h-5 bg-emerald-100" />
+                            <div className="text-center">
+                              <p className="text-[8px] font-bold text-emerald-500 uppercase tracking-tighter">Carb</p>
+                              <p className="text-xs font-bold text-slate-800">{totals.carbs.toFixed(1)}g</p>
+                            </div>
+                            <div className="w-px h-5 bg-emerald-100" />
+                            <div className="text-center">
+                              <p className="text-[8px] font-bold text-purple-500 uppercase tracking-tighter">Gord</p>
+                              <p className="text-xs font-bold text-slate-800">{totals.fat.toFixed(1)}g</p>
+                            </div>
+                          </div>
+                          
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeMealType(mealType.id)}
+                            className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl h-9 w-9 transition-all"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
 
-                      <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-50">
-                        <div className="flex items-center gap-3 px-3 py-1.5 bg-emerald-50/50 rounded-xl border border-emerald-100/50">
-                          <div className="text-center">
-                            <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-tighter">Energia</p>
-                            <p className="text-xs font-bold text-slate-800">{totals.kcal.toFixed(0)}<span className="text-[9px] ml-0.5">kcal</span></p>
-                          </div>
-                          <div className="w-px h-5 bg-emerald-100" />
-                          <div className="text-center">
-                            <p className="text-[8px] font-bold text-blue-500 uppercase tracking-tighter">Prot</p>
-                            <p className="text-xs font-bold text-slate-800">{totals.protein.toFixed(1)}g</p>
-                          </div>
-                          <div className="w-px h-5 bg-emerald-100" />
-                          <div className="text-center">
-                            <p className="text-[8px] font-bold text-emerald-500 uppercase tracking-tighter">Carb</p>
-                            <p className="text-xs font-bold text-slate-800">{totals.carbs.toFixed(1)}g</p>
-                          </div>
-                          <div className="w-px h-5 bg-emerald-100" />
-                          <div className="text-center">
-                            <p className="text-[8px] font-bold text-purple-500 uppercase tracking-tighter">Gord</p>
-                            <p className="text-xs font-bold text-slate-800">{totals.fat.toFixed(1)}g</p>
-                          </div>
-                        </div>
-                        
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeMealType(mealType.id)}
-                          className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl h-9 w-9 transition-all"
+                      <div className="space-y-3 mb-8">
+                        <AnimatePresence mode="popLayout">
+                          {items.map((item) => {
+                            const itemIndex = mealItems.findIndex(mi => mi === item);
+                            return (
+                              <MealItemRow
+                                key={`${mealType.id}-${itemIndex}`}
+                                item={item}
+                                index={itemIndex}
+                                onUpdate={updateMealItem}
+                                onRemove={removeMealItem}
+                                onAddNewFood={(name, index) => {
+                                  setInitialFoodName(name);
+                                  setActiveMealItemIndex(index);
+                                  setIsCustomFoodDialogOpen(true);
+                                }}
+                                foodDataSource={currentFoodDataSource}
+                              />
+                            );
+                          })}
+                        </AnimatePresence>
+
+                        <motion.button
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.99 }}
+                          onClick={() => addMealItem(mealType.id)}
+                          className="w-full py-3 border-2 border-dashed border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/30 rounded-xl flex items-center justify-center gap-2 text-slate-400 hover:text-emerald-600 transition-all font-bold text-xs"
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                          <Plus className="w-4 h-4" /> Adicionar Alimento
+                        </motion.button>
                       </div>
-                    </div>
 
-                    {/* Meal Items List */}
-                    <div className="space-y-3 mb-8">
-                      <AnimatePresence mode="popLayout">
-                        {items.map((item) => {
-                          const itemIndex = mealItems.findIndex(mi => mi === item);
-                          return (
-                            <MealItemRow
-                              key={`${mealType.id}-${itemIndex}`}
-                              item={item}
-                              index={itemIndex}
-                              onUpdate={updateMealItem}
-                              onRemove={removeMealItem}
-                              onAddNewFood={(name, index) => {
-                                setInitialFoodName(name);
-                                setActiveMealItemIndex(index);
-                                setIsCustomFoodDialogOpen(true);
-                              }}
-                              foodDataSource={currentFoodDataSource}
-                            />
-                          );
-                        })}
-                      </AnimatePresence>
-
-                      <motion.button
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.99 }}
-                        onClick={() => addMealItem(mealType.id)}
-                        className="w-full py-3 border-2 border-dashed border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/30 rounded-xl flex items-center justify-center gap-2 text-slate-400 hover:text-emerald-600 transition-all font-bold text-xs"
-                      >
-                        <Plus className="w-4 h-4" /> Adicionar Alimento
-                      </motion.button>
-                    </div>
-
-                    {/* Meal Footer / Observations */}
-                    <div className="pt-6 border-t border-slate-50 flex flex-col lg:flex-row gap-6">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2 px-1">
-                          <MessageSquare className="w-3 h-3 text-slate-400" />
-                          <Label className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">Observações específicas</Label>
+                      <div className="pt-6 border-t border-slate-50 flex flex-col lg:flex-row gap-6">
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2 px-1">
+                            <MessageSquare className="w-3 h-3 text-slate-400" />
+                            <Label className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">Observações específicas</Label>
+                          </div>
+                          <Textarea
+                            placeholder="Observações importantes para esta refeição..."
+                            className="min-h-[90px] text-sm font-medium bg-white border-2 border-slate-100 rounded-2xl resize-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm transition-all p-5"
+                            value={mealObservations[mealType.id] || ''}
+                            onChange={(e) => setMealObservations(prev => ({ ...prev, [mealType.id]: e.target.value }))}
+                          />
                         </div>
-                        <Textarea
-                          placeholder="Observações importantes para esta refeição..."
-                          className="min-h-[70px] text-xs font-medium bg-slate-50/50 border-none rounded-xl resize-none focus:bg-white shadow-inner focus:shadow-none transition-all"
-                          value={mealObservations[mealType.id] || ''}
-                          onChange={(e) => setMealObservations(prev => ({ ...prev, [mealType.id]: e.target.value }))}
-                        />
-                      </div>
-                      <div className="lg:w-40 flex items-end">
-                        <div className="w-full p-3 bg-slate-50/50 rounded-xl border border-slate-100 flex flex-col items-center justify-center gap-1.5">
-                           <Info className="w-3.5 h-3.5 text-slate-300" />
-                           <p className="text-[8px] text-slate-400 font-bold uppercase text-center leading-tight">Total Nutricional da Refeição</p>
+                        <div className="lg:w-40 flex items-end">
+                          <div className="w-full p-3 bg-slate-50/50 rounded-xl border border-slate-100 flex flex-col items-center justify-center gap-1.5">
+                             <Info className="w-3.5 h-3.5 text-slate-300" />
+                             <p className="text-[8px] text-slate-400 font-bold uppercase text-center leading-tight">Total Nutricional da Refeição</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
 
-            {mealTypes.length === 0 && (
-              <motion.div 
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center justify-center py-24 px-10 text-center bg-white rounded-[2rem] border-2 border-dashed border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.02)]"
-              >
-                <div className="w-20 h-20 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6 relative">
-                  <Apple className="w-10 h-10 text-emerald-500" />
-                  <div className="absolute -top-1.5 -right-1.5 w-7 h-7 bg-white rounded-full shadow-lg flex items-center justify-center">
-                    <Plus className="w-3.5 h-3.5 text-emerald-600" />
+              {mealTypes.length === 0 && (
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex flex-col items-center justify-center py-24 px-10 text-center bg-white rounded-[2rem] border-2 border-dashed border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.02)]"
+                >
+                  <div className="w-20 h-20 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6 relative">
+                    <Apple className="w-10 h-10 text-emerald-500" />
+                    <div className="absolute -top-1.5 -right-1.5 w-7 h-7 bg-white rounded-full shadow-lg flex items-center justify-center">
+                      <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                    </div>
                   </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-2 tracking-tight">O plano está vazio</h3>
+                  <p className="text-slate-400 max-w-sm mx-auto mb-8 font-medium text-sm leading-relaxed">
+                    Comece adicionando a primeira refeição para estruturar a estratégia do seu paciente.
+                  </p>
+                  <Button 
+                    onClick={addCustomMeal}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12 px-10 font-bold shadow-xl shadow-emerald-200 transition-all active:scale-95 text-base"
+                  >
+                    <Plus className="w-5 h-5 mr-2" /> Nova Refeição
+                  </Button>
+                </motion.div>
+              )}
+
+              {mealTypes.length > 0 && (
+                <div className="flex justify-center pt-8">
+                  <Button
+                    onClick={addCustomMeal}
+                    variant="outline"
+                    className="bg-white hover:bg-emerald-50 text-emerald-600 border-2 border-dashed border-emerald-200 rounded-2xl h-14 px-10 font-bold text-sm gap-3 transition-all shadow-[0_10px_30px_rgb(0,0,0,0.02)] hover:shadow-lg hover:border-emerald-300 active:scale-95"
+                  >
+                    <Plus className="w-5 h-5" /> Adicionar Refeição
+                  </Button>
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-2 tracking-tight">O plano está vazio</h3>
-                <p className="text-slate-400 max-w-sm mx-auto mb-8 font-medium text-sm leading-relaxed">
-                  Comece adicionando a primeira refeição para estruturar a estratégia do seu paciente.
-                </p>
-                <Button 
-                  onClick={addCustomMeal}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-12 px-10 font-bold shadow-xl shadow-emerald-200 transition-all active:scale-95 text-base"
-                >
-                  <Plus className="w-5 h-5 mr-2" /> Nova Refeição
-                </Button>
-              </motion.div>
-            )}
-
-            {mealTypes.length > 0 && (
-              <div className="flex justify-center pt-8">
-                <Button
-                  onClick={addCustomMeal}
-                  variant="outline"
-                  className="bg-white hover:bg-emerald-50 text-emerald-600 border-2 border-dashed border-emerald-200 rounded-2xl h-14 px-10 font-bold text-sm gap-3 transition-all shadow-[0_10px_30px_rgb(0,0,0,0.02)] hover:shadow-lg hover:border-emerald-300 active:scale-95"
-                >
-                  <Plus className="w-5 h-5" /> Adicionar Refeição
-                </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
-      </div>
 
-      <CustomFoodDialog
-        open={isCustomFoodDialogOpen}
-        onOpenChange={setIsCustomFoodDialogOpen}
-        initialName={initialFoodName}
-        onSuccess={(food) => {
-          if (activeMealItemIndex !== null) {
-            updateMealItem(activeMealItemIndex, 'food_object', food);
-          }
-        }}
-      />
+        <CustomFoodDialog
+          open={isCustomFoodDialogOpen}
+          onOpenChange={setIsCustomFoodDialogOpen}
+          initialName={initialFoodName}
+          onSuccess={(food) => {
+            if (activeMealItemIndex !== null) {
+              updateMealItem(activeMealItemIndex, 'food_object', food);
+            }
+          }}
+        />
+      </div>
     </div>
-  );
-};
-
-const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, icon: Icon }: any) => {
-  const percentage = total ? Math.min((value / total) * 100, 100) : 0;
-  
-  return (
-    <motion.div 
-      whileHover={{ y: -2, scale: 1.01 }}
-      className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm relative overflow-hidden"
-    >
-      <div className="flex items-start justify-between mb-2">
-        <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center shadow-inner", iconBg)}>
-          <Icon className={cn("w-4.5 h-4.5", color.replace('text-', 'text-'))} />
-        </div>
-        <div className="text-right">
-          <p className="text-[8px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">{label}</p>
-          <div className="flex items-baseline justify-end gap-1">
-            <span className={cn("text-lg font-bold leading-none", color)}>{Number(value).toFixed(0)}</span>
-            <span className="text-[9px] font-bold text-slate-300 lowercase">{unit}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-1">
-        <div className="flex items-center justify-between text-[7px] font-bold uppercase tracking-tighter">
-          <span className="text-slate-400">Progresso</span>
-          {total ? (
-            <span className="text-slate-500">{percentage.toFixed(0)}% de {total.toFixed(0)}</span>
-          ) : (
-            <span className="text-slate-300">Sem meta</span>
-          )}
-        </div>
-        <div className="w-full bg-slate-50 h-1.5 rounded-full overflow-hidden shadow-inner ring-1 ring-slate-100/50">
-          <motion.div
-            initial={{ width: 0 }}
-            animate={{ width: `${percentage}%` }}
-            transition={{ duration: 1, ease: "easeOut" }}
-            className={cn("h-full rounded-full transition-all duration-500 shadow-sm", progressColor)}
-          />
-        </div>
-      </div>
-    </motion.div>
   );
 };

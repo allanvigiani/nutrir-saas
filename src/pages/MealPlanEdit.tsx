@@ -100,11 +100,15 @@ export function MealPlanEdit() {
       const planData = {
         patient_id: patientId,
         nutritionist_id: user.uid,
-        name: data.name,
-        generalInstructions: data.generalInstructions,
-        waterIntake: data.waterIntake,
-        mealObservations: data.mealObservations,
-        customMeals: data.customMeals,
+        name: data.name || '',
+        generalInstructions: data.generalInstructions || '',
+        waterIntake: data.waterIntake || '',
+        mealObservations: data.mealObservations || {},
+        customMeals: data.customMeals.map(m => ({
+          id: m.id,
+          label: m.label || '',
+          time: m.time || null
+        })),
         consultation_id: stateCalculation?.consultation_id || location.state?.consultationId || mealPlan?.consultation_id || null,
         calculation_id: stateCalculation?.id || mealPlan?.calculation_id || null,
         updatedAt: serverTimestamp(),
@@ -133,8 +137,17 @@ export function MealPlanEdit() {
       // Add new items
       data.items.forEach(item => {
         const itemRef = doc(collection(db, 'meal_plan_items'));
+        
+        // Remove undefined fields and the 'id' field if it exists
+        const { id, ...cleanItem } = item;
+        Object.keys(cleanItem).forEach(key => {
+          if (cleanItem[key] === undefined) {
+            cleanItem[key] = null;
+          }
+        });
+
         batch.set(itemRef, {
-          ...item,
+          ...cleanItem,
           meal_plan_id: currentPlanId,
           patient_id: patientId,
           nutritionist_id: user.uid,
