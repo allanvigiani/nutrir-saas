@@ -18,6 +18,7 @@ import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { remoteLogger } from '../lib/remote-logger';
 import { useAuth } from '../contexts/AuthContext';
+import { ModeToggle } from './mode-toggle';
 
 const SidebarItem = ({ 
   icon: Icon, 
@@ -31,8 +32,8 @@ const SidebarItem = ({
     className={cn(
       "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
       active 
-        ? "bg-emerald-100 text-emerald-900" 
-        : "text-slate-600 hover:bg-slate-100"
+        ? "bg-primary/10 text-primary" 
+        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
     )}
   >
     <Icon className="w-5 h-5 shrink-0" />
@@ -72,17 +73,17 @@ export const Sidebar = () => {
   return (
     <aside 
       className={cn(
-        "flex flex-col h-screen bg-white border-r border-slate-200 transition-all duration-300",
+        "flex flex-col h-screen bg-card border-r border-border transition-all duration-300",
         collapsed ? "w-16" : "w-64"
       )}
     >
       <div className="p-4 flex items-center justify-between">
         {!collapsed && (
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xl">N</span>
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-xl">N</span>
             </div>
-            <span className="font-bold text-xl text-slate-900">Nutrir</span>
+            <span className="font-bold text-xl text-card-foreground">Nutrir</span>
           </div>
         )}
         <Button 
@@ -108,21 +109,34 @@ export const Sidebar = () => {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-slate-200">
+      <div className="p-4 border-t border-border">
         {!collapsed && (
           <div className="mb-4 px-2">
-            <p className="text-sm font-semibold text-slate-900 truncate">{userName}</p>
-            <p className="text-xs text-slate-500 truncate">{userEmail}</p>
+            <p className="text-sm font-semibold text-card-foreground truncate">{userName}</p>
+            <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
           </div>
         )}
-        <Button 
-          variant="ghost" 
-          className={cn("w-full justify-start text-slate-600 hover:text-red-600 hover:bg-red-50", collapsed && "px-2")}
-          onClick={handleLogout}
-        >
-          <LogOut className="w-5 h-5" />
-          {!collapsed && <span className="ml-3 font-medium">Sair</span>}
-        </Button>
+        <div className="flex flex-col gap-2">
+          {!collapsed && (
+             <div className="flex items-center justify-between px-2 mb-2">
+               <span className="text-sm font-medium text-muted-foreground">Tema</span>
+               <ModeToggle />
+             </div>
+          )}
+          {collapsed && (
+             <div className="flex justify-center mb-2">
+               <ModeToggle />
+             </div>
+          )}
+          <Button 
+            variant="ghost" 
+            className={cn("w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10", collapsed && "px-2")}
+            onClick={handleLogout}
+          >
+            <LogOut className="w-5 h-5" />
+            {!collapsed && <span className="ml-3 font-medium">Sair</span>}
+          </Button>
+        </div>
       </div>
     </aside>
   );

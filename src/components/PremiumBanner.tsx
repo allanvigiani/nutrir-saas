@@ -29,7 +29,7 @@ export const PremiumBanner = ({
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="flex items-start gap-4">
             <div className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
-              <Award className="h-6 w-6 text-emerald-200" />
+              <Award className="h-6 w-6 text-white" />
             </div>
             <div>
               <h3 className="text-lg font-bold">{title}</h3>
@@ -39,7 +39,7 @@ export const PremiumBanner = ({
           <div className="flex flex-col gap-2 shrink-0">
             <Button 
               onClick={() => setIsUpgradeModalOpen(true)}
-              className="bg-white text-emerald-700 hover:bg-emerald-50 font-bold rounded-xl h-10 px-6 gap-2 transition-all active:scale-95"
+              className="bg-white text-emerald-700 hover:bg-emerald-50 font-bold rounded-xl h-10 px-6 gap-2 transition-all active:scale-95 shadow-sm"
             >
               <Zap className="w-4 h-4" /> Conhecer Premium <ArrowRight className="w-4 h-4" />
             </Button>
@@ -57,7 +57,7 @@ export const PremiumBanner = ({
         
         {/* Decorative elements */}
         <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
-        <div className="absolute -left-8 -bottom-8 h-32 w-32 rounded-full bg-black/10 blur-2xl" />
+        <div className="absolute -left-8 -bottom-8 h-32 w-32 rounded-full bg-black/20 blur-2xl" />
       </div>
 
       <UpgradeModal 

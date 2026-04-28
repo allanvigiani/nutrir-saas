@@ -43,8 +43,8 @@ export const PremiumFeature = ({ children, className, active = true }: PremiumFe
           <div className="pointer-events-none select-none">
             {children}
           </div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 bg-white/80 p-1 rounded-full shadow-sm">
-            <Lock className="w-4 h-4 text-slate-600" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 bg-card/80 p-1 rounded-full shadow-sm">
+            <Lock className="w-4 h-4 text-muted-foreground" />
           </div>
         </TooltipTrigger>
         <TooltipContent>

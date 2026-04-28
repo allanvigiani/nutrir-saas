@@ -419,8 +419,8 @@ export const Patients = () => {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Pacientes</h1>
-          <p className="text-slate-500">Gerencie todos os seus pacientes em um só lugar.</p>
+          <h1 className="text-3xl font-bold text-foreground">Pacientes</h1>
+          <p className="text-muted-foreground">Gerencie todos os seus pacientes em um só lugar.</p>
         </div>
         
         <Dialog open={isModalOpen} onOpenChange={(open) => {
@@ -539,12 +539,12 @@ export const Patients = () => {
                 </div>
               </div>
 
-              <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t border-slate-100 mt-4">
+              <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t border-border mt-4">
                 <Button 
                   type="button" 
                   variant="outline" 
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-xl h-8 px-4 border-slate-200 text-slate-600 text-sm hover:bg-slate-50 transition-all active:scale-95"
+                  className="rounded-xl h-8 px-4 border-border text-muted-foreground text-sm hover:bg-muted/30 transition-all active:scale-95"
                 >
                   Cancelar
                 </Button>
@@ -571,7 +571,7 @@ export const Patients = () => {
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
             placeholder="Buscar por nome ou CPF..." 
             className="pl-10"
@@ -608,8 +608,8 @@ export const Patients = () => {
                       {patient.name.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-slate-900 truncate" title={patient.name}>{patient.name}</h3>
-                      <p className="text-xs text-slate-500">{patient.cpf}</p>
+                      <h3 className="font-bold text-foreground truncate" title={patient.name}>{patient.name}</h3>
+                      <p className="text-xs text-muted-foreground">{patient.cpf}</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
@@ -617,7 +617,7 @@ export const Patients = () => {
                       "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
                       patient.status === 'active' 
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                        : "bg-slate-50 text-slate-500 border-slate-200"
+                        : "bg-muted/30 text-muted-foreground border-border"
                     )}>
                       {patient.status === 'active' ? 'Ativo' : 'Inativo'}
                     </div>
@@ -626,7 +626,7 @@ export const Patients = () => {
                       size="icon"
                       className={cn(
                         "h-8 w-8 rounded-full",
-                        patient.status === 'active' ? "text-slate-400 hover:text-red-500 hover:bg-red-50" : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                        patient.status === 'active' ? "text-muted-foreground hover:text-red-500 hover:bg-red-50" : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
                       )}
                       onClick={() => togglePatientStatus(patient)}
                       title={patient.status === 'active' ? 'Desativar Paciente' : 'Ativar Paciente'}
@@ -637,15 +637,15 @@ export const Patients = () => {
                 </div>
                 
                 <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Mail className="w-4 h-4" />
                     <span className="truncate">{patient.email}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Phone className="w-4 h-4" />
                     <span>{patient.phone}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CalendarIcon className="w-4 h-4" />
                     <span>Nasc: {format(parseISO(patient.birthDate), 'dd/MM/yyyy')}</span>
                   </div>
@@ -655,7 +655,7 @@ export const Patients = () => {
                   <Button 
                     nativeButton={false} 
                     render={<Link to={`/patients/${patient.id}`} />} 
-                    className="flex-1 bg-slate-100 text-slate-900 hover:bg-slate-200 h-8 text-sm font-medium" 
+                    className="flex-1 bg-muted text-foreground hover:bg-accent h-8 text-sm font-medium" 
                     variant="secondary"
                   >
                     Ver Prontuário
@@ -696,10 +696,10 @@ export const Patients = () => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300">
-          <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-slate-900">Nenhum paciente encontrado</h3>
-          <p className="text-slate-500">Tente ajustar sua busca ou cadastrar um novo paciente.</p>
+        <div className="text-center py-12 bg-card rounded-xl border border-dashed border-border">
+          <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-foreground">Nenhum paciente encontrado</h3>
+          <p className="text-muted-foreground">Tente ajustar sua busca ou cadastrar um novo paciente.</p>
         </div>
       )}
     </div>

@@ -177,30 +177,30 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-white">
+    <div className="min-h-screen flex flex-col md:flex-row bg-card">
       {/* Left Side - Login Form */}
-      <div className="flex-1 flex flex-col justify-center px-8 sm:px-12 lg:px-24 py-12 bg-white">
+      <div className="flex-1 flex flex-col justify-center px-8 sm:px-12 lg:px-24 py-12 bg-card">
         <div className="max-w-md w-full mx-auto space-y-8">
           <div className="space-y-2 text-center">
             <div className="flex items-center justify-center gap-3 mb-8">
               <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100">
                 <span className="text-white font-bold text-xl">N</span>
               </div>
-              <span className="text-2xl font-bold text-slate-900 tracking-tight">Nutrir</span>
+              <span className="text-2xl font-bold text-foreground tracking-tight">Nutrir</span>
             </div>
-            <h1 className="text-3xl font-bold text-slate-900 tracking-tight">Bem-vindo de volta</h1>
-            <p className="text-slate-500">Entre com seu e-mail e senha para acessar sua conta</p>
+            <h1 className="text-3xl font-bold text-foreground tracking-tight">Bem-vindo de volta</h1>
+            <p className="text-muted-foreground">Entre com seu e-mail e senha para acessar sua conta</p>
           </div>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-700 font-medium">E-mail</Label>
+                <Label htmlFor="email" className="text-muted-foreground font-medium">E-mail</Label>
                 <Input 
                   id="email" 
                   type="email" 
                   placeholder="exemplo@email.com" 
-                  className="h-12 rounded-xl border-slate-200 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                  className="h-12 rounded-xl border-border focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                   {...register('email')}
                 />
                 {errors.email && <p className="text-sm text-red-500 mt-1">{errors.email.message}</p>}
@@ -208,7 +208,7 @@ export const Login = () => {
               
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-slate-700 font-medium">Senha</Label>
+                  <Label htmlFor="password" className="text-muted-foreground font-medium">Senha</Label>
                   <Link to="/forgot-password" className="text-sm text-emerald-600 font-medium hover:text-emerald-700 transition-colors">
                     Esqueceu a senha?
                   </Link>
@@ -218,13 +218,13 @@ export const Login = () => {
                     id="password" 
                     type={showPassword ? "text" : "password"} 
                     placeholder="••••••••"
-                    className="h-12 rounded-xl border-slate-200 focus:ring-emerald-500 focus:border-emerald-500 transition-all pr-12"
+                    className="h-12 rounded-xl border-border focus:ring-emerald-500 focus:border-emerald-500 transition-all pr-12"
                     {...register('password')}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground transition-colors"
                   >
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
@@ -248,17 +248,17 @@ export const Login = () => {
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-slate-100" />
+                <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-slate-400">Ou continue com</span>
+                <span className="bg-card px-2 text-muted-foreground">Ou continue com</span>
               </div>
             </div>
 
             <Button
               type="button"
               variant="outline"
-              className="w-full h-12 rounded-xl border-slate-200 hover:bg-slate-50 transition-all flex items-center justify-center gap-3 font-semibold text-slate-700"
+              className="w-full h-12 rounded-xl border-border hover:bg-muted/30 transition-all flex items-center justify-center gap-3 font-semibold text-muted-foreground"
               onClick={handleGoogleLogin}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -282,7 +282,7 @@ export const Login = () => {
               Google
             </Button>
 
-            <p className="text-center text-slate-600">
+            <p className="text-center text-muted-foreground">
               Não tem uma conta?{' '}
               <Link to="/register" className="text-emerald-600 font-bold hover:text-emerald-700 transition-colors">
                 Cadastre-se agora
@@ -290,8 +290,8 @@ export const Login = () => {
             </p>
           </form>
 
-          <div className="pt-8 border-t border-slate-100">
-            <p className="text-xs text-center text-slate-400">
+          <div className="pt-8 border-t border-border">
+            <p className="text-xs text-center text-muted-foreground">
               © 2026 Nutrir - Sistema de Gestão para Nutricionistas. Todos os direitos reservados.
             </p>
           </div>

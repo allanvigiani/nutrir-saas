@@ -204,7 +204,7 @@ export const Register = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
@@ -288,7 +288,7 @@ export const Register = () => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground transition-colors"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -309,17 +309,17 @@ export const Register = () => {
 
             <div className="relative w-full">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-slate-200" />
+                <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-slate-500">Ou continue com</span>
+                <span className="bg-card px-2 text-muted-foreground">Ou continue com</span>
               </div>
             </div>
 
             <Button
               type="button"
               variant="outline"
-              className="w-full flex items-center justify-center gap-2 border-slate-200 hover:bg-slate-50"
+              className="w-full flex items-center justify-center gap-2 border-border hover:bg-muted/30"
               onClick={handleGoogleRegister}
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -343,7 +343,7 @@ export const Register = () => {
               Google
             </Button>
 
-            <p className="text-center text-sm text-slate-600">
+            <p className="text-center text-sm text-muted-foreground">
               Já tem uma conta?{' '}
               <Link to="/login" className="text-emerald-600 font-semibold hover:underline">
                 Entrar

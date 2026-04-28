@@ -211,13 +211,13 @@ export const AdminDashboard = () => {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Painel Administrativo</h1>
-          <p className="text-slate-500">Gerenciamento global da plataforma Nutrir</p>
+          <h1 className="text-3xl font-bold text-foreground">Painel Administrativo</h1>
+          <p className="text-muted-foreground">Gerenciamento global da plataforma Nutrir</p>
         </div>
       </div>
 
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-slate-200 p-0 rounded-none h-auto mb-8 overflow-x-auto">
+        <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto mb-8 overflow-x-auto">
           <TabsTrigger 
             value="overview" 
             className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
@@ -240,57 +240,57 @@ export const AdminDashboard = () => {
 
         <TabsContent value="overview" className="space-y-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <Card className="border-none shadow-sm bg-card overflow-hidden">
               <CardContent className="py-4 px-6">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
                     <Users className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Total de Nutricionistas</p>
-                    <p className="text-2xl font-bold text-slate-900">{stats.total}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Total de Nutricionistas</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.total}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <Card className="border-none shadow-sm bg-card overflow-hidden">
               <CardContent className="py-4 px-6">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
                     <CreditCard className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Assinantes Premium</p>
-                    <p className="text-2xl font-bold text-slate-900">{stats.subscribers}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Assinantes Premium</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.subscribers}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <Card className="border-none shadow-sm bg-card overflow-hidden">
               <CardContent className="py-4 px-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl bg-muted/30 text-muted-foreground flex items-center justify-center">
                     <Activity className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Total de Pacientes</p>
-                    <p className="text-2xl font-bold text-slate-900">{totalPatients}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Total de Pacientes</p>
+                    <p className="text-2xl font-bold text-foreground">{totalPatients}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="border-none shadow-sm bg-white overflow-hidden">
+            <Card className="border-none shadow-sm bg-card overflow-hidden">
               <CardContent className="py-4 px-6">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
                     <ShieldCheck className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-slate-500">Administradores</p>
-                    <p className="text-2xl font-bold text-slate-900">{stats.admins}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Administradores</p>
+                    <p className="text-2xl font-bold text-foreground">{stats.admins}</p>
                   </div>
                 </div>
               </CardContent>
@@ -299,22 +299,22 @@ export const AdminDashboard = () => {
         </TabsContent>
 
         <TabsContent value="nutritionists">
-          <Card className="border-none shadow-sm bg-white">
-            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-6 gap-4">
+          <Card className="border-none shadow-sm bg-card">
+            <CardHeader className="flex flex-col md:flex-row md:items-center justify-between border-b border-border pb-6 gap-4">
               <CardTitle className="text-xl font-bold">Nutricionistas Cadastrados</CardTitle>
               <div className="flex flex-wrap items-center gap-4">
                 <div className="relative w-full md:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input 
                     placeholder="Buscar por nome, email ou CRN..." 
-                    className="pl-10 bg-slate-50 border-none rounded-xl h-8 text-sm"
+                    className="pl-10 bg-muted/30 border-none rounded-xl h-8 text-sm"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
                 <div className="flex items-center gap-2">
                   <Select value={planFilter} onValueChange={setPlanFilter}>
-                    <SelectTrigger className="w-[140px] bg-slate-50 border-none rounded-xl h-8 text-sm">
+                    <SelectTrigger className="w-[140px] bg-muted/30 border-none rounded-xl h-8 text-sm">
                       <SelectValue placeholder="Plano">
                         {planFilter === 'all' ? 'Todos Planos' : 
                          planFilter === 'free' ? 'Gratuito' : 
@@ -328,7 +328,7 @@ export const AdminDashboard = () => {
                     </SelectContent>
                   </Select>
                   <Select value={roleFilter} onValueChange={setRoleFilter}>
-                    <SelectTrigger className="w-[140px] bg-slate-50 border-none rounded-xl h-8 text-sm">
+                    <SelectTrigger className="w-[140px] bg-muted/30 border-none rounded-xl h-8 text-sm">
                       <SelectValue placeholder="Cargo">
                         {roleFilter === 'all' ? 'Todos Cargos' : 
                          roleFilter === 'nutritionist' ? 'Nutricionista' : 
@@ -348,7 +348,7 @@ export const AdminDashboard = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-100">
+                    <tr className="bg-muted/30 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
                       <th className="px-6 py-4 font-bold">Nutricionista</th>
                       <th className="px-6 py-4 font-bold">CRN</th>
                       <th className="px-6 py-4 font-bold">Plano</th>
@@ -357,7 +357,7 @@ export const AdminDashboard = () => {
                       <th className="px-6 py-4 font-bold">Ações</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-border">
                     {loading ? (
                       <tr>
                         <td colSpan={6} className="px-6 py-12 text-center">
@@ -366,29 +366,29 @@ export const AdminDashboard = () => {
                       </tr>
                     ) : filteredNutritionists.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="px-6 py-12 text-center text-slate-500">
+                        <td colSpan={6} className="px-6 py-12 text-center text-muted-foreground">
                           Nenhum nutricionista encontrado.
                         </td>
                       </tr>
                     ) : (
                       filteredNutritionists.map((n) => (
-                        <tr key={n.id} className="hover:bg-slate-50 transition-colors">
+                        <tr key={n.id} className="hover:bg-muted/30 transition-colors">
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold">
+                              <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold">
                                 {n.name.charAt(0)}
                               </div>
                               <div>
-                                <p className="font-bold text-slate-900">{n.name}</p>
-                                <p className="text-xs text-slate-500">{n.email}</p>
+                                <p className="font-bold text-foreground">{n.name}</p>
+                                <p className="text-xs text-muted-foreground">{n.email}</p>
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-slate-600 font-medium">{n.crn}</td>
+                          <td className="px-6 py-4 text-muted-foreground font-medium">{n.crn}</td>
                           <td className="px-6 py-4">
                             <span className={cn(
                               "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                              n.plan === 'premium' ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                              n.plan === 'premium' ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
                             )}>
                               {n.plan === 'premium' ? 'Premium' : 'Gratuito'}
                             </span>
@@ -401,11 +401,11 @@ export const AdminDashboard = () => {
                               {n.role === 'admin' ? 'Admin' : 'Nutricionista'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-slate-600 text-sm">
+                          <td className="px-6 py-4 text-muted-foreground text-sm">
                             {n.lastLogin ? (
                               format(parseISO(n.lastLogin), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
                             ) : (
-                              <span className="text-slate-400 italic">Nunca logou</span>
+                              <span className="text-muted-foreground italic">Nunca logou</span>
                             )}
                           </td>
                           <td className="px-6 py-4">
@@ -444,10 +444,10 @@ export const AdminDashboard = () => {
 
         <TabsContent value="settings">
           <div className="max-w-2xl">
-            <Card className="border-none shadow-sm bg-white">
-              <CardHeader className="border-b border-slate-100 pb-6">
+            <Card className="border-none shadow-sm bg-card">
+              <CardHeader className="border-b border-border pb-6">
                 <div className="flex items-center gap-2">
-                  <SettingsIcon className="w-5 h-5 text-slate-400" />
+                  <SettingsIcon className="w-5 h-5 text-muted-foreground" />
                   <CardTitle className="text-xl font-bold">Limites do Plano Gratuito</CardTitle>
                 </div>
               </CardHeader>
@@ -460,7 +460,7 @@ export const AdminDashboard = () => {
                       type="number"
                       value={freeLimits.maxPatients}
                       onChange={(e) => setFreeLimits({...freeLimits, maxPatients: parseInt(e.target.value) || 0})}
-                      className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                      className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                     />
                   </div>
                   <div className="space-y-2">
@@ -470,7 +470,7 @@ export const AdminDashboard = () => {
                       type="number"
                       value={freeLimits.maxMealPlans}
                       onChange={(e) => setFreeLimits({...freeLimits, maxMealPlans: parseInt(e.target.value) || 0})}
-                      className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                      className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                     />
                   </div>
                   <div className="space-y-2">
@@ -480,7 +480,7 @@ export const AdminDashboard = () => {
                       type="number"
                       value={freeLimits.maxExams}
                       onChange={(e) => setFreeLimits({...freeLimits, maxExams: parseInt(e.target.value) || 0})}
-                      className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                      className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                     />
                   </div>
                   <div className="space-y-2">
@@ -490,7 +490,7 @@ export const AdminDashboard = () => {
                       type="number"
                       value={freeLimits.historyMonths}
                       onChange={(e) => setFreeLimits({...freeLimits, historyMonths: parseInt(e.target.value) || 0})}
-                      className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                      className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                     />
                   </div>
                 </div>

@@ -82,7 +82,7 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
     <motion.div 
       whileHover={isSidebar ? { x: 4 } : { y: -2, scale: 1.01 }}
       className={cn(
-        "bg-white rounded-[1.5rem] border border-slate-100 relative overflow-hidden transition-all duration-300",
+        "bg-card rounded-[1.5rem] border border-border relative overflow-hidden transition-all duration-300",
         isSidebar ? "p-5 shadow-sm hover:shadow-md hover:border-emerald-100" : "p-4 shadow-sm"
       )}
     >
@@ -94,28 +94,28 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
           <Icon className={cn(isSidebar ? "w-5 h-5" : "w-4.5 h-4.5", color)} />
         </div>
         <div className="text-right">
-          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">{label}</p>
+          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{label}</p>
           <div className="flex items-baseline justify-end gap-1">
             <span className={cn("font-black leading-none tracking-tighter", isSidebar ? "text-2xl" : "text-lg", color)}>
               {Number(value).toFixed(0)}
             </span>
-            <span className="text-[9px] font-bold text-slate-300 uppercase tracking-widest">{unit}</span>
+            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{unit}</span>
           </div>
         </div>
       </div>
 
       <div className="space-y-2">
         <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest">
-          <span className="text-slate-400">Atingido</span>
+          <span className="text-muted-foreground">Atingido</span>
           {total ? (
-            <span className={cn("font-black", percentage >= 100 ? "text-emerald-500" : "text-slate-500")}>
-              {percentage.toFixed(0)}% <span className="text-slate-300 font-medium">de {total.toFixed(0)}</span>
+            <span className={cn("font-black", percentage >= 100 ? "text-emerald-500" : "text-muted-foreground")}>
+              {percentage.toFixed(0)}% <span className="text-muted-foreground font-medium">de {total.toFixed(0)}</span>
             </span>
           ) : (
-            <span className="text-slate-300">Sem meta</span>
+            <span className="text-muted-foreground">Sem meta</span>
           )}
         </div>
-        <div className="w-full bg-slate-50 h-2 rounded-full overflow-hidden shadow-inner ring-1 ring-slate-100/50">
+        <div className="w-full bg-muted/30 h-2 rounded-full overflow-hidden shadow-inner ring-1 ring-border/50">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${percentage}%` }}
@@ -148,7 +148,7 @@ const MealItemRow = React.memo(({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="group relative bg-white rounded-2xl p-4 border border-slate-100 hover:border-emerald-200 hover:shadow-md transition-all duration-200"
+      className="group relative bg-card rounded-2xl p-4 border border-border hover:border-emerald-200 hover:shadow-md transition-all duration-200"
     >
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
         {/* Food Search */}
@@ -160,17 +160,17 @@ const MealItemRow = React.memo(({
             onAddNew={(name) => onAddNewFood(name, index)}
             placeholder="Qual o alimento?"
             dataSource={foodDataSource as any}
-            className="bg-white hover:bg-white border-slate-200 focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 rounded-xl transition-all h-10 shadow-sm"
+            className="bg-card hover:bg-card border-border focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 rounded-xl transition-all h-10 shadow-sm"
           />
         </div>
 
         {/* Quantity & Unit */}
         <div className="md:col-span-3 flex items-center gap-2">
-          <div className="flex-1 bg-white border border-slate-200 focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 rounded-xl h-10 px-3 transition-all flex items-center shadow-sm">
+          <div className="flex-1 bg-card border border-border focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 rounded-xl h-10 px-3 transition-all flex items-center shadow-sm">
             <Input
               value={item.quantity}
               onChange={(e) => onUpdate(index, 'quantity', e.target.value)}
-              className="border-none p-0 h-auto focus-visible:ring-0 bg-transparent text-slate-900 font-semibold text-center w-full placeholder:text-slate-300"
+              className="border-none p-0 h-auto focus-visible:ring-0 bg-transparent text-foreground font-semibold text-center w-full placeholder:text-muted-foreground"
               placeholder="Qtd."
             />
           </div>
@@ -178,7 +178,7 @@ const MealItemRow = React.memo(({
             value={item.unit}
             onValueChange={(v) => onUpdate(index, 'unit', v)}
           >
-            <SelectTrigger className="flex-1 bg-white border border-slate-200 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 h-10 rounded-xl px-3 text-slate-600 font-bold text-[10px] uppercase tracking-widest transition-all shadow-sm">
+            <SelectTrigger className="flex-1 bg-card border border-border focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 h-10 rounded-xl px-3 text-muted-foreground font-bold text-[10px] uppercase tracking-widest transition-all shadow-sm">
               <SelectValue>{item.unit}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -200,39 +200,39 @@ const MealItemRow = React.memo(({
         {/* Macros Summary */}
         <div className="md:col-span-3 flex items-center justify-around gap-2 px-2">
           <div className="text-center">
-            <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">Kcal</p>
+            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter mb-0.5">Kcal</p>
             <Input
               type="number"
               value={item.kcal}
               onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-slate-50/50 hover:bg-slate-100/50 focus:bg-white rounded-lg text-center text-slate-900 font-bold w-14 mx-auto transition-all shadow-inner focus:shadow-none"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/30/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-foreground font-bold w-14 mx-auto transition-all shadow-inner focus:shadow-none"
             />
           </div>
-          <div className="text-center border-l border-slate-100 pl-2">
+          <div className="text-center border-l border-border pl-2">
             <p className="text-[9px] font-bold text-blue-400 uppercase tracking-tighter mb-0.5">P</p>
             <Input
               type="number"
               value={item.protein}
               onChange={(e) => onUpdate(index, 'protein', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-slate-50/50 hover:bg-slate-100/50 focus:bg-white rounded-lg text-center text-slate-600 font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/30/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
             />
           </div>
-          <div className="text-center border-l border-slate-100 pl-2">
+          <div className="text-center border-l border-border pl-2">
             <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-tighter mb-0.5">C</p>
             <Input
               type="number"
               value={item.carbs}
               onChange={(e) => onUpdate(index, 'carbs', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-slate-50/50 hover:bg-slate-100/50 focus:bg-white rounded-lg text-center text-slate-600 font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/30/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
             />
           </div>
-          <div className="text-center border-l border-slate-100 pl-2">
+          <div className="text-center border-l border-border pl-2">
             <p className="text-[9px] font-bold text-purple-400 uppercase tracking-tighter mb-0.5">G</p>
             <Input
               type="number"
               value={item.fat}
               onChange={(e) => onUpdate(index, 'fat', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-slate-50/50 hover:bg-slate-100/50 focus:bg-white rounded-lg text-center text-slate-600 font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/30/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
             />
           </div>
         </div>
@@ -243,7 +243,7 @@ const MealItemRow = React.memo(({
             variant="ghost"
             size="icon"
             onClick={() => onRemove(index)}
-            className="h-9 w-9 rounded-xl hover:bg-red-50 hover:text-red-500 text-slate-300 transition-all opacity-0 group-hover:opacity-100"
+            className="h-9 w-9 rounded-xl hover:bg-red-50 hover:text-red-500 text-muted-foreground transition-all opacity-0 group-hover:opacity-100"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -407,31 +407,31 @@ export const MealPlanEditor = ({
   };
 
   return (
-    <div className="flex h-full bg-[#F8FAFC] overflow-hidden font-geist">
+    <div className="flex h-full bg-background overflow-hidden font-geist">
       {/* Left Sidebar - Nutritional Intelligence */}
       <motion.aside 
         initial={{ x: -320, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        className="w-[320px] bg-white border-r border-slate-200 flex flex-col h-full hidden lg:flex shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
+        className="w-[320px] bg-card border-r border-border flex flex-col h-full hidden lg:flex shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
       >
-        <div className="p-8 border-b border-slate-100 bg-slate-50/30">
+        <div className="p-8 border-b border-border bg-muted/30/30">
           <div className="flex items-center gap-4 mb-2">
             <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-600/20">
               <Activity className="w-5 h-5 text-white" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-slate-800 tracking-tight uppercase">Dashboard</h2>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Nutricional</p>
+              <h2 className="text-sm font-black text-foreground tracking-tight uppercase">Dashboard</h2>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Nutricional</p>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-slate-50/20">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-muted/30/20">
           {selectedCalculation && (
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-5 rounded-3xl bg-slate-900 text-white shadow-2xl shadow-slate-200 relative overflow-hidden group"
+              className="p-5 rounded-3xl bg-slate-900 text-white shadow-2xl shadow-emerald-900/20 relative overflow-hidden group"
             >
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                 <Calculator className="w-16 h-16" />
@@ -441,15 +441,15 @@ export const MealPlanEditor = ({
                   <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
                     <Calculator className="w-3.5 h-3.5 text-emerald-400" />
                   </div>
-                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-slate-400">Meta Sugerida</span>
+                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Meta Sugerida</span>
                 </div>
                 <div className="flex items-baseline gap-1.5 mb-1">
                   <span className="text-4xl font-black tracking-tighter text-emerald-400">
                     {selectedCalculation.result.getAjustado.toFixed(0)}
                   </span>
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">kcal</span>
+                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">kcal</span>
                 </div>
-                <p className="text-[10px] font-medium text-slate-400 leading-relaxed">
+                <p className="text-[10px] font-medium text-muted-foreground leading-relaxed">
                   Baseado no cálculo de TMB e nível de atividade selecionado.
                 </p>
               </div>
@@ -458,8 +458,8 @@ export const MealPlanEditor = ({
 
           <div className="space-y-4">
             <div className="flex items-center justify-between px-2">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Macronutrientes</span>
-              <div className="w-12 h-px bg-slate-100" />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Macronutrientes</span>
+              <div className="w-12 h-px bg-muted" />
             </div>
             
             <div className="grid gap-4">
@@ -512,10 +512,10 @@ export const MealPlanEditor = ({
 
         </div>
 
-        <div className="p-6 border-t border-slate-100 bg-slate-50/30">
-          <div className="flex items-center gap-3 p-3 rounded-2xl bg-white border border-slate-100">
+        <div className="p-6 border-t border-border bg-muted/30/30">
+          <div className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border">
              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-             <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Sincronizado em tempo real</p>
+             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Sincronizado em tempo real</p>
           </div>
         </div>
       </motion.aside>
@@ -526,7 +526,7 @@ export const MealPlanEditor = ({
         <motion.div 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="sticky top-0 z-50 bg-white/90 backdrop-blur-xl border-b border-slate-200 px-6 py-3 print:hidden"
+          className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border px-6 py-3 print:hidden"
         >
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-8">
             <div className="flex items-center gap-5">
@@ -534,25 +534,25 @@ export const MealPlanEditor = ({
                 variant="outline"
                 size="icon"
                 onClick={onClose}
-                className="rounded-xl border-slate-200 hover:bg-slate-50 transition-all h-9 w-9 shrink-0 shadow-sm"
+                className="rounded-xl border-border hover:bg-muted/30 transition-all h-9 w-9 shrink-0 shadow-sm"
               >
-                <ArrowLeft className="w-4 h-4 text-slate-500" />
+                <ArrowLeft className="w-4 h-4 text-muted-foreground" />
               </Button>
               
               <div className="flex flex-col">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5">
+                <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
                   <span>Plano Alimentar</span>
                   <ChevronRight className="w-3 h-3" />
                   <span className="text-emerald-600">Edição</span>
                 </div>
-                <h1 className="text-base font-bold text-slate-900 tracking-tight leading-none truncate max-w-[200px] lg:max-w-md">
+                <h1 className="text-base font-bold text-foreground tracking-tight leading-none truncate max-w-[200px] lg:max-w-md">
                   {mealPlanName || 'Novo Plano Alimentar'}
                 </h1>
               </div>
             </div>
 
-            <div className="hidden lg:flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 shadow-inner">
-              <div className="px-3 text-[9px] font-bold text-slate-400 uppercase tracking-tight border-r border-slate-200 mr-1">
+            <div className="hidden lg:flex items-center gap-1.5 p-1 bg-muted/80 rounded-xl border border-border/60 shadow-inner">
+              <div className="px-3 text-[9px] font-bold text-muted-foreground uppercase tracking-tight border-r border-border mr-1">
                 Base de Dados
               </div>
               {[
@@ -567,11 +567,11 @@ export const MealPlanEditor = ({
                   className={cn(
                     "flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap tracking-wide",
                     currentFoodDataSource === source.id
-                      ? "bg-white text-emerald-600 shadow-sm ring-1 ring-slate-200/10"
-                      : "text-slate-500 hover:text-slate-900 hover:bg-white/40"
+                      ? "bg-card text-emerald-600 shadow-sm ring-1 ring-border/10"
+                      : "text-muted-foreground hover:text-foreground hover:bg-card/40"
                   )}
                 >
-                  <source.icon className={cn("w-3.5 h-3.5", currentFoodDataSource === source.id ? "text-emerald-500" : "text-slate-400")} />
+                  <source.icon className={cn("w-3.5 h-3.5", currentFoodDataSource === source.id ? "text-emerald-500" : "text-muted-foreground")} />
                   {source.label}
                 </button>
               ))}
@@ -603,39 +603,39 @@ export const MealPlanEditor = ({
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-[2.5rem] p-8 lg:p-10 border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.03)] relative overflow-hidden"
+              className="bg-card rounded-[2.5rem] p-8 lg:p-10 border border-border shadow-[0_20px_50px_rgba(0,0,0,0.03)] relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
-                <Edit2 className="w-48 h-48 text-slate-900" />
+                <Edit2 className="w-48 h-48 text-foreground" />
               </div>
 
               <div className="space-y-10 relative">
                 <div className="grid grid-cols-1 gap-10">
                   <div className="space-y-3">
-                    <Label className="text-[10px] font-bold uppercase text-slate-400 tracking-[0.2em] ml-1">Identificação do Plano</Label>
+                    <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-[0.2em] ml-1">Identificação do Plano</Label>
                     <Input
                       value={mealPlanName}
                       onChange={(e) => setMealPlanName(e.target.value)}
-                      className="text-2xl font-black border-2 border-slate-100 bg-white focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 h-16 rounded-2xl transition-all shadow-sm px-6"
+                      className="text-2xl font-black border-2 border-border bg-card focus:bg-card focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 h-16 rounded-2xl transition-all shadow-sm px-6"
                       placeholder="Ex: Estratégia de Cutting..."
                     />
                   </div>
 
                 </div>
                 
-                <div className="pt-10 border-t border-slate-50">
+                <div className="pt-10 border-t border-border">
                   <div className="flex items-center gap-4 mb-5">
                     <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
                       <MessageSquare className="w-5 h-5 text-emerald-600" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-black text-slate-800 tracking-tight uppercase">Orientações Gerais</h4>
-                      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Instruções comportamentais</p>
+                      <h4 className="text-sm font-black text-foreground tracking-tight uppercase">Orientações Gerais</h4>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Instruções comportamentais</p>
                     </div>
                   </div>
                   <Textarea
                     placeholder="Quais as orientações principais para este plano?"
-                    className="min-h-[140px] rounded-[1.5rem] border-2 border-slate-100 bg-white focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm resize-none transition-all text-base font-medium leading-relaxed p-6"
+                    className="min-h-[140px] rounded-[1.5rem] border-2 border-border bg-card focus:bg-card focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm resize-none transition-all text-base font-medium leading-relaxed p-6"
                     value={generalInstructions}
                     onChange={(e) => setGeneralInstructions(e.target.value)}
                   />
@@ -647,16 +647,16 @@ export const MealPlanEditor = ({
             <div className="space-y-12 pb-24">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-2">
                 <div>
-                  <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-3">
+                  <h2 className="text-xl font-black text-foreground tracking-tight flex items-center gap-3">
                     Cronograma de Refeições
                   </h2>
-                  <p className="text-xs text-slate-400 font-medium mt-1 ml-11">Estruture os horários e alimentos do paciente</p>
+                  <p className="text-xs text-muted-foreground font-medium mt-1 ml-11">Estruture os horários e alimentos do paciente</p>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="px-4 py-2 bg-white rounded-2xl border border-slate-100 shadow-sm flex items-center gap-2">
+                  <div className="px-4 py-2 bg-card rounded-2xl border border-border shadow-sm flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                       {mealItems.length} Alimentos selecionados
                     </span>
                   </div>
@@ -675,7 +675,7 @@ export const MealPlanEditor = ({
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      className="group/meal relative bg-white/50 hover:bg-white rounded-3xl border border-slate-100 hover:border-emerald-100 p-6 transition-all duration-500 shadow-sm hover:shadow-xl"
+                      className="group/meal relative bg-card/50 hover:bg-card rounded-3xl border border-border hover:border-emerald-100 p-6 transition-all duration-500 shadow-sm hover:shadow-xl"
                     >
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
                         <div className="flex items-center gap-4">
@@ -684,42 +684,42 @@ export const MealPlanEditor = ({
                               <Input
                                 value={mealType.label}
                                 onChange={(e) => updateMealType(mealType.id, 'label', e.target.value)}
-                                className="font-black text-xl border-none bg-slate-50/50 hover:bg-slate-100/50 focus:bg-white h-11 px-4 w-full lg:w-[320px] text-slate-900 focus:ring-2 focus:ring-emerald-500/20 rounded-xl placeholder:text-slate-200 transition-all shadow-inner focus:shadow-none"
+                                className="font-black text-xl border-none bg-muted/30/50 hover:bg-muted/50 focus:bg-card h-11 px-4 w-full lg:w-[320px] text-foreground focus:ring-2 focus:ring-emerald-500/20 rounded-xl placeholder:text-muted-foreground transition-all shadow-inner focus:shadow-none"
                                 placeholder="Título da Refeição"
                               />
-                              <div className="flex items-center gap-2 px-4 py-1.5 bg-white rounded-xl border-2 border-slate-100 focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 shadow-sm shrink-0 h-11 transition-all">
-                                <Clock className="w-4 h-4 text-slate-400" />
+                              <div className="flex items-center gap-2 px-4 py-1.5 bg-card rounded-xl border-2 border-border focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 shadow-sm shrink-0 h-11 transition-all">
+                                <Clock className="w-4 h-4 text-muted-foreground" />
                                 <Input
                                   type="time"
                                   value={mealType.time || ''}
                                   onChange={(e) => updateMealType(mealType.id, 'time', e.target.value)}
-                                  className="w-[85px] h-6 border-none bg-transparent text-sm font-bold p-0 focus:ring-0 text-slate-600 [&::-webkit-calendar-picker-indicator]:hidden"
+                                  className="w-[85px] h-6 border-none bg-transparent text-sm font-bold p-0 focus:ring-0 text-muted-foreground [&::-webkit-calendar-picker-indicator]:hidden"
                                 />
                               </div>
                             </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-sm border border-slate-50">
+                        <div className="flex items-center gap-2 bg-card p-2 rounded-2xl shadow-sm border border-border">
                           <div className="flex items-center gap-3 px-3 py-1.5 bg-emerald-50/50 rounded-xl border border-emerald-100/50">
                             <div className="text-center">
                               <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-tighter">Energia</p>
-                              <p className="text-xs font-bold text-slate-800">{totals.kcal.toFixed(0)}<span className="text-[9px] ml-0.5">kcal</span></p>
+                              <p className="text-xs font-bold text-foreground">{totals.kcal.toFixed(0)}<span className="text-[9px] ml-0.5">kcal</span></p>
                             </div>
                             <div className="w-px h-5 bg-emerald-100" />
                             <div className="text-center">
                               <p className="text-[8px] font-bold text-blue-500 uppercase tracking-tighter">Prot</p>
-                              <p className="text-xs font-bold text-slate-800">{totals.protein.toFixed(1)}g</p>
+                              <p className="text-xs font-bold text-foreground">{totals.protein.toFixed(1)}g</p>
                             </div>
                             <div className="w-px h-5 bg-emerald-100" />
                             <div className="text-center">
                               <p className="text-[8px] font-bold text-emerald-500 uppercase tracking-tighter">Carb</p>
-                              <p className="text-xs font-bold text-slate-800">{totals.carbs.toFixed(1)}g</p>
+                              <p className="text-xs font-bold text-foreground">{totals.carbs.toFixed(1)}g</p>
                             </div>
                             <div className="w-px h-5 bg-emerald-100" />
                             <div className="text-center">
                               <p className="text-[8px] font-bold text-purple-500 uppercase tracking-tighter">Gord</p>
-                              <p className="text-xs font-bold text-slate-800">{totals.fat.toFixed(1)}g</p>
+                              <p className="text-xs font-bold text-foreground">{totals.fat.toFixed(1)}g</p>
                             </div>
                           </div>
                           
@@ -727,7 +727,7 @@ export const MealPlanEditor = ({
                             variant="ghost"
                             size="icon"
                             onClick={() => removeMealType(mealType.id)}
-                            className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl h-9 w-9 transition-all"
+                            className="text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-xl h-9 w-9 transition-all"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -760,29 +760,29 @@ export const MealPlanEditor = ({
                           whileHover={{ scale: 1.01 }}
                           whileTap={{ scale: 0.99 }}
                           onClick={() => addMealItem(mealType.id)}
-                          className="w-full py-3 border-2 border-dashed border-slate-100 hover:border-emerald-200 hover:bg-emerald-50/30 rounded-xl flex items-center justify-center gap-2 text-slate-400 hover:text-emerald-600 transition-all font-bold text-xs"
+                          className="w-full py-3 border-2 border-dashed border-border hover:border-emerald-200 hover:bg-emerald-50/30 rounded-xl flex items-center justify-center gap-2 text-muted-foreground hover:text-emerald-600 transition-all font-bold text-xs"
                         >
                           <Plus className="w-4 h-4" /> Adicionar Alimento
                         </motion.button>
                       </div>
 
-                      <div className="pt-6 border-t border-slate-50 flex flex-col lg:flex-row gap-6">
+                      <div className="pt-6 border-t border-border flex flex-col lg:flex-row gap-6">
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center gap-2 px-1">
-                            <MessageSquare className="w-3 h-3 text-slate-400" />
-                            <Label className="text-[9px] uppercase font-bold text-slate-400 tracking-widest">Observações específicas</Label>
+                            <MessageSquare className="w-3 h-3 text-muted-foreground" />
+                            <Label className="text-[9px] uppercase font-bold text-muted-foreground tracking-widest">Observações específicas</Label>
                           </div>
                           <Textarea
                             placeholder="Observações importantes para esta refeição..."
-                            className="min-h-[90px] text-sm font-medium bg-white border-2 border-slate-100 rounded-2xl resize-none focus:bg-white focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm transition-all p-5"
+                            className="min-h-[90px] text-sm font-medium bg-card border-2 border-border rounded-2xl resize-none focus:bg-card focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm transition-all p-5"
                             value={mealObservations[mealType.id] || ''}
                             onChange={(e) => setMealObservations(prev => ({ ...prev, [mealType.id]: e.target.value }))}
                           />
                         </div>
                         <div className="lg:w-40 flex items-end">
-                          <div className="w-full p-3 bg-slate-50/50 rounded-xl border border-slate-100 flex flex-col items-center justify-center gap-1.5">
-                             <Info className="w-3.5 h-3.5 text-slate-300" />
-                             <p className="text-[8px] text-slate-400 font-bold uppercase text-center leading-tight">Total Nutricional da Refeição</p>
+                          <div className="w-full p-3 bg-muted/30/50 rounded-xl border border-border flex flex-col items-center justify-center gap-1.5">
+                             <Info className="w-3.5 h-3.5 text-muted-foreground" />
+                             <p className="text-[8px] text-muted-foreground font-bold uppercase text-center leading-tight">Total Nutricional da Refeição</p>
                           </div>
                         </div>
                       </div>
@@ -795,16 +795,16 @@ export const MealPlanEditor = ({
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center justify-center py-24 px-10 text-center bg-white rounded-[2rem] border-2 border-dashed border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.02)]"
+                  className="flex flex-col items-center justify-center py-24 px-10 text-center bg-card rounded-[2rem] border-2 border-dashed border-border shadow-[0_20px_50px_rgba(0,0,0,0.02)]"
                 >
                   <div className="w-20 h-20 bg-emerald-50 rounded-2xl flex items-center justify-center mb-6 relative">
                     <Apple className="w-10 h-10 text-emerald-500" />
-                    <div className="absolute -top-1.5 -right-1.5 w-7 h-7 bg-white rounded-full shadow-lg flex items-center justify-center">
+                    <div className="absolute -top-1.5 -right-1.5 w-7 h-7 bg-card rounded-full shadow-lg flex items-center justify-center">
                       <Plus className="w-3.5 h-3.5 text-emerald-600" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-bold text-slate-900 mb-2 tracking-tight">O plano está vazio</h3>
-                  <p className="text-slate-400 max-w-sm mx-auto mb-8 font-medium text-sm leading-relaxed">
+                  <h3 className="text-xl font-bold text-foreground mb-2 tracking-tight">O plano está vazio</h3>
+                  <p className="text-muted-foreground max-w-sm mx-auto mb-8 font-medium text-sm leading-relaxed">
                     Comece adicionando a primeira refeição para estruturar a estratégia do seu paciente.
                   </p>
                   <Button 
@@ -821,7 +821,7 @@ export const MealPlanEditor = ({
                   <Button
                     onClick={addCustomMeal}
                     variant="outline"
-                    className="bg-white hover:bg-emerald-50 text-emerald-600 border-2 border-dashed border-emerald-200 rounded-2xl h-14 px-10 font-bold text-sm gap-3 transition-all shadow-[0_10px_30px_rgb(0,0,0,0.02)] hover:shadow-lg hover:border-emerald-300 active:scale-95"
+                    className="bg-card hover:bg-emerald-50 text-emerald-600 border-2 border-dashed border-emerald-200 rounded-2xl h-14 px-10 font-bold text-sm gap-3 transition-all shadow-[0_10px_30px_rgb(0,0,0,0.02)] hover:shadow-lg hover:border-emerald-300 active:scale-95"
                   >
                     <Plus className="w-5 h-5" /> Adicionar Refeição
                   </Button>

@@ -276,7 +276,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                       "px-3 py-1.5 text-xs font-medium rounded-full border transition-colors",
                       (condicoesClinicas.includes(cond.id) || (condicoesClinicas.length === 0 && cond.id === 'saudavel'))
                         ? "bg-emerald-100 text-emerald-800 border-emerald-200"
-                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+                        : "bg-card text-muted-foreground border-border hover:bg-muted/30"
                     )}
                   >
                     {cond.label}
@@ -332,22 +332,22 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                 
                 <div className="col-span-2 pt-2 border-t mt-2">
                   <div className="flex justify-between items-center mb-3">
-                    <Label className="text-xs text-slate-700 font-bold">Macronutrientes (%)</Label>
+                    <Label className="text-xs text-muted-foreground font-bold">Macronutrientes (%)</Label>
                     <span className={cn("text-xs font-bold px-2 py-0.5 rounded-md", isPercentError ? "bg-red-100 text-red-600" : "bg-emerald-50 text-emerald-600")}>
                       Soma: {sumPercent}%
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <div className="space-y-1">
-                      <Label className="text-[10px] text-slate-500 uppercase">Proteína</Label>
+                      <Label className="text-[10px] text-muted-foreground uppercase">Proteína</Label>
                       <Input className={cn("h-8 text-xs", isPercentError && "border-red-300 focus-visible:ring-red-200")} type="number" placeholder="Auto" value={percentualPtn} onChange={e => setPercentualPtn(e.target.value)} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] text-slate-500 uppercase">Carboidrato</Label>
+                      <Label className="text-[10px] text-muted-foreground uppercase">Carboidrato</Label>
                       <Input className={cn("h-8 text-xs", isPercentError && "border-red-300 focus-visible:ring-red-200")} type="number" placeholder="Auto" value={percentualCho} onChange={e => setPercentualCho(e.target.value)} />
                     </div>
                     <div className="space-y-1">
-                      <Label className="text-[10px] text-slate-500 uppercase">Gorduras</Label>
+                      <Label className="text-[10px] text-muted-foreground uppercase">Gorduras</Label>
                       <Input className={cn("h-8 text-xs", isPercentError && "border-red-300 focus-visible:ring-red-200")} type="number" placeholder="Auto" value={percentualLip} onChange={e => setPercentualLip(e.target.value)} />
                     </div>
                   </div>
@@ -362,7 +362,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
       {/* Painel de Resultados */}
       <div className="lg:col-span-2 relative">
         {loading && (
-          <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
+          <div className="absolute inset-0 bg-card/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
             <RefreshCw className="w-8 h-8 text-emerald-600 animate-spin" />
           </div>
         )}
@@ -370,11 +370,11 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
         {result ? (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-white border-none shadow-sm">
+              <Card className="bg-card border-none shadow-sm">
                 <CardContent className="p-4 flex flex-col justify-center">
-                  <p className="text-sm font-medium text-slate-500 uppercase tracking-wider mb-1">IMC</p>
+                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">IMC</p>
                   <div className="flex items-end gap-2">
-                    <span className="text-3xl font-black text-slate-800">{result.imc}</span>
+                    <span className="text-3xl font-black text-foreground">{result.imc}</span>
                   </div>
                   <span className={cn(
                     "text-xs font-bold mt-2 px-2 py-1 rounded-md inline-block w-fit",
@@ -414,7 +414,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                         <Button 
                           onClick={handleSave} 
                           disabled={isSaving || !latestConsultation}
-                          className="bg-white text-emerald-700 hover:bg-emerald-50 font-bold h-10 px-6 rounded-xl shadow-lg border-0 shrink-0 transition-transform active:scale-95"
+                          className="bg-card text-emerald-700 hover:bg-emerald-50 font-bold h-10 px-6 rounded-xl shadow-lg border-0 shrink-0 transition-transform active:scale-95"
                         >
                           {isSaving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
                           Salvar Cálculo
@@ -436,9 +436,9 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
               </Card>
             </div>
 
-            <Card className="border-slate-200 shadow-sm">
-              <CardHeader className="border-b bg-slate-50/50 pb-4">
-                <CardTitle className="text-slate-800 text-lg">Distribuição de Macronutrientes</CardTitle>
+            <Card className="border-border shadow-sm">
+              <CardHeader className="border-b bg-muted/30/50 pb-4">
+                <CardTitle className="text-foreground text-lg">Distribuição de Macronutrientes</CardTitle>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -485,24 +485,24 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="border-slate-200 shadow-sm h-full">
+              <Card className="border-border shadow-sm h-full">
                 <CardHeader className="pb-3 border-b">
-                  <CardTitle className="text-sm font-bold text-slate-700">Informações do Cálculo</CardTitle>
+                  <CardTitle className="text-sm font-bold text-muted-foreground">Informações do Cálculo</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-3 text-sm">
                   <div className="flex justify-between border-b pb-2 border-dashed">
-                    <span className="text-slate-500">Faixa Etária</span>
+                    <span className="text-muted-foreground">Faixa Etária</span>
                     <span className="font-medium">{result.faixaEtaria}</span>
                   </div>
                   <div className="flex justify-between border-b pb-2 border-dashed">
-                    <span className="text-slate-500">Fórmula Utilizada</span>
+                    <span className="text-muted-foreground">Fórmula Utilizada</span>
                     <span className="font-medium uppercase">{result.formulaUtilizada.replace('_', '/')}</span>
                   </div>
                   <div className="flex justify-between border-b pb-2 border-dashed">
-                    <span className="text-slate-500">Peso Utilizado</span>
+                    <span className="text-muted-foreground">Peso Utilizado</span>
                     <span className="font-medium text-emerald-600">{result.pesoUtilizado} kg</span>
                   </div>
-                  <p className="text-xs text-slate-400 italic text-right mt-1">{result.justificativaPeso}</p>
+                  <p className="text-xs text-muted-foreground italic text-right mt-1">{result.justificativaPeso}</p>
                 </CardContent>
               </Card>
 
@@ -530,9 +530,9 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
 
           </div>
         ) : (
-          <div className="h-full min-h-[400px] border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400 p-8 text-center bg-slate-50/50">
-            <Calculator className="w-12 h-12 mb-4 text-slate-300" />
-            <h3 className="font-bold text-slate-600 mb-2">Motor de Cálculo Nutricional</h3>
+          <div className="h-full min-h-[400px] border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground p-8 text-center bg-muted/30/50">
+            <Calculator className="w-12 h-12 mb-4 text-muted-foreground" />
+            <h3 className="font-bold text-muted-foreground mb-2">Motor de Cálculo Nutricional</h3>
             <p className="max-w-md text-sm">Insira o peso, altura e idade do paciente para visualizar o gasto energético e distribuição de macronutrientes recomendados.</p>
           </div>
         )}

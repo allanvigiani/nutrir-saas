@@ -135,8 +135,8 @@ export const Dashboard = () => {
       <CardContent className="p-4 px-6">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-slate-500">{title}</p>
-            <h3 className="text-2xl font-bold text-slate-900 mt-1">{value}</h3>
+            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+            <h3 className="text-2xl font-bold text-card-foreground mt-1">{value}</h3>
           </div>
           <div className={cn("p-3 rounded-xl", color)}>
             <Icon className="w-6 h-6 text-white" />
@@ -156,8 +156,8 @@ export const Dashboard = () => {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Olá, {getFirstName()}</h1>
-          <p className="text-slate-500">Veja o que temos para hoje.</p>
+          <h1 className="text-3xl font-bold text-foreground">Olá, {getFirstName()}</h1>
+          <p className="text-muted-foreground">Veja o que temos para hoje.</p>
         </div>
         <div className="flex gap-3">
           <PremiumFeature active={stats.activePatients >= 3}>
@@ -213,13 +213,13 @@ export const Dashboard = () => {
             {todayAppointments.length > 0 ? (
               <div className="space-y-4">
                 {todayAppointments.map((app) => (
-                  <div key={app.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors">
+                  <div key={app.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-bold">
+                      <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center text-muted-foreground font-bold">
                         {format(parseISO(app.date), 'HH:mm')}
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-900">{patientsMap[app.patient_id] || 'Paciente...'}</p>
+                        <p className="font-semibold text-foreground">{patientsMap[app.patient_id] || 'Paciente...'}</p>
                         <p className={cn(
                           "text-xs font-medium",
                           app.status === 'confirmed' && "text-blue-600",
@@ -235,7 +235,7 @@ export const Dashboard = () => {
                       <Button nativeButton={false} variant="ghost" size="sm" className="text-emerald-600" render={<Link to={`/patients/${app.patient_id}`} />}>
                         Ver Perfil
                       </Button>
-                      <Button nativeButton={false} variant="ghost" size="sm" className="text-slate-600" render={<Link to={`/patients/${app.patient_id}?edit=true`} />}>
+                      <Button nativeButton={false} variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" render={<Link to={`/patients/${app.patient_id}?edit=true`} />}>
                         <Edit className="w-4 h-4" />
                       </Button>
                     </div>
@@ -243,7 +243,7 @@ export const Dashboard = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-slate-500">
+              <div className="text-center py-8 text-muted-foreground">
                 Nenhuma consulta agendada para hoje.
               </div>
             )}
@@ -262,21 +262,21 @@ export const Dashboard = () => {
             {recentPatients.length > 0 ? (
               <div className="space-y-4">
                 {recentPatients.map((patient) => (
-                  <div key={patient.id} className="flex items-center justify-between p-3 rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors">
+                  <div key={patient.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
                         {patient.name.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-semibold text-slate-900">{patient.name}</p>
-                        <p className="text-xs text-slate-500">Cadastrado em {format(parseISO(patient.createdAt), 'dd/MM/yyyy')}</p>
+                        <p className="font-semibold text-foreground">{patient.name}</p>
+                        <p className="text-xs text-muted-foreground">Cadastrado em {format(parseISO(patient.createdAt), 'dd/MM/yyyy')}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">
                       <Button nativeButton={false} variant="ghost" size="sm" render={<Link to={`/patients/${patient.id}`} />}>
                         Ver Perfil
                       </Button>
-                      <Button nativeButton={false} variant="ghost" size="sm" className="text-slate-600" render={<Link to={`/patients/${patient.id}?edit=true`} />}>
+                      <Button nativeButton={false} variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" render={<Link to={`/patients/${patient.id}?edit=true`} />}>
                         <Edit className="w-4 h-4" />
                       </Button>
                     </div>
@@ -284,7 +284,7 @@ export const Dashboard = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-center py-8 text-slate-500">
+              <div className="text-center py-8 text-muted-foreground">
                 Nenhum paciente cadastrado recentemente.
               </div>
             )}

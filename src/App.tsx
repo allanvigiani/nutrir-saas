@@ -18,6 +18,7 @@ import { SubscriptionSuccess } from './pages/SubscriptionSuccess';
 import { MealPlanEdit } from './pages/MealPlanEdit';
 import { Toaster } from './components/ui/sonner';
 import { TooltipProvider } from './components/ui/tooltip';
+import { ThemeProvider } from './components/theme-provider';
 
 import { useAuth } from './contexts/AuthContext';
 
@@ -33,34 +34,36 @@ const Home = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <SettingsProvider>
-        <TooltipProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/subscription-success" element={<SubscriptionSuccess />} />
-              <Route path="/patient-access/:id" element={<PatientAccess />} />
-              
-              <Route element={<Layout />}>
-                <Route path="/" element={<Home />} />
-                <Route path="/patients" element={<Patients />} />
-                <Route path="/patients/:id" element={<PatientProfile />} />
-                <Route path="/patients/:patientId/meal-plan/:planId" element={<MealPlanEdit />} />
-                <Route path="/schedule" element={<Schedule />} />
-                <Route path="/financial" element={<Financial />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/admin" element={<AdminDashboard />} />
-              </Route>
-  
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-            <Toaster position="top-right" />
-          </BrowserRouter>
-        </TooltipProvider>
-      </SettingsProvider>
-    </AuthProvider>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <AuthProvider>
+        <SettingsProvider>
+          <TooltipProvider>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/subscription-success" element={<SubscriptionSuccess />} />
+                <Route path="/patient-access/:id" element={<PatientAccess />} />
+                
+                <Route element={<Layout />}>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/patients" element={<Patients />} />
+                  <Route path="/patients/:id" element={<PatientProfile />} />
+                  <Route path="/patients/:patientId/meal-plan/:planId" element={<MealPlanEdit />} />
+                  <Route path="/schedule" element={<Schedule />} />
+                  <Route path="/financial" element={<Financial />} />
+                  <Route path="/settings" element={<Settings />} />
+                  <Route path="/admin" element={<AdminDashboard />} />
+                </Route>
+    
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+              <Toaster position="top-right" />
+            </BrowserRouter>
+          </TooltipProvider>
+        </SettingsProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

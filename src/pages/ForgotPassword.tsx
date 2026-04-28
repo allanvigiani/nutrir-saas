@@ -52,14 +52,14 @@ export const ForgotPassword = () => {
 
   if (step === 'success') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl shadow-slate-200/60 p-8 text-center space-y-6">
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+        <div className="max-w-md w-full bg-card rounded-3xl shadow-xl shadow-slate-200/60 p-8 text-center space-y-6">
           <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-slate-900">E-mail Enviado!</h1>
-            <p className="text-slate-500">
+            <h1 className="text-2xl font-bold text-foreground">E-mail Enviado!</h1>
+            <p className="text-muted-foreground">
               Enviamos um link de redefinição de senha para <strong>{email}</strong>. 
               Por favor, verifique sua caixa de entrada e a pasta de spam.
             </p>
@@ -76,41 +76,41 @@ export const ForgotPassword = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl shadow-slate-200/60 overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
+      <div className="max-w-md w-full bg-card rounded-3xl shadow-xl shadow-slate-200/60 overflow-hidden">
         <div className="p-8">
           <div className="flex items-center justify-between mb-8">
-            <Link to="/login" className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors">
+            <Link to="/login" className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">N</span>
               </div>
-              <span className="font-bold text-slate-900">Nutrir</span>
+              <span className="font-bold text-foreground">Nutrir</span>
             </div>
           </div>
 
           <div className="space-y-6">
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-slate-900">Esqueceu a senha?</h1>
-              <p className="text-slate-500 text-sm">
+              <h1 className="text-2xl font-bold text-foreground">Esqueceu a senha?</h1>
+              <p className="text-muted-foreground text-sm">
                 Informe seu e-mail e enviaremos um link oficial do Firebase para você redefinir sua senha com segurança.
               </p>
             </div>
 
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-700 font-medium">Seu E-mail</Label>
+                <Label htmlFor="email" className="text-muted-foreground font-medium">Seu E-mail</Label>
                 <div className="relative">
                   <Input 
                     id="email" 
                     type="email" 
                     placeholder="exemplo@email.com" 
-                    className="h-12 rounded-xl border-slate-200 focus:ring-emerald-500 focus:border-emerald-500 pl-11"
+                    className="h-12 rounded-xl border-border focus:ring-emerald-500 focus:border-emerald-500 pl-11"
                     {...form.register('email')}
                   />
-                  <Mail className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-5 h-5 text-muted-foreground absolute left-4 top-1/2 -translate-y-1/2" />
                 </div>
                 {form.formState.errors.email && <p className="text-sm text-red-500 mt-1">{form.formState.errors.email.message}</p>}
               </div>

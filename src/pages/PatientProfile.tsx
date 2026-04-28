@@ -201,21 +201,21 @@ import * as z from 'zod';
 
 
 const SummaryCard = ({ label, value, total, unit, color, progressColor, icon: Icon }: any) => (
-  <Card className="border-none shadow-sm bg-white overflow-hidden rounded-2xl ring-1 ring-slate-100 hover:shadow-md transition-all duration-300">
+  <Card className="border-none shadow-sm bg-card overflow-hidden rounded-2xl ring-1 ring-border hover:shadow-md transition-all duration-300">
     <div className="p-4 flex items-center gap-4">
       <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-inner", color)}>
         <Icon className="w-5 h-5" />
       </div>
       <div className="flex-1">
-        <p className="text-[10px] uppercase font-bold tracking-widest text-slate-400 mb-1">{label}</p>
-        <p className="text-lg font-bold text-slate-900 leading-none">
+        <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mb-1">{label}</p>
+        <p className="text-lg font-bold text-foreground leading-none">
           {Number(value).toFixed(1)}
-          <span className="text-xs font-medium text-slate-300 ml-1">
+          <span className="text-xs font-medium text-muted-foreground ml-1">
             {total ? `/ ${Number(total).toFixed(0)}` : ''} {unit}
           </span>
         </p>
         {total && (
-          <div className="w-full bg-slate-100 h-1.5 rounded-full mt-2.5 overflow-hidden">
+          <div className="w-full bg-muted h-1.5 rounded-full mt-2.5 overflow-hidden">
             <div
               className={cn("h-full rounded-full transition-all duration-500", progressColor)}
               style={{ width: `${Math.min((value / total) * 100, 100)}%` }}
@@ -1229,11 +1229,11 @@ export const PatientProfile = () => {
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold text-slate-900">{patient.name}</h1>
+                <h1 className="text-3xl font-bold text-foreground">{patient.name}</h1>
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                  className="text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
                   onClick={() => setIsEditPatientModalOpen(true)}
                   disabled={patient.status === 'inactive'}
                   title="Editar dados cadastrais"
@@ -1241,14 +1241,14 @@ export const PatientProfile = () => {
                   <Edit className="w-4 h-4" />
                 </Button>
               </div>
-              <div className="flex items-center gap-3 text-slate-500 text-sm">
+              <div className="flex items-center gap-3 text-muted-foreground text-sm">
                 <span>{age} anos</span>
                 <span>•</span>
                 <span>{patient.cpf}</span>
                 <span>•</span>
                 <span className={cn(
                   "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                  patient.status === 'active' ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                  patient.status === 'active' ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
                 )}>
                   {patient.status === 'active' ? 'Ativo' : 'Inativo'}
                 </span>
@@ -1393,7 +1393,7 @@ export const PatientProfile = () => {
                     type="button"
                     variant="outline"
                     onClick={() => setIsConsultationModalOpen(false)}
-                    className="rounded-xl h-8 px-4 border-slate-200 text-slate-600 text-sm hover:bg-slate-50 transition-all active:scale-95"
+                    className="rounded-xl h-8 px-4 border-border text-muted-foreground text-sm hover:bg-muted/30 transition-all active:scale-95"
                   >
                     Cancelar
                   </Button>
@@ -1412,7 +1412,7 @@ export const PatientProfile = () => {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-slate-200 p-0 rounded-none h-auto mb-8 overflow-x-auto">
+        <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto mb-8 overflow-x-auto">
           <TabsTrigger value="personal" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap">
             <User className="w-4 h-4" /> Dados Pessoais
           </TabsTrigger>
@@ -1439,26 +1439,26 @@ export const PatientProfile = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
-                    <Mail className="w-5 h-5 text-slate-400" />
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                    <Mail className="w-5 h-5 text-muted-foreground" />
                     <div>
-                      <p className="text-xs text-slate-500">E-mail</p>
-                      <p className="font-medium text-slate-900">{patient.email}</p>
+                      <p className="text-xs text-muted-foreground">E-mail</p>
+                      <p className="font-medium text-foreground">{patient.email}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
-                    <Phone className="w-5 h-5 text-slate-400" />
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                    <Phone className="w-5 h-5 text-muted-foreground" />
                     <div>
-                      <p className="text-xs text-slate-500">Telefone</p>
-                      <p className="font-medium text-slate-900">{patient.phone}</p>
+                      <p className="text-xs text-muted-foreground">Telefone</p>
+                      <p className="font-medium text-foreground">{patient.phone}</p>
                     </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
-                  <MapPin className="w-5 h-5 text-slate-400" />
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                  <MapPin className="w-5 h-5 text-muted-foreground" />
                   <div>
-                    <p className="text-xs text-slate-500">Endereço</p>
-                    <p className="font-medium text-slate-900">{patient.address}</p>
+                    <p className="text-xs text-muted-foreground">Endereço</p>
+                    <p className="font-medium text-foreground">{patient.address}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1470,12 +1470,12 @@ export const PatientProfile = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Objetivo</p>
-                  <p className="font-medium text-slate-900">{patient.objective}</p>
+                  <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Objetivo</p>
+                  <p className="font-medium text-foreground">{patient.objective}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-bold tracking-wider">Atividade Física</p>
-                  <p className="font-medium text-slate-900">{patient.activityLevel}</p>
+                  <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Atividade Física</p>
+                  <p className="font-medium text-foreground">{patient.activityLevel}</p>
                 </div>
               </CardContent>
             </Card>
@@ -1487,22 +1487,22 @@ export const PatientProfile = () => {
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   <div className="space-y-2">
-                    <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <p className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Activity className="w-4 h-4 text-red-500" /> Doenças
                     </p>
-                    <p className="text-slate-600 text-sm">{patient.diseases || 'Nenhuma informada'}</p>
+                    <p className="text-muted-foreground text-sm">{patient.diseases || 'Nenhuma informada'}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <p className="text-sm font-bold text-foreground flex items-center gap-2">
                       <Beaker className="w-4 h-4 text-blue-500" /> Medicamentos
                     </p>
-                    <p className="text-slate-600 text-sm">{patient.medications || 'Nenhum informado'}</p>
+                    <p className="text-muted-foreground text-sm">{patient.medications || 'Nenhum informado'}</p>
                   </div>
                   <div className="space-y-2">
-                    <p className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <p className="text-sm font-bold text-foreground flex items-center gap-2">
                       <AlertCircle className="w-4 h-4 text-amber-500" /> Alergias
                     </p>
-                    <p className="text-slate-600 text-sm">{patient.allergies || 'Nenhuma informada'}</p>
+                    <p className="text-muted-foreground text-sm">{patient.allergies || 'Nenhuma informada'}</p>
                   </div>
                 </div>
               </CardContent>
@@ -1512,7 +1512,7 @@ export const PatientProfile = () => {
 
         <TabsContent value="consultations" className="mt-6">
           <Card className="border-none shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between border-b border-slate-50 pb-6">
+            <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-6">
               <div>
                 <CardTitle className="text-lg font-bold">Histórico de Consultas</CardTitle>
                 <CardDescription>Visualize todos os atendimentos realizados.</CardDescription>
@@ -1530,22 +1530,22 @@ export const PatientProfile = () => {
               {consultations.length > 0 ? (
                 <div className="space-y-4">
                   {consultations.map((consultation) => (
-                    <div key={consultation.id} className="border border-slate-100 rounded-xl overflow-hidden transition-all duration-200 hover:shadow-sm">
+                    <div key={consultation.id} className="border border-border rounded-xl overflow-hidden transition-all duration-200 hover:shadow-sm">
                       <div
                         className={cn(
                           "flex items-center justify-between p-4 cursor-pointer transition-colors",
-                          expandedConsultations[consultation.id] ? "bg-slate-50 border-b border-slate-100" : "bg-white hover:bg-slate-50"
+                          expandedConsultations[consultation.id] ? "bg-muted/30 border-b border-border" : "bg-card hover:bg-muted/30"
                         )}
                         onClick={() => setExpandedConsultations(prev => ({ ...prev, [consultation.id]: !prev[consultation.id] }))}
                       >
                         <div className="flex items-center gap-4">
-                          <div className="w-12 h-12 rounded-xl bg-slate-100 flex flex-col items-center justify-center text-slate-600">
+                          <div className="w-12 h-12 rounded-xl bg-muted flex flex-col items-center justify-center text-muted-foreground">
                             <span className="text-[10px] font-bold uppercase">{formatDateSafely(consultation.date, 'MMM')}</span>
                             <span className="text-lg font-bold leading-none">{formatDateSafely(consultation.date, 'dd')}</span>
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">Consulta de Rotina</p>
-                            <p className="text-sm text-slate-500">Peso: {consultation.weight}kg • IMC: {consultation.imc.toFixed(1)}</p>
+                            <p className="font-bold text-foreground">Consulta de Rotina</p>
+                            <p className="text-sm text-muted-foreground">Peso: {consultation.weight}kg • IMC: {consultation.imc.toFixed(1)}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
@@ -1560,7 +1560,7 @@ export const PatientProfile = () => {
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              className="text-slate-400 hover:text-emerald-600 disabled:opacity-30"
+                              className="text-muted-foreground hover:text-emerald-600 disabled:opacity-30"
                               disabled={patient.status === 'inactive'}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1571,7 +1571,7 @@ export const PatientProfile = () => {
                             >
                               <Calculator className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon-sm" className="text-slate-400 hover:text-emerald-600 disabled:opacity-30" disabled={patient.status === 'inactive'} title="Editar consulta" onClick={(e) => {
+                            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-emerald-600 disabled:opacity-30" disabled={patient.status === 'inactive'} title="Editar consulta" onClick={(e) => {
                               e.stopPropagation();
                               setSelectedConsultation(consultation);
                               resetConsultation({
@@ -1602,63 +1602,63 @@ export const PatientProfile = () => {
                           </div>
 
                           {expandedConsultations[consultation.id] ? (
-                            <ChevronUp className="w-5 h-5 text-slate-400" />
+                            <ChevronUp className="w-5 h-5 text-muted-foreground" />
                           ) : (
-                            <ChevronDown className="w-5 h-5 text-slate-400" />
+                            <ChevronDown className="w-5 h-5 text-muted-foreground" />
                           )}
                         </div>
                       </div>
 
                       {expandedConsultations[consultation.id] && (
-                        <div className="p-6 bg-white space-y-8 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="p-6 bg-card space-y-8 animate-in fade-in slide-in-from-top-2 duration-200">
                           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Altura</p>
-                              <p className="font-bold text-slate-900">{consultation.height}m</p>
+                            <div className="p-3 rounded-xl bg-muted/30 border border-border">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Altura</p>
+                              <p className="font-bold text-foreground">{consultation.height}m</p>
                             </div>
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Gordura</p>
-                              <p className="font-bold text-slate-900">{consultation.fatPercentage || '--'}%</p>
+                            <div className="p-3 rounded-xl bg-muted/30 border border-border">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Gordura</p>
+                              <p className="font-bold text-foreground">{consultation.fatPercentage || '--'}%</p>
                             </div>
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Cintura</p>
-                              <p className="font-bold text-slate-900">{consultation.waist || '--'}cm</p>
+                            <div className="p-3 rounded-xl bg-muted/30 border border-border">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cintura</p>
+                              <p className="font-bold text-foreground">{consultation.waist || '--'}cm</p>
                             </div>
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Quadril</p>
-                              <p className="font-bold text-slate-900">{consultation.hip || '--'}cm</p>
+                            <div className="p-3 rounded-xl bg-muted/30 border border-border">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Quadril</p>
+                              <p className="font-bold text-foreground">{consultation.hip || '--'}cm</p>
                             </div>
-                            <div className="p-3 rounded-xl bg-slate-50 border border-slate-100">
-                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Braço</p>
-                              <p className="font-bold text-slate-900">{consultation.arm || '--'}cm</p>
+                            <div className="p-3 rounded-xl bg-muted/30 border border-border">
+                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Braço</p>
+                              <p className="font-bold text-foreground">{consultation.arm || '--'}cm</p>
                             </div>
                           </div>
 
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-4">
                               <div>
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
                                   <AlertCircle className="w-3 h-3 text-emerald-500" /> Queixas Principais
                                 </h4>
-                                <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100 min-h-[80px]">
+                                <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl border border-border min-h-[80px]">
                                   {consultation.complaints || 'Nenhuma queixa registrada.'}
                                 </p>
                               </div>
                               <div>
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
                                   <TrendingUp className="w-3 h-3 text-emerald-500" /> Objetivos
                                 </h4>
-                                <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100 min-h-[80px]">
+                                <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl border border-border min-h-[80px]">
                                   {consultation.objectives || 'Nenhum objetivo registrado.'}
                                 </p>
                               </div>
                             </div>
                             <div className="space-y-4">
                               <div>
-                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
                                   <FileText className="w-3 h-3 text-emerald-500" /> Anamnese / Evolução
                                 </h4>
-                                <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-xl border border-slate-100 min-h-[180px] whitespace-pre-wrap">
+                                <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl border border-border min-h-[180px] whitespace-pre-wrap">
                                   {consultation.anamnesis || 'Nenhuma anamnese registrada.'}
                                 </p>
                               </div>
@@ -1666,15 +1666,15 @@ export const PatientProfile = () => {
                           </div>
 
                           {consultation.observations && (
-                            <div className="pt-4 border-t border-slate-100">
-                              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Observações Adicionais</h4>
-                              <p className="text-sm text-slate-500 italic">{consultation.observations}</p>
+                            <div className="pt-4 border-t border-border">
+                              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Observações Adicionais</h4>
+                              <p className="text-sm text-muted-foreground italic">{consultation.observations}</p>
                             </div>
                           )}
 
-                          <div className="pt-6 border-t border-slate-100 mt-6">
+                          <div className="pt-6 border-t border-border mt-6">
                             <div className="flex justify-between items-center mb-4">
-                              <h4 className="text-sm font-bold text-slate-700 flex items-center gap-2">
+                              <h4 className="text-sm font-bold text-muted-foreground flex items-center gap-2">
                                 <Calculator className="w-4 h-4 text-emerald-500" /> Cálculos Nutricionais
                               </h4>
                                 <div className="flex items-center gap-2">
@@ -1703,49 +1703,49 @@ export const PatientProfile = () => {
                             {calculations.filter(c => c.consultation_id === consultation.id).length > 0 ? (
                               <div className="grid gap-3">
                                 {calculations.filter(c => c.consultation_id === consultation.id).map(calc => (
-                                  <div key={calc.id} className="p-4 border border-slate-200 rounded-xl bg-slate-50 space-y-3">
+                                  <div key={calc.id} className="p-4 border border-border rounded-xl bg-muted/30 space-y-3">
                                     <div className="flex justify-between items-start">
                                       <div>
-                                        <p className="font-bold text-slate-800 text-sm">{calc.name}</p>
-                                        <p className="text-xs text-slate-500">{formatDateSafely(calc.createdAt, "dd 'de' MMMM 'de' yyyy")}</p>
+                                        <p className="font-bold text-foreground text-sm">{calc.name}</p>
+                                        <p className="text-xs text-muted-foreground">{formatDateSafely(calc.createdAt, "dd 'de' MMMM 'de' yyyy")}</p>
                                       </div>
                                       <div className="text-right">
                                         <p className="text-sm font-black text-emerald-600">{calc.result.getAjustado} kcal</p>
-                                        <p className="text-[10px] text-slate-400 uppercase font-bold">{calc.result.formulaUtilizada.replace('_', '/')}</p>
+                                        <p className="text-[10px] text-muted-foreground uppercase font-bold">{calc.result.formulaUtilizada.replace('_', '/')}</p>
                                       </div>
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2">
-                                      <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase">Proteína</p>
-                                        <p className="text-xs font-bold text-slate-700">{calc.result.macronutrientes.ptnG}g</p>
+                                      <div className="bg-card p-2 rounded-lg border border-border text-center">
+                                        <p className="text-[10px] text-muted-foreground font-bold uppercase">Proteína</p>
+                                        <p className="text-xs font-bold text-muted-foreground">{calc.result.macronutrientes.ptnG}g</p>
                                       </div>
-                                      <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase">Carboidratos</p>
-                                        <p className="text-xs font-bold text-slate-700">{calc.result.macronutrientes.choG}g</p>
+                                      <div className="bg-card p-2 rounded-lg border border-border text-center">
+                                        <p className="text-[10px] text-muted-foreground font-bold uppercase">Carboidratos</p>
+                                        <p className="text-xs font-bold text-muted-foreground">{calc.result.macronutrientes.choG}g</p>
                                       </div>
-                                      <div className="bg-white p-2 rounded-lg border border-slate-100 text-center">
-                                        <p className="text-[10px] text-slate-400 font-bold uppercase">Gorduras</p>
-                                        <p className="text-xs font-bold text-slate-700">{calc.result.macronutrientes.lipG}g</p>
+                                      <div className="bg-card p-2 rounded-lg border border-border text-center">
+                                        <p className="text-[10px] text-muted-foreground font-bold uppercase">Gorduras</p>
+                                        <p className="text-xs font-bold text-muted-foreground">{calc.result.macronutrientes.lipG}g</p>
                                       </div>
                                     </div>
 
-                                    <div className="pt-2 mt-2 border-t border-slate-200 grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
+                                    <div className="pt-2 mt-2 border-t border-border grid grid-cols-2 gap-x-4 gap-y-1 text-[10px]">
                                       <div className="flex justify-between">
-                                        <span className="text-slate-400">Peso Utilizado:</span>
-                                        <span className="font-bold text-slate-600">{calc.result.pesoUtilizado} kg</span>
+                                        <span className="text-muted-foreground">Peso Utilizado:</span>
+                                        <span className="font-bold text-muted-foreground">{calc.result.pesoUtilizado} kg</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span className="text-slate-400">Gasto Energético:</span>
-                                        <span className="font-bold text-slate-600">{calc.result.get} kcal</span>
+                                        <span className="text-muted-foreground">Gasto Energético:</span>
+                                        <span className="font-bold text-muted-foreground">{calc.result.get} kcal</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span className="text-slate-400">Nível Atividade:</span>
-                                        <span className="font-bold text-slate-600">{calc.input.nivelAtividade}</span>
+                                        <span className="text-muted-foreground">Nível Atividade:</span>
+                                        <span className="font-bold text-muted-foreground">{calc.input.nivelAtividade}</span>
                                       </div>
                                       <div className="flex justify-between">
-                                        <span className="text-slate-400">Objetivo:</span>
-                                        <span className="font-bold text-slate-600 capitalize">{calc.input.objetivo}</span>
+                                        <span className="text-muted-foreground">Objetivo:</span>
+                                        <span className="font-bold text-muted-foreground capitalize">{calc.input.objetivo}</span>
                                       </div>
                                     </div>
 
@@ -1775,7 +1775,7 @@ export const PatientProfile = () => {
                                 ))}
                               </div>
                             ) : (
-                              <p className="text-xs text-slate-500 italic bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">Nenhum cálculo realizado para esta consulta.</p>
+                              <p className="text-xs text-muted-foreground italic bg-muted/30 p-4 rounded-xl border border-border text-center">Nenhum cálculo realizado para esta consulta.</p>
                             )}
                           </div>
                         </div>
@@ -1784,7 +1784,7 @@ export const PatientProfile = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-slate-500">
+                <div className="text-center py-12 text-muted-foreground">
                   Nenhuma consulta registrada para este paciente.
                 </div>
               )}
@@ -1830,15 +1830,15 @@ export const PatientProfile = () => {
               {mealPlans.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {mealPlans.map((plan) => (
-                    <div key={plan.id} className="p-4 rounded-xl border border-slate-100 hover:border-emerald-200 transition-colors">
+                    <div key={plan.id} className="p-4 rounded-xl border border-border hover:border-emerald-200 transition-colors">
                       <div className="flex justify-between items-start mb-3">
                         <div>
-                          <p className="font-bold text-slate-900">{plan.name || `Plano Alimentar #${plan.id.slice(0, 4)}`}</p>
-                          <p className="text-xs text-slate-500">Criado em {formatDateSafely(plan.createdAt, 'dd/MM/yyyy')}</p>
+                          <p className="font-bold text-foreground">{plan.name || `Plano Alimentar #${plan.id.slice(0, 4)}`}</p>
+                          <p className="text-xs text-muted-foreground">Criado em {formatDateSafely(plan.createdAt, 'dd/MM/yyyy')}</p>
                         </div>
                         <span className={cn(
                           "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
-                          plan.status === 'active' ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"
+                          plan.status === 'active' ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
                         )}>
                           {plan.status === 'active' ? 'Ativo' : 'Arquivado'}
                         </span>
@@ -1847,10 +1847,10 @@ export const PatientProfile = () => {
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => viewMealPlan(plan)}>Visualizar</Button>
                         <Button variant="outline" size="sm" className="flex-1 disabled:opacity-50" onClick={() => editMealPlan(plan)} disabled={patient.status === 'inactive'}>Editar</Button>
 
-                        <Button variant="ghost" size="sm" className="px-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50" onClick={() => sendMealPlanByEmail(plan)} title="Enviar por E-mail">
+                        <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50" onClick={() => sendMealPlanByEmail(plan)} title="Enviar por E-mail">
                           <Mail className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="px-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50" onClick={() => exportMealPlanPDF(plan)} title="Imprimir PDF">
+                        <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50" onClick={() => exportMealPlanPDF(plan)} title="Imprimir PDF">
                           <Printer className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="sm" className="px-2 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30" onClick={() => deleteMealPlan(plan.id)} disabled={patient.status === 'inactive'} title="Excluir plano">
@@ -1862,8 +1862,8 @@ export const PatientProfile = () => {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-slate-500 mb-2 font-medium">Nenhum plano alimentar criado.</p>
-                  <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
+                  <p className="text-muted-foreground mb-2 font-medium">Nenhum plano alimentar criado.</p>
+                  <p className="text-xs text-muted-foreground max-w-xs mx-auto leading-relaxed">
                     Os planos alimentares são criados vinculados a uma consulta ou a partir de um cálculo nutricional.
                   </p>
                 </div>
@@ -1874,21 +1874,21 @@ export const PatientProfile = () => {
 
         <Dialog open={isViewMealPlanModalOpen} onOpenChange={setIsViewMealPlanModalOpen}>
           <DialogContent className="max-w-6xl w-[98vw] max-h-[95vh] p-0 overflow-hidden flex flex-col rounded-2xl border-none shadow-2xl print-content-wrapper">
-            <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
+            <div className="flex flex-col h-full bg-muted/30 overflow-hidden">
               {/* Header Bar */}
-              <div className="bg-white border-b px-6 py-4 flex items-center justify-between shrink-0 z-50 shadow-sm print:hidden">
+              <div className="bg-card border-b px-6 py-4 flex items-center justify-between shrink-0 z-50 shadow-sm print:hidden">
                 <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <Button variant="ghost" size="icon" onClick={() => setIsViewMealPlanModalOpen(false)} className="shrink-0 hover:bg-slate-100 rounded-full" title="Fechar visualização">
+                  <Button variant="ghost" size="icon" onClick={() => setIsViewMealPlanModalOpen(false)} className="shrink-0 hover:bg-muted rounded-full" title="Fechar visualização">
                     <ArrowLeft className="w-5 h-5" />
                   </Button>
                   <div className="flex-1 flex flex-col md:flex-row md:items-center gap-3 min-w-0">
                     <div className="flex-1 min-w-[150px] max-w-[400px]">
-                      <h2 className="text-lg font-bold text-slate-900 truncate">
+                      <h2 className="text-lg font-bold text-foreground truncate">
                         {selectedMealPlan?.name || "Plano Alimentar"}
                       </h2>
                     </div>
                     <div className="flex-[2] min-w-[200px] max-w-[600px] hidden lg:block">
-                      <p className="text-sm text-slate-500 truncate">
+                      <p className="text-sm text-muted-foreground truncate">
                         {selectedMealPlan?.generalInstructions || "Sem instruções gerais"}
                       </p>
                     </div>
@@ -1909,26 +1909,26 @@ export const PatientProfile = () => {
                       N
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-slate-900 leading-none">NutriCare Pro</h2>
-                      <p className="text-xs text-slate-500 mt-1">Gestão Nutricional de Excelência</p>
+                      <h2 className="text-2xl font-bold text-foreground leading-none">NutriCare Pro</h2>
+                      <p className="text-xs text-muted-foreground mt-1">Gestão Nutricional de Excelência</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <h3 className="text-lg font-bold text-emerald-700 uppercase tracking-wider">Plano Alimentar</h3>
-                    <p className="text-xs text-slate-500">{selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}</p>
+                    <p className="text-xs text-muted-foreground">{selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}</p>
                   </div>
                 </div>
 
-                <div className="hidden print:grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-6 bg-white border border-emerald-100 rounded-2xl">
+                <div className="hidden print:grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-6 bg-card border border-emerald-100 rounded-2xl">
                   <div>
-                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Paciente</p>
-                    <p className="font-bold text-slate-800 text-lg">{patient?.name}</p>
-                    <p className="text-sm text-slate-500">{patient?.email}</p>
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Paciente</p>
+                    <p className="font-bold text-foreground text-lg">{patient?.name}</p>
+                    <p className="text-sm text-muted-foreground">{patient?.email}</p>
                   </div>
                   <div className="md:text-right">
-                    <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Nutricionista</p>
-                    <p className="font-bold text-slate-800 text-lg">{user?.displayName || 'Nutricionista'}</p>
-                    <p className="text-sm text-slate-500">CRN: 12345/P</p>
+                    <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Nutricionista</p>
+                    <p className="font-bold text-foreground text-lg">{user?.displayName || 'Nutricionista'}</p>
+                    <p className="text-sm text-muted-foreground">CRN: 12345/P</p>
                   </div>
                 </div>
 
@@ -1943,7 +1943,7 @@ export const PatientProfile = () => {
                 {/* Water Intake & General Instructions */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:hidden">
                   <div>
-                    <Card className="border-none shadow-sm bg-white overflow-hidden p-6 space-y-4 h-full">
+                    <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
                       <div className="flex items-center gap-3 text-blue-600 mb-2">
                         <div className="p-2 rounded-xl bg-blue-50">
                           <Droplets className="w-5 h-5" />
@@ -1951,20 +1951,20 @@ export const PatientProfile = () => {
                         <h4 className="font-bold uppercase tracking-wider text-xs">Meta de Água</h4>
                       </div>
                       <div className="space-y-1">
-                        <p className="text-xs text-slate-500">Quantidade Diária</p>
-                        <p className="text-lg font-bold text-slate-900">{selectedMealPlan?.waterIntake || 'Não informada'}</p>
+                        <p className="text-xs text-muted-foreground">Quantidade Diária</p>
+                        <p className="text-lg font-bold text-foreground">{selectedMealPlan?.waterIntake || 'Não informada'}</p>
                       </div>
                     </Card>
                   </div>
                   <div>
-                    <Card className="border-none shadow-sm bg-white overflow-hidden p-6 space-y-4 h-full">
+                    <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
                       <div className="flex items-center gap-3 text-emerald-600 mb-2">
                         <div className="p-2 rounded-xl bg-emerald-50">
                           <Activity className="w-5 h-5" />
                         </div>
                         <h4 className="font-bold uppercase tracking-wider text-xs">Orientações Gerais</h4>
                       </div>
-                      <div className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+                      <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                         {selectedMealPlan?.generalInstructions || 'Nenhuma orientação cadastrada.'}
                       </div>
                     </Card>
@@ -2001,11 +2001,11 @@ export const PatientProfile = () => {
                       const Icon = getIcon(meal.label);
 
                       return (
-                        <Card key={meal.id} className="border-none shadow-sm bg-white overflow-hidden rounded-2xl print:shadow-none print:border print:border-slate-100 break-inside-avoid relative">
+                        <Card key={meal.id} className="border-none shadow-sm bg-card overflow-hidden rounded-2xl print:shadow-none print:border print:border-border break-inside-avoid relative">
                           <div className={cn("absolute top-0 left-0 w-1.5 h-full transition-colors", meal.color.split(' ')[0])} />
-                          <div className={cn("px-6 py-5 flex items-center justify-between border-b print:bg-slate-50", meal.color.split(' ')[0], "bg-opacity-5")}>
+                          <div className={cn("px-6 py-5 flex items-center justify-between border-b print:bg-muted/30", meal.color.split(' ')[0], "bg-opacity-5")}>
                             <div className="flex items-center gap-4">
-                              <div className={cn("p-2.5 rounded-2xl bg-white shadow-sm ring-1 ring-black/5 print:bg-white", meal.color.split(' ')[2])}>
+                              <div className={cn("p-2.5 rounded-2xl bg-card shadow-sm ring-1 ring-black/5 print:bg-card", meal.color.split(' ')[2])}>
                                 <Icon className="w-6 h-6" />
                               </div>
                               <div>
@@ -2030,7 +2030,7 @@ export const PatientProfile = () => {
                           <div className="overflow-x-auto">
                             <table className="w-full text-sm min-w-[800px]">
                               <thead>
-                                <tr className="bg-slate-50/50 text-slate-500 text-left border-b print:bg-slate-50">
+                                <tr className="bg-muted/30/50 text-muted-foreground text-left border-b print:bg-muted/30">
                                   <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Alimento</th>
                                   <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Qtd</th>
                                   <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Unidade</th>
@@ -2040,16 +2040,16 @@ export const PatientProfile = () => {
                                   <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">G (g)</th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-slate-100">
+                              <tbody className="divide-y divide-border">
                                 {items.map((item, idx) => (
-                                  <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                                    <td className="px-6 py-4 font-medium text-slate-800">{item.food}</td>
-                                    <td className="px-4 py-4 text-slate-600 text-center">{item.quantity}</td>
-                                    <td className="px-4 py-4 text-slate-600 text-center">{item.unit}</td>
-                                    <td className="px-4 py-4 text-slate-600 text-center font-mono">{item.kcal || 0}</td>
-                                    <td className="px-4 py-4 text-slate-600 text-center font-mono">{item.protein || 0}</td>
-                                    <td className="px-4 py-4 text-slate-600 text-center font-mono">{item.carbs || 0}</td>
-                                    <td className="px-4 py-4 text-slate-600 text-center font-mono">{item.fat || 0}</td>
+                                  <tr key={idx} className="hover:bg-muted/30/50 transition-colors">
+                                    <td className="px-6 py-4 font-medium text-foreground">{item.food}</td>
+                                    <td className="px-4 py-4 text-muted-foreground text-center">{item.quantity}</td>
+                                    <td className="px-4 py-4 text-muted-foreground text-center">{item.unit}</td>
+                                    <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.kcal || 0}</td>
+                                    <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.protein || 0}</td>
+                                    <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.carbs || 0}</td>
+                                    <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.fat || 0}</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -2065,7 +2065,7 @@ export const PatientProfile = () => {
                                 </div>
                                 <div className="flex-1">
                                   <p className="text-[10px] uppercase font-bold text-amber-700/60 mb-1">Observações da Refeição</p>
-                                  <p className="text-sm text-slate-700 leading-relaxed italic">
+                                  <p className="text-sm text-muted-foreground leading-relaxed italic">
                                     "{selectedMealPlan.mealObservations[meal.id]}"
                                   </p>
                                 </div>
@@ -2078,10 +2078,10 @@ export const PatientProfile = () => {
                 </div>
 
                 {/* Print Signature */}
-                <div className="hidden print:flex flex-col items-center mt-20 pt-10 border-t border-slate-100">
-                  <div className="w-64 h-px bg-slate-300 mb-4"></div>
-                  <p className="text-base font-bold text-slate-800">{user?.displayName || 'Nutricionista'}</p>
-                  <p className="text-xs text-slate-400 uppercase tracking-widest mt-1">Assinatura do Profissional</p>
+                <div className="hidden print:flex flex-col items-center mt-20 pt-10 border-t border-border">
+                  <div className="w-64 h-px bg-border mb-4"></div>
+                  <p className="text-base font-bold text-foreground">{user?.displayName || 'Nutricionista'}</p>
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Assinatura do Profissional</p>
                 </div>
               </div>
             </div>
@@ -2135,59 +2135,59 @@ export const PatientProfile = () => {
 
         {/* Hidden Print Container - Always in DOM for silent printing */}
         <div className="hidden print-content-wrapper pointer-events-none opacity-0 fixed -z-50">
-          <div className="p-8 bg-white">
+          <div className="p-8 bg-card">
             <div className="flex items-center justify-between mb-8 pb-6 border-b border-emerald-200">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xl">
                   N
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-slate-900 leading-none">NutriCare Pro</h2>
-                  <p className="text-xs text-slate-500 mt-1">Gestão Nutricional de Excelência</p>
+                  <h2 className="text-2xl font-bold text-foreground leading-none">NutriCare Pro</h2>
+                  <p className="text-xs text-muted-foreground mt-1">Gestão Nutricional de Excelência</p>
                 </div>
               </div>
               <div className="text-right">
                 <h3 className="text-lg font-bold text-emerald-700 uppercase tracking-wider">Plano Alimentar</h3>
-                <p className="text-xs text-slate-500">{selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}</p>
+                <p className="text-xs text-muted-foreground">{selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 mb-8 p-6 bg-white border border-emerald-100 rounded-2xl">
+            <div className="grid grid-cols-2 gap-6 mb-8 p-6 bg-card border border-emerald-100 rounded-2xl">
               <div>
-                <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Paciente</p>
-                <p className="font-bold text-slate-800 text-lg">{patient?.name}</p>
-                <p className="text-sm text-slate-500">{patient?.email}</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Paciente</p>
+                <p className="font-bold text-foreground text-lg">{patient?.name}</p>
+                <p className="text-sm text-muted-foreground">{patient?.email}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase font-bold text-slate-400 mb-1">Nutricionista</p>
-                <p className="font-bold text-slate-800 text-lg">{user?.displayName || 'Nutricionista'}</p>
-                <p className="text-sm text-slate-500">CRN: 12345/P</p>
+                <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Nutricionista</p>
+                <p className="font-bold text-foreground text-lg">{user?.displayName || 'Nutricionista'}</p>
+                <p className="text-sm text-muted-foreground">CRN: 12345/P</p>
               </div>
             </div>
 
             <div className="grid grid-cols-4 gap-4 mb-8">
-              <div className="p-4 border border-slate-100 rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-400">Calorias</p>
-                <p className="text-lg font-bold text-slate-900">{viewMealTotals.kcal} kcal</p>
+              <div className="p-4 border border-border rounded-xl text-center">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground">Calorias</p>
+                <p className="text-lg font-bold text-foreground">{viewMealTotals.kcal} kcal</p>
               </div>
-              <div className="p-4 border border-slate-100 rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-400">Proteínas</p>
-                <p className="text-lg font-bold text-slate-900">{viewMealTotals.protein.toFixed(1)} g</p>
+              <div className="p-4 border border-border rounded-xl text-center">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground">Proteínas</p>
+                <p className="text-lg font-bold text-foreground">{viewMealTotals.protein.toFixed(1)} g</p>
               </div>
-              <div className="p-4 border border-slate-100 rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-400">Carboidratos</p>
-                <p className="text-lg font-bold text-slate-900">{viewMealTotals.carbs.toFixed(1)} g</p>
+              <div className="p-4 border border-border rounded-xl text-center">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground">Carboidratos</p>
+                <p className="text-lg font-bold text-foreground">{viewMealTotals.carbs.toFixed(1)} g</p>
               </div>
-              <div className="p-4 border border-slate-100 rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-slate-400">Gorduras</p>
-                <p className="text-lg font-bold text-slate-900">{viewMealTotals.fat.toFixed(1)} g</p>
+              <div className="p-4 border border-border rounded-xl text-center">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground">Gorduras</p>
+                <p className="text-lg font-bold text-foreground">{viewMealTotals.fat.toFixed(1)} g</p>
               </div>
             </div>
 
             {selectedMealPlan?.generalInstructions && (
               <div className="mb-8">
                 <h4 className="font-bold text-emerald-800 text-sm uppercase tracking-widest mb-2">Orientações Gerais</h4>
-                <div className="p-5 bg-white rounded-xl border border-slate-100 text-slate-700 text-sm leading-relaxed whitespace-pre-wrap">
+                <div className="p-5 bg-card rounded-xl border border-border text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">
                   {selectedMealPlan.generalInstructions}
                 </div>
               </div>
@@ -2202,7 +2202,7 @@ export const PatientProfile = () => {
                   const Icon = (meal as any).icon || Activity;
 
                   return (
-                    <div key={meal.id} className="border border-slate-100 rounded-2xl overflow-hidden break-inside-avoid">
+                    <div key={meal.id} className="border border-border rounded-2xl overflow-hidden break-inside-avoid">
                       <div className={cn("px-6 py-3 border-b flex items-center gap-3", meal.color)}>
                         <Icon className="w-5 h-5" />
                         <div className="flex items-center gap-2">
@@ -2212,7 +2212,7 @@ export const PatientProfile = () => {
                       </div>
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="bg-slate-50 text-slate-500 text-left border-b">
+                          <tr className="bg-muted/30 text-muted-foreground text-left border-b">
                             <th className="px-6 py-3 font-bold uppercase text-[10px]">Alimento</th>
                             <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Qtd</th>
                             <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Unidade</th>
@@ -2222,16 +2222,16 @@ export const PatientProfile = () => {
                             <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">G (g)</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
+                        <tbody className="divide-y divide-border">
                           {items.map((item, idx) => (
                             <tr key={idx}>
-                              <td className="px-6 py-3 font-medium text-slate-800">{item.food}</td>
-                              <td className="px-4 py-3 text-slate-600 text-center">{item.quantity}</td>
-                              <td className="px-4 py-3 text-slate-600 text-center">{item.unit}</td>
-                              <td className="px-4 py-3 text-slate-600 text-center">{item.kcal || 0}</td>
-                              <td className="px-4 py-3 text-slate-600 text-center">{item.protein || 0}</td>
-                              <td className="px-4 py-3 text-slate-600 text-center">{item.carbs || 0}</td>
-                              <td className="px-4 py-3 text-slate-600 text-center">{item.fat || 0}</td>
+                              <td className="px-6 py-3 font-medium text-foreground">{item.food}</td>
+                              <td className="px-4 py-3 text-muted-foreground text-center">{item.quantity}</td>
+                              <td className="px-4 py-3 text-muted-foreground text-center">{item.unit}</td>
+                              <td className="px-4 py-3 text-muted-foreground text-center">{item.kcal || 0}</td>
+                              <td className="px-4 py-3 text-muted-foreground text-center">{item.protein || 0}</td>
+                              <td className="px-4 py-3 text-muted-foreground text-center">{item.carbs || 0}</td>
+                              <td className="px-4 py-3 text-muted-foreground text-center">{item.fat || 0}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -2241,10 +2241,10 @@ export const PatientProfile = () => {
                 })}
             </div>
 
-            <div className="flex flex-col items-center mt-20 pt-10 border-t border-slate-100">
-              <div className="w-64 h-px bg-slate-300 mb-4"></div>
-              <p className="text-base font-bold text-slate-800">{user?.displayName || 'Nutricionista'}</p>
-              <p className="text-xs text-slate-400 uppercase tracking-widest mt-1">Assinatura do Profissional</p>
+            <div className="flex flex-col items-center mt-20 pt-10 border-t border-border">
+              <div className="w-64 h-px bg-border mb-4"></div>
+              <p className="text-base font-bold text-foreground">{user?.displayName || 'Nutricionista'}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Assinatura do Profissional</p>
             </div>
           </div>
         </div>
@@ -2294,7 +2294,7 @@ export const PatientProfile = () => {
 
                       <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                          <h3 className="font-bold text-slate-800">Resultados</h3>
+                          <h3 className="font-bold text-foreground">Resultados</h3>
                           <Button type="button" variant="outline" size="sm" onClick={addExamMarker} className="gap-2">
                             <Plus className="w-4 h-4" /> Adicionar marcador
                           </Button>
@@ -2302,9 +2302,9 @@ export const PatientProfile = () => {
 
                         <div className="space-y-4">
                           {examMarkers.map((marker, index) => (
-                            <div key={marker.id} className="p-4 rounded-xl border border-slate-100 bg-slate-50/30 space-y-4 relative">
+                            <div key={marker.id} className="p-4 rounded-xl border border-border bg-muted/30/30 space-y-4 relative">
                               <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Marcador {index + 1}</span>
+                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Marcador {index + 1}</span>
                                 <Button
                                   type="button"
                                   variant="ghost"
@@ -2395,7 +2395,7 @@ export const PatientProfile = () => {
                             </div>
                           ))}
                           {examMarkers.length === 0 && (
-                            <div className="text-center py-8 border-2 border-dashed border-slate-100 rounded-xl text-slate-400 text-sm">
+                            <div className="text-center py-8 border-2 border-dashed border-border rounded-xl text-muted-foreground text-sm">
                               Nenhum marcador adicionado. Clique em "Adicionar marcador" para começar.
                             </div>
                           )}
@@ -2413,12 +2413,12 @@ export const PatientProfile = () => {
                         />
                       </div>
                     </div>
-                    <DialogFooter className="p-6 bg-slate-50 border-t gap-2 sm:gap-0">
+                    <DialogFooter className="p-6 bg-muted/30 border-t gap-2 sm:gap-0">
                       <Button
                         type="button"
                         variant="outline"
                         onClick={() => setIsLabExamModalOpen(false)}
-                        className="rounded-xl h-8 px-4 border-slate-200 text-slate-600 text-sm hover:bg-slate-50 transition-all active:scale-95"
+                        className="rounded-xl h-8 px-4 border-border text-muted-foreground text-sm hover:bg-muted/30 transition-all active:scale-95"
                       >
                         Cancelar
                       </Button>
@@ -2437,19 +2437,19 @@ export const PatientProfile = () => {
               {exams.length > 0 ? (
                 <div className="space-y-4">
                   {exams.map((exam) => (
-                    <div key={exam.id} className="rounded-xl border border-slate-100 overflow-hidden">
+                    <div key={exam.id} className="rounded-xl border border-border overflow-hidden">
                       <div
-                        className="flex items-center justify-between p-4 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+                        className="flex items-center justify-between p-4 bg-card hover:bg-muted/30 transition-colors cursor-pointer"
                         onClick={() => toggleExamExpansion(exam.id)}
                       >
                         <div className="flex items-center gap-4">
-                          <div className="text-slate-400">
+                          <div className="text-muted-foreground">
                             {expandedExams[exam.id] ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                           </div>
                           <div>
-                            <p className="font-bold text-slate-900">{exam.title || 'Exame laboratorial'}</p>
+                            <p className="font-bold text-foreground">{exam.title || 'Exame laboratorial'}</p>
                             <div className="flex items-center gap-2 mt-1">
-                              <p className="text-sm text-slate-500">{formatDateSafely(exam.date, "dd 'de' MMMM 'de' yyyy")}</p>
+                              <p className="text-sm text-muted-foreground">{formatDateSafely(exam.date, "dd 'de' MMMM 'de' yyyy")}</p>
                               <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
                                 {exam.markers?.length || 0} marcadores
                               </span>
@@ -2461,7 +2461,7 @@ export const PatientProfile = () => {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            className="text-slate-400 hover:text-emerald-600 disabled:opacity-30"
+                            className="text-muted-foreground hover:text-emerald-600 disabled:opacity-30"
                             title="Editar exame"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -2476,7 +2476,7 @@ export const PatientProfile = () => {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            className="text-slate-400 hover:text-red-600 disabled:opacity-30"
+                            className="text-muted-foreground hover:text-red-600 disabled:opacity-30"
                             title="Excluir exame"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -2490,12 +2490,12 @@ export const PatientProfile = () => {
                       </div>
 
                       {expandedExams[exam.id] && (
-                        <div className="p-4 bg-slate-50/30 border-t border-slate-100">
+                        <div className="p-4 bg-muted/30/30 border-t border-border">
 
-                          <div className="rounded-xl border border-slate-100 bg-white overflow-hidden">
+                          <div className="rounded-xl border border-border bg-card overflow-hidden">
                             <table className="w-full text-sm">
                               <thead>
-                                <tr className="bg-slate-50 text-slate-500 text-left border-b">
+                                <tr className="bg-muted/30 text-muted-foreground text-left border-b">
                                   <th className="px-4 py-3 font-bold uppercase text-[10px]">Marcador</th>
                                   <th className="px-4 py-3 font-bold uppercase text-[10px]">Tipo</th>
                                   <th className="px-4 py-3 font-bold uppercase text-[10px]">Resultado</th>
@@ -2503,20 +2503,20 @@ export const PatientProfile = () => {
                                   <th className="px-4 py-3 font-bold uppercase text-[10px]">Status</th>
                                 </tr>
                               </thead>
-                              <tbody className="divide-y divide-slate-100">
+                              <tbody className="divide-y divide-border">
                                 {exam.markers?.map((marker) => (
                                   <tr key={marker.id}>
-                                    <td className="px-4 py-3 font-bold text-slate-800">{marker.name}</td>
+                                    <td className="px-4 py-3 font-bold text-foreground">{marker.name}</td>
                                     <td className="px-4 py-3">
-                                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-medium">
+                                      <span className="px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[10px] font-medium">
                                         {marker.type}
                                       </span>
                                     </td>
                                     <td className="px-4 py-3">
-                                      <span className="font-bold text-slate-900">{marker.result}</span>
-                                      <span className="text-slate-400 ml-1 text-xs">{marker.unit}</span>
+                                      <span className="font-bold text-foreground">{marker.result}</span>
+                                      <span className="text-muted-foreground ml-1 text-xs">{marker.unit}</span>
                                     </td>
-                                    <td className="px-4 py-3 text-slate-500">{marker.reference || '—'}</td>
+                                    <td className="px-4 py-3 text-muted-foreground">{marker.reference || '—'}</td>
                                     <td className="px-4 py-3">
                                       <span className={cn(
                                         "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
@@ -2534,7 +2534,7 @@ export const PatientProfile = () => {
                             </table>
                           </div>
                           {exam.observations && (
-                            <div className="mt-4 p-3 bg-white rounded-lg border border-slate-100 italic text-slate-500 text-sm">
+                            <div className="mt-4 p-3 bg-card rounded-lg border border-border italic text-muted-foreground text-sm">
                               {exam.observations}
                             </div>
                           )}
@@ -2544,7 +2544,7 @@ export const PatientProfile = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-12 text-slate-500">
+                <div className="text-center py-12 text-muted-foreground">
                   Nenhum exame registrado.
                 </div>
               )}
@@ -2694,7 +2694,7 @@ export const PatientProfile = () => {
                         </LineChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="h-full flex items-center justify-center text-slate-400">
+                      <div className="h-full flex items-center justify-center text-muted-foreground">
                         Dados insuficientes para gerar o gráfico.
                       </div>
                     )}
@@ -2709,7 +2709,7 @@ export const PatientProfile = () => {
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-slate-500 uppercase bg-slate-50">
+                      <thead className="text-xs text-muted-foreground uppercase bg-muted/30">
                         <tr>
                           <th className="px-4 py-3">Data</th>
                           <th className="px-4 py-3">Peso</th>
@@ -2719,9 +2719,9 @@ export const PatientProfile = () => {
                           <th className="px-4 py-3">Abdômen</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-slate-100">
+                      <tbody className="divide-y divide-border">
                         {consultations.map((c) => (
-                          <tr key={c.id} className="hover:bg-slate-50">
+                          <tr key={c.id} className="hover:bg-muted/30">
                             <td className="px-4 py-3 font-medium">{formatDateSafely(c.date, 'dd/MM/yyyy')}</td>
                             <td className="px-4 py-3">{c.weight}kg</td>
                             <td className="px-4 py-3">{c.imc.toFixed(1)}</td>
@@ -2742,11 +2742,11 @@ export const PatientProfile = () => {
 
       {/* Modals */}
       <Dialog open={isCalculatorModalOpen} onOpenChange={setIsCalculatorModalOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden flex flex-col bg-slate-50">
-          <div className="bg-white px-6 py-4 border-b flex justify-between items-center shadow-sm z-10 shrink-0">
+        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden flex flex-col bg-muted/30">
+          <div className="bg-card px-6 py-4 border-b flex justify-between items-center shadow-sm z-10 shrink-0">
             <div>
-              <h2 className="text-xl font-black text-slate-800">Cálculo Nutricional</h2>
-              <p className="text-sm text-slate-500">Consulta de {selectedConsultationForCalc ? formatDateSafely(selectedConsultationForCalc.date, "dd 'de' MMMM 'de' yyyy") : ''}</p>
+              <h2 className="text-xl font-black text-foreground">Cálculo Nutricional</h2>
+              <p className="text-sm text-muted-foreground">Consulta de {selectedConsultationForCalc ? formatDateSafely(selectedConsultationForCalc.date, "dd 'de' MMMM 'de' yyyy") : ''}</p>
             </div>
             <Button variant="ghost" size="icon" onClick={() => setIsCalculatorModalOpen(false)} title="Fechar calculadora">
               <X className="w-5 h-5" />
@@ -2783,11 +2783,11 @@ export const PatientProfile = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome Completo</Label>
-                <Input id="name" name="name" defaultValue={patient.name} required className="bg-slate-50 border-none rounded-xl h-8 text-sm" />
+                <Input id="name" name="name" defaultValue={patient.name} required className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
-                <Input id="email" name="email" type="email" defaultValue={patient.email} required className="bg-slate-50 border-none rounded-xl h-8 text-sm" />
+                <Input id="email" name="email" type="email" defaultValue={patient.email} required className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefone</Label>
@@ -2797,7 +2797,7 @@ export const PatientProfile = () => {
                   value={editPhone}
                   onChange={(e) => setEditPhone(maskPhone(e.target.value))}
                   required
-                  className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
               </div>
               <div className="space-y-2">
@@ -2808,17 +2808,17 @@ export const PatientProfile = () => {
                   value={editCpf}
                   onChange={(e) => setEditCpf(maskCPF(e.target.value))}
                   required
-                  className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="birthDate">Data de Nascimento</Label>
-                <Input id="birthDate" name="birthDate" type="date" defaultValue={patient.birthDate} required className="bg-slate-50 border-none rounded-xl h-8 text-sm" />
+                <Input id="birthDate" name="birthDate" type="date" defaultValue={patient.birthDate} required className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="gender">Gênero</Label>
                 <Select name="gender" value={gender} onValueChange={(v: any) => setGender(v)}>
-                  <SelectTrigger className="bg-slate-50 border-none rounded-xl h-8 text-sm">
+                  <SelectTrigger className="bg-muted/30 border-none rounded-xl h-8 text-sm">
                     <SelectValue placeholder="Selecione o gênero">
                       {gender === 'male' ? 'Masculino' :
                         gender === 'female' ? 'Feminino' :
@@ -2835,20 +2835,20 @@ export const PatientProfile = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Endereço</Label>
-              <Input id="address" name="address" defaultValue={patient.address} className="bg-slate-50 border-none rounded-xl h-8 text-sm" />
+              <Input id="address" name="address" defaultValue={patient.address} className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="diseases">Doenças</Label>
-                <Textarea id="diseases" name="diseases" defaultValue={patient.diseases} placeholder="Ex: Diabetes, Hipertensão..." className="bg-slate-50 border-none rounded-xl text-sm" />
+                <Textarea id="diseases" name="diseases" defaultValue={patient.diseases} placeholder="Ex: Diabetes, Hipertensão..." className="bg-muted/30 border-none rounded-xl text-sm" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="medications">Medicamentos</Label>
-                <Textarea id="medications" name="medications" defaultValue={patient.medications} placeholder="Ex: Metformina, Losartana..." className="bg-slate-50 border-none rounded-xl text-sm" />
+                <Textarea id="medications" name="medications" defaultValue={patient.medications} placeholder="Ex: Metformina, Losartana..." className="bg-muted/30 border-none rounded-xl text-sm" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="allergies">Alergias</Label>
-                <Textarea id="allergies" name="allergies" defaultValue={patient.allergies} placeholder="Ex: Lactose, Glúten, Amendoim..." className="bg-slate-50 border-none rounded-xl text-sm" />
+                <Textarea id="allergies" name="allergies" defaultValue={patient.allergies} placeholder="Ex: Lactose, Glúten, Amendoim..." className="bg-muted/30 border-none rounded-xl text-sm" />
               </div>
             </div>
             <DialogFooter className="mt-6 gap-2 sm:gap-0">
@@ -2856,7 +2856,7 @@ export const PatientProfile = () => {
                 type="button"
                 variant="outline"
                 onClick={() => setIsEditPatientModalOpen(false)}
-                className="rounded-xl h-8 px-4 border-slate-200 text-slate-600 text-sm hover:bg-slate-50 transition-all active:scale-95"
+                className="rounded-xl h-8 px-4 border-border text-muted-foreground text-sm hover:bg-muted/30 transition-all active:scale-95"
               >
                 Cancelar
               </Button>
