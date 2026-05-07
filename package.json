@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "security-check": "node .claude/skills/security-check/scripts/check.js",
     "prepare": "husky"
   },
   "dependencies": {

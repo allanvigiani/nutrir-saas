@@ -1,0 +1,8 @@
+{
+  "customSkills": [
+    {
+      "name": "security-check",
+      "path": ".claude/skills/security-check"
+    }
+  ]
+}
