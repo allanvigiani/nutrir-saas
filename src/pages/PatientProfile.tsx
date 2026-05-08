@@ -55,7 +55,7 @@ import {
 } from '../components/ui/card';
 import { Button, buttonVariants } from '../components/ui/button';
 import { useAuth } from '../contexts/AuthContext';
-import { useSettings } from '../contexts/SettingsContext';
+import { FREE_PLAN_LIMITS } from '../lib/planLimits';
 import {
   doc,
   getDoc,
@@ -77,7 +77,9 @@ import { Patient, Consultation, MealPlan, MealPlanItem, LabExam, LabExamMarker, 
 import { format, differenceInYears, parseISO, subMonths, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PremiumFeature } from '../components/PremiumFeature';
+import { PremiumBanner } from '../components/PremiumBanner';
 import { UpgradeModal } from '../components/UpgradeModal';
+import { useFreeplanLimits } from '../hooks/useFreeplanLimits';
 import { maskCPF, maskPhone } from '../lib/masks';
 import { generateSecureToken, cn } from '../lib/utils';
 import { FoodAutocomplete } from '../components/FoodAutocomplete';
@@ -248,7 +250,6 @@ export const PatientProfile = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, nutritionist, isAuthReady } = useAuth();
-  const { settings } = useSettings();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [gender, setGender] = useState<string>('');
   const [consultations, setConsultations] = useState<Consultation[]>([]);
@@ -298,8 +299,15 @@ export const PatientProfile = () => {
   const [selectedMealPlan, setSelectedMealPlan] = useState<MealPlan | null>(null);
   const [selectedMealPlanItems, setSelectedMealPlanItems] = useState<MealPlanItem[]>([]);
 
-  const isMealPlanLimitReached = nutritionist?.plan === 'free' && mealPlans.filter(p => p.status === 'active').length >= settings.free.maxMealPlans;
-  const isLabExamLimitReached = nutritionist?.plan === 'free' && exams.length >= settings.free.maxExams;
+  const isPremium = nutritionist?.plan === 'premium';
+  const isMealPlanLimitReached = !isPremium && mealPlans.filter(p => p.status === 'active').length >= FREE_PLAN_LIMITS.maxMealPlans;
+  const isLabExamLimitReached = !isPremium && exams.length >= FREE_PLAN_LIMITS.maxExams;
+  const {
+    canAddConsultation,
+    patientAlreadyHasConsultationThisMonth,
+    consultationsThisMonth,
+    isLoading: limitsLoading,
+  } = useFreeplanLimits(id);
 
 
   const viewMealTotals = selectedMealPlanItems.reduce((acc, item) => ({
@@ -645,6 +653,18 @@ export const PatientProfile = () => {
 
   const onConsultationSubmit = async (data: any) => {
     if (!user || !id) return;
+
+    if (!isPremium && !selectedConsultation) {
+      if (!canAddConsultation) {
+        toast.error(`Limite de ${FREE_PLAN_LIMITS.maxConsultationsPerMonth} consultas mensais atingido no plano gratuito.`);
+        return;
+      }
+      if (patientAlreadyHasConsultationThisMonth) {
+        toast.error('Este paciente já possui uma consulta este mês. O plano gratuito permite 1 por paciente por mês.');
+        return;
+      }
+    }
+
     try {
       const imc = data.height > 0 ? data.weight / ((data.height / 100) * (data.height / 100)) : 0;
 
@@ -1071,7 +1091,7 @@ export const PatientProfile = () => {
 
             // Apply premium restrictions: history limit for free plan
             if (nutritionist?.plan === 'free') {
-              const historyMonths = settings.free.historyMonths;
+              const historyMonths = FREE_PLAN_LIMITS.historyMonths;
               const historyLimitDate = subMonths(new Date(), historyMonths);
 
               const originalConsultationsCount = fetchedConsultations.length;
@@ -1521,12 +1541,29 @@ export const PatientProfile = () => {
                 size="sm"
                 className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                 onClick={() => setIsConsultationModalOpen(true)}
-                disabled={patient.status === 'inactive'}
+                disabled={
+                  patient.status === 'inactive' ||
+                  (!isPremium && (limitsLoading || !canAddConsultation || patientAlreadyHasConsultationThisMonth))
+                }
               >
                 <Plus className="w-4 h-4" /> Nova Consulta
               </Button>
             </CardHeader>
             <CardContent className="pt-6">
+              {!isPremium && !limitsLoading && !canAddConsultation && (
+                <PremiumBanner
+                  className="mb-6"
+                  title="Limite de consultas do mês atingido"
+                  description={`Você usou ${consultationsThisMonth}/${FREE_PLAN_LIMITS.maxConsultationsPerMonth} consultas em ${format(new Date(), 'MMMM', { locale: ptBR })}. Assine o Premium para consultas ilimitadas.`}
+                />
+              )}
+              {!isPremium && !limitsLoading && canAddConsultation && patientAlreadyHasConsultationThisMonth && (
+                <PremiumBanner
+                  className="mb-6"
+                  title="Paciente já atendido este mês"
+                  description={`Este paciente já possui uma consulta em ${format(new Date(), 'MMMM', { locale: ptBR })}. O plano gratuito permite 1 consulta por paciente por mês.`}
+                />
+              )}
               {consultations.length > 0 ? (
                 <div className="space-y-4">
                   {consultations.map((consultation) => (
@@ -1689,7 +1726,13 @@ export const PatientProfile = () => {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 h-8 text-xs"
+                                    className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 h-8 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                    title={
+                                      !isPremium && calculations.some(c => c.consultation_id === consultation.id)
+                                        ? 'Plano gratuito: 1 cálculo por consulta'
+                                        : undefined
+                                    }
+                                    disabled={!isPremium && calculations.some(c => c.consultation_id === consultation.id)}
                                     onClick={() => {
                                       setSelectedConsultationForCalc(consultation);
                                       setIsCalculatorModalOpen(true);

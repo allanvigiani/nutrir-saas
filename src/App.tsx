@@ -1,7 +1,6 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { SettingsProvider } from './contexts/SettingsContext';
 import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
@@ -29,8 +28,7 @@ export default function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <AuthProvider>
-        <SettingsProvider>
-          <TooltipProvider>
+        <TooltipProvider>
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Landing />} />
@@ -59,8 +57,7 @@ export default function App() {
               </Routes>
               <Toaster position="top-right" />
             </BrowserRouter>
-          </TooltipProvider>
-        </SettingsProvider>
+        </TooltipProvider>
       </AuthProvider>
     </ThemeProvider>
   );

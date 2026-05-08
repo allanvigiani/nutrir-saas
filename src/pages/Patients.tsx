@@ -44,7 +44,7 @@ import {
 } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import { useAuth } from '../contexts/AuthContext';
-import { useSettings } from '../contexts/SettingsContext';
+import { FREE_PLAN_LIMITS } from '../lib/planLimits';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, orderBy, serverTimestamp, onSnapshot, writeBatch } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 
@@ -135,7 +135,6 @@ type PatientFormValues = z.infer<typeof patientSchema>;
 export const Patients = () => {
   const { user, nutritionist, isAuthReady } = useAuth();
   const isPremium = nutritionist?.plan === 'premium';
-  const { settings } = useSettings();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -229,9 +228,9 @@ export const Patients = () => {
     const newStatus = patient.status === 'active' ? 'inactive' : 'active';
 
     // If activating, check limit
-    if (newStatus === 'active' && nutritionist?.plan === 'free') {
+    if (newStatus === 'active' && !isPremium) {
       const activePatients = patients.filter(p => p.status === 'active');
-      const maxPatients = settings.free.maxPatients;
+      const maxPatients = FREE_PLAN_LIMITS.maxPatients;
       if (activePatients.length >= maxPatients) {
         toast.error(`O plano gratuito permite apenas ${maxPatients} pacientes ativos.`);
         return;
@@ -255,9 +254,9 @@ export const Patients = () => {
     if (!user) return;
 
     // Premium check: Free plan allows only a limited number of active patients
-    if (!editingPatient && nutritionist?.plan === 'free') {
+    if (!editingPatient && !isPremium) {
       const activePatients = patients.filter(p => p.status === 'active');
-      const maxPatients = settings.free.maxPatients;
+      const maxPatients = FREE_PLAN_LIMITS.maxPatients;
       if (activePatients.length >= maxPatients) {
         toast.error(`O plano gratuito permite apenas ${maxPatients} pacientes ativos.`);
         return;
@@ -413,7 +412,7 @@ export const Patients = () => {
   });
 
   const activePatientsCount = patients.filter(p => p.status === 'active').length;
-  const isLimitReached = activePatientsCount >= 3;
+  const isLimitReached = !isPremium && activePatientsCount >= FREE_PLAN_LIMITS.maxPatients;
 
   return (
     <div className="space-y-8">
@@ -564,7 +563,7 @@ export const Patients = () => {
       {!isPremium && isLimitReached && (
         <PremiumBanner 
           title="Limite de Pacientes Atingido" 
-          description="Você atingiu o limite de 3 pacientes ativos do plano gratuito. Assine o Premium para cadastrar pacientes ilimitados."
+          description={`Você atingiu o limite de ${FREE_PLAN_LIMITS.maxPatients} pacientes ativos do plano gratuito. Assine o Premium para cadastrar pacientes ilimitados.`}
           className="mb-8"
         />
       )}

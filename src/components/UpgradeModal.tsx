@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
-import { Check, ShieldCheck, Zap, Users, History, FileUp, BarChart3, Download, Layers, Loader2 } from 'lucide-react';
+import { Check, ShieldCheck, Zap, Users, History, FileUp, BarChart3, Download, Layers, Loader2, TrendingUp } from 'lucide-react';
 import { useSubscription } from '../hooks/useSubscription';
 
 interface UpgradeModalProps {
@@ -19,13 +19,13 @@ export const UpgradeModal = ({ isOpen, onClose }: UpgradeModalProps) => {
   const { handleSubscribe, verifySubscription, isSubscribing, isVerifying } = useSubscription();
 
   const benefits = [
-    { icon: Users, text: "Pacientes ilimitados (limite de 3 no gratuito)" },
+    { icon: Users, text: "Pacientes ilimitados (limite de 2 no gratuito)" },
+    { icon: TrendingUp, text: "Consultas ilimitadas (limite de 2/mês no gratuito)" },
     { icon: History, text: "Histórico completo (limite de 3 meses no gratuito)" },
     { icon: FileUp, text: "Upload de laudos e exames em PDF" },
     { icon: BarChart3, text: "Gráficos de evolução detalhados" },
     { icon: Download, text: "Exportação em PDF e Excel" },
     { icon: Layers, text: "Múltiplos planos alimentares simultâneos" },
-    { icon: Zap, text: "Acesso antecipado a novas funcionalidades" },
   ];
 
   return (

@@ -62,13 +62,12 @@ import {
   Search,
   Activity,
   Settings as SettingsIcon,
-  Save,
   LayoutDashboard
 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
-import { useSettings } from '../contexts/SettingsContext';
+import { FREE_PLAN_LIMITS } from '../lib/planLimits';
 import { Navigate } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { Label } from '../components/ui/label';
@@ -92,21 +91,12 @@ import {
 
 export const AdminDashboard = () => {
   const { nutritionist, loading: authLoading } = useAuth();
-  const { settings, updateSettings, loading: settingsLoading } = useSettings();
   const [nutritionists, setNutritionists] = useState<Nutritionist[]>([]);
   const [totalPatients, setTotalPatients] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
-  
-  // Settings form state
-  const [freeLimits, setFreeLimits] = useState(settings.free);
-  const [isSavingSettings, setIsSavingSettings] = useState(false);
-
-  useEffect(() => {
-    setFreeLimits(settings.free);
-  }, [settings]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -170,22 +160,6 @@ export const AdminDashboard = () => {
       toast.success(`Plano atualizado para ${newPlan === 'premium' ? 'Assinante' : 'Gratuito'}!`);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `nutritionists/${id}`);
-    }
-  };
-
-  const handleSaveSettings = async () => {
-    setIsSavingSettings(true);
-    try {
-      await updateSettings({
-        ...settings,
-        free: freeLimits
-      });
-      toast.success("Configurações globais atualizadas com sucesso!");
-    } catch (error) {
-      console.error("Error saving settings:", error);
-      toast.error("Erro ao salvar configurações globais.");
-    } finally {
-      setIsSavingSettings(false);
     }
   };
 
@@ -450,65 +424,26 @@ export const AdminDashboard = () => {
                   <SettingsIcon className="w-5 h-5 text-muted-foreground" />
                   <CardTitle className="text-xl font-bold">Limites do Plano Gratuito</CardTitle>
                 </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Definidos em código — altere o arquivo <code className="text-xs bg-muted px-1 py-0.5 rounded">src/lib/planLimits.ts</code> para modificar.
+                </p>
               </CardHeader>
-              <CardContent className="p-6 space-y-6">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="maxPatients">Máximo de Pacientes Ativos</Label>
-                    <Input 
-                      id="maxPatients"
-                      type="number"
-                      value={freeLimits.maxPatients}
-                      onChange={(e) => setFreeLimits({...freeLimits, maxPatients: parseInt(e.target.value) || 0})}
-                      className="bg-muted/30 border-none rounded-xl h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="maxMealPlans">Máximo de Planos Alimentares Ativos</Label>
-                    <Input 
-                      id="maxMealPlans"
-                      type="number"
-                      value={freeLimits.maxMealPlans}
-                      onChange={(e) => setFreeLimits({...freeLimits, maxMealPlans: parseInt(e.target.value) || 0})}
-                      className="bg-muted/30 border-none rounded-xl h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="maxExams">Máximo de Exames por Paciente</Label>
-                    <Input 
-                      id="maxExams"
-                      type="number"
-                      value={freeLimits.maxExams}
-                      onChange={(e) => setFreeLimits({...freeLimits, maxExams: parseInt(e.target.value) || 0})}
-                      className="bg-muted/30 border-none rounded-xl h-8 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="historyMonths">Meses de Histórico Visível</Label>
-                    <Input 
-                      id="historyMonths"
-                      type="number"
-                      value={freeLimits.historyMonths}
-                      onChange={(e) => setFreeLimits({...freeLimits, historyMonths: parseInt(e.target.value) || 0})}
-                      className="bg-muted/30 border-none rounded-xl h-8 text-sm"
-                    />
-                  </div>
+              <CardContent className="p-6">
+                <div className="space-y-3">
+                  {[
+                    { label: 'Pacientes ativos', value: FREE_PLAN_LIMITS.maxPatients },
+                    { label: 'Consultas por mês', value: FREE_PLAN_LIMITS.maxConsultationsPerMonth },
+                    { label: 'Consultas por paciente/mês', value: FREE_PLAN_LIMITS.maxConsultationsPerPatientPerMonth },
+                    { label: 'Planos alimentares ativos', value: FREE_PLAN_LIMITS.maxMealPlans },
+                    { label: 'Exames por paciente', value: FREE_PLAN_LIMITS.maxExams },
+                    { label: 'Meses de histórico visível', value: FREE_PLAN_LIMITS.historyMonths },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border border-border">
+                      <span className="text-sm text-muted-foreground">{label}</span>
+                      <span className="text-sm font-bold text-foreground">{value}</span>
+                    </div>
+                  ))}
                 </div>
-
-                <Button 
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm shadow-sm active:scale-95 transition-all"
-                  onClick={handleSaveSettings}
-                  disabled={isSavingSettings || settingsLoading}
-                >
-                  {isSavingSettings ? (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      Salvar Configurações
-                    </>
-                  )}
-                </Button>
               </CardContent>
             </Card>
           </div>

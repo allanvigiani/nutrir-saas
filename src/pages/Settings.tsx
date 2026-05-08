@@ -53,7 +53,7 @@ import {
 } from "../components/ui/dialog";
 import { cn, maskCPF, maskCNPJ, maskPhone } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
-import { useSettings } from '../contexts/SettingsContext';
+import { FREE_PLAN_LIMITS } from '../lib/planLimits';
 import { doc, updateDoc, collection, query, where, onSnapshot, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../lib/firebase';
@@ -132,7 +132,6 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export const Settings = () => {
   const { nutritionist, user } = useAuth();
-  const { settings } = useSettings();
   const [searchParams] = useSearchParams();
   const { 
     handleSubscribe, 
@@ -906,28 +905,28 @@ export const Settings = () => {
                       <Users className="w-5 h-5 text-emerald-400" />
                       <div>
                         <p className="text-xs font-medium text-emerald-200">Pacientes</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${settings.free.maxPatients} ativos`}</p>
+                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxPatients} ativos`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
                       <Activity className="w-5 h-5 text-emerald-400" />
                       <div>
                         <p className="text-xs font-medium text-emerald-200">Planos Alimentares</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${settings.free.maxMealPlans} ativos`}</p>
+                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxMealPlans} ativos`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
                       <Shield className="w-5 h-5 text-emerald-400" />
                       <div>
                         <p className="text-xs font-medium text-emerald-200">Histórico</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Completo' : `${settings.free.historyMonths} meses`}</p>
+                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Completo' : `${FREE_PLAN_LIMITS.historyMonths} meses`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
                       <CreditCard className="w-5 h-5 text-emerald-400" />
                       <div>
                         <p className="text-xs font-medium text-emerald-200">Exames</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${settings.free.maxExams} por paciente`}</p>
+                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxExams} por paciente`}</p>
                       </div>
                     </div>
                   </div>

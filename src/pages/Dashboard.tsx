@@ -22,6 +22,7 @@ import { cn } from '../lib/utils';
 import { PremiumFeature } from '../components/PremiumFeature';
 
 import { PremiumBanner } from '../components/PremiumBanner';
+import { FREE_PLAN_LIMITS } from '../lib/planLimits';
 
 export const Dashboard = () => {
   const { user, nutritionist, isAuthReady } = useAuth();
@@ -164,7 +165,7 @@ export const Dashboard = () => {
           </p>
         </div>
         <div className="flex gap-3">
-          <PremiumFeature active={stats.activePatients >= 3}>
+          <PremiumFeature active={stats.activePatients >= FREE_PLAN_LIMITS.maxPatients}>
             <Button
               nativeButton={false}
               className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-9 px-4 gap-2 font-semibold text-sm transition-all shadow-sm shadow-primary/20 active:scale-95"
@@ -206,6 +207,19 @@ export const Dashboard = () => {
           iconColor="text-amber-600 dark:text-amber-400"
         />
       </div>
+
+      {!isPremium && (
+        <div className="flex items-center gap-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 text-sm">
+          <TrendingUp className="w-4 h-4 text-amber-600 shrink-0" />
+          <span className="text-amber-800 dark:text-amber-200">
+            Consultas em {format(new Date(), 'MMMM', { locale: ptBR })}:{' '}
+            <strong>{stats.monthConsultations}/{FREE_PLAN_LIMITS.maxConsultationsPerMonth}</strong> usadas
+          </span>
+          <span className="ml-auto text-xs text-amber-600 dark:text-amber-400 shrink-0">
+            Plano Gratuito
+          </span>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Today's Appointments */}
