@@ -6,6 +6,7 @@ import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
+import { Landing } from './pages/Landing';
 import { Dashboard } from './pages/Dashboard';
 import { Patients } from './pages/Patients';
 import { PatientProfile } from './pages/PatientProfile';
@@ -16,21 +17,13 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { PatientAccess } from './pages/PatientAccess';
 import { SubscriptionSuccess } from './pages/SubscriptionSuccess';
 import { MealPlanEdit } from './pages/MealPlanEdit';
+import { Privacidade } from './pages/Privacidade';
+import { Termos } from './pages/Termos';
+import { Cookies } from './pages/Cookies';
+import { Contato } from './pages/Contato';
 import { Toaster } from './components/ui/sonner';
 import { TooltipProvider } from './components/ui/tooltip';
 import { ThemeProvider } from './components/theme-provider';
-
-import { useAuth } from './contexts/AuthContext';
-
-const Home = () => {
-  const { nutritionist } = useAuth();
-  
-  if (nutritionist) {
-    return <Dashboard />;
-  }
-  
-  return <Dashboard />; // Fallback
-};
 
 export default function App() {
   return (
@@ -40,14 +33,19 @@ export default function App() {
           <TooltipProvider>
             <BrowserRouter>
               <Routes>
+                <Route path="/" element={<Landing />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/subscription-success" element={<SubscriptionSuccess />} />
                 <Route path="/patient-access/:id" element={<PatientAccess />} />
-                
+                <Route path="/privacidade" element={<Privacidade />} />
+                <Route path="/termos" element={<Termos />} />
+                <Route path="/cookies" element={<Cookies />} />
+                <Route path="/contato" element={<Contato />} />
+
                 <Route element={<Layout />}>
-                  <Route path="/" element={<Home />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
                   <Route path="/patients" element={<Patients />} />
                   <Route path="/patients/:id" element={<PatientProfile />} />
                   <Route path="/patients/:patientId/meal-plan/:planId" element={<MealPlanEdit />} />
@@ -56,7 +54,7 @@ export default function App() {
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/admin" element={<AdminDashboard />} />
                 </Route>
-    
+
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
               <Toaster position="top-right" />

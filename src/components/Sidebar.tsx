@@ -58,7 +58,7 @@ export const Sidebar = () => {
   // Itens do Nutricionista
   if (nutritionist) {
     navItems.push(
-      { icon: LayoutDashboard, label: 'Dashboard', to: '/' },
+      { icon: LayoutDashboard, label: 'Dashboard', to: '/dashboard' },
       { icon: Users, label: 'Pacientes', to: '/patients' },
       { icon: Calendar, label: 'Agenda', to: '/schedule' },
       { icon: DollarSign, label: 'Financeiro', to: '/financial' },

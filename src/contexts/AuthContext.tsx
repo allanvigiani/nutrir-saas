@@ -1,6 +1,19 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
+
+const SESSION_KEY = 'nutrir_session_start';
+const SESSION_MAX_MS = 3 * 24 * 60 * 60 * 1000; // 3 dias
+
+export function recordSessionStart() {
+  localStorage.setItem(SESSION_KEY, Date.now().toString());
+}
+
+function isSessionExpired(): boolean {
+  const raw = localStorage.getItem(SESSION_KEY);
+  if (!raw) return true;
+  return Date.now() - parseInt(raw, 10) > SESSION_MAX_MS;
+}
 import { doc, getDoc, onSnapshot, updateDoc, getDocFromServer, query, collection, where } from 'firebase/firestore';
 import { Nutritionist, Patient } from '../types';
 import { toast } from 'sonner';
@@ -42,12 +55,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     let unsubPatient: (() => void) | null = null;
 
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      
       if (unsubNutritionist) {
         unsubNutritionist();
         unsubNutritionist = null;
       }
+
+      if (user && isSessionExpired()) {
+        localStorage.removeItem(SESSION_KEY);
+        await signOut(auth);
+        setUser(null);
+        setNutritionist(null);
+        setLoading(false);
+        setIsAuthReady(true);
+        return;
+      }
+
+      setUser(user);
 
       if (user) {
         // 1. Buscar perfil de Nutricionista

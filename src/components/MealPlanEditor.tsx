@@ -94,18 +94,18 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
           <Icon className={cn(isSidebar ? "w-5 h-5" : "w-4.5 h-4.5", color)} />
         </div>
         <div className="text-right">
-          <p className="text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{label}</p>
+          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{label}</p>
           <div className="flex items-baseline justify-end gap-1">
             <span className={cn("font-black leading-none tracking-tighter", isSidebar ? "text-2xl" : "text-lg", color)}>
               {Number(value).toFixed(0)}
             </span>
-            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">{unit}</span>
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">{unit}</span>
           </div>
         </div>
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-[8px] font-bold uppercase tracking-widest">
+        <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-widest">
           <span className="text-muted-foreground">Atingido</span>
           {total ? (
             <span className={cn("font-black", percentage >= 100 ? "text-emerald-500" : "text-muted-foreground")}>
@@ -178,7 +178,7 @@ const MealItemRow = React.memo(({
             value={item.unit}
             onValueChange={(v) => onUpdate(index, 'unit', v)}
           >
-            <SelectTrigger className="flex-1 bg-card border border-border focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 h-10 rounded-xl px-3 text-muted-foreground font-bold text-[10px] uppercase tracking-widest transition-all shadow-sm">
+            <SelectTrigger className="flex-1 bg-card border border-border focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 h-10 rounded-xl px-3 text-muted-foreground font-bold text-xs uppercase tracking-widest transition-all shadow-sm">
               <SelectValue>{item.unit}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -200,39 +200,39 @@ const MealItemRow = React.memo(({
         {/* Macros Summary */}
         <div className="md:col-span-3 flex items-center justify-around gap-2 px-2">
           <div className="text-center">
-            <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter mb-0.5">Kcal</p>
+            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-tighter mb-0.5">Kcal</p>
             <Input
               type="number"
               value={item.kcal}
               onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/30/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-foreground font-bold w-14 mx-auto transition-all shadow-inner focus:shadow-none"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-foreground font-bold w-14 mx-auto transition-all shadow-inner focus:shadow-none"
             />
           </div>
           <div className="text-center border-l border-border pl-2">
-            <p className="text-[9px] font-bold text-blue-400 uppercase tracking-tighter mb-0.5">P</p>
+            <p className="text-[11px] font-bold text-blue-400 uppercase tracking-tighter mb-0.5">P</p>
             <Input
               type="number"
               value={item.protein}
               onChange={(e) => onUpdate(index, 'protein', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/30/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
             />
           </div>
           <div className="text-center border-l border-border pl-2">
-            <p className="text-[9px] font-bold text-emerald-400 uppercase tracking-tighter mb-0.5">C</p>
+            <p className="text-[11px] font-bold text-emerald-400 uppercase tracking-tighter mb-0.5">C</p>
             <Input
               type="number"
               value={item.carbs}
               onChange={(e) => onUpdate(index, 'carbs', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/30/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
             />
           </div>
           <div className="text-center border-l border-border pl-2">
-            <p className="text-[9px] font-bold text-purple-400 uppercase tracking-tighter mb-0.5">G</p>
+            <p className="text-[11px] font-bold text-purple-400 uppercase tracking-tighter mb-0.5">G</p>
             <Input
               type="number"
               value={item.fat}
               onChange={(e) => onUpdate(index, 'fat', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/30/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
             />
           </div>
         </div>
@@ -243,7 +243,7 @@ const MealItemRow = React.memo(({
             variant="ghost"
             size="icon"
             onClick={() => onRemove(index)}
-            className="h-9 w-9 rounded-xl hover:bg-red-50 hover:text-red-500 text-muted-foreground transition-all opacity-0 group-hover:opacity-100"
+            className="h-9 w-9 rounded-xl hover:bg-red-50 hover:text-red-500 text-muted-foreground/50 hover:text-red-500 transition-all"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -407,49 +407,49 @@ export const MealPlanEditor = ({
   };
 
   return (
-    <div className="flex h-full bg-background overflow-hidden font-geist">
+    <div className="flex h-full bg-background overflow-hidden">
       {/* Left Sidebar - Nutritional Intelligence */}
       <motion.aside 
         initial={{ x: -320, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         className="w-[320px] bg-card border-r border-border flex flex-col h-full hidden lg:flex shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
       >
-        <div className="p-8 border-b border-border bg-muted/30/30">
+        <div className="p-8 border-b border-border bg-muted/30">
           <div className="flex items-center gap-4 mb-2">
             <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-600/20">
               <Activity className="w-5 h-5 text-white" />
             </div>
             <div>
               <h2 className="text-sm font-black text-foreground tracking-tight uppercase">Dashboard</h2>
-              <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Nutricional</p>
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Nutricional</p>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-muted/30/20">
+        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-muted/20">
           {selectedCalculation && (
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-5 rounded-3xl bg-slate-900 text-white shadow-2xl shadow-emerald-900/20 relative overflow-hidden group"
+              className="p-5 rounded-2xl bg-emerald-600 text-white shadow-lg shadow-emerald-600/25 relative overflow-hidden group"
             >
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                 <Calculator className="w-16 h-16" />
               </div>
               <div className="relative">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-6 h-6 rounded-lg bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-                    <Calculator className="w-3.5 h-3.5 text-emerald-400" />
+                  <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
+                    <Calculator className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Meta Sugerida</span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-emerald-100">Meta Sugerida</span>
                 </div>
                 <div className="flex items-baseline gap-1.5 mb-1">
-                  <span className="text-4xl font-black tracking-tighter text-emerald-400">
+                  <span className="text-4xl font-black tracking-tighter text-white">
                     {selectedCalculation.result.getAjustado.toFixed(0)}
                   </span>
-                  <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">kcal</span>
+                  <span className="text-xs font-bold text-emerald-200 uppercase tracking-widest">kcal</span>
                 </div>
-                <p className="text-[10px] font-medium text-muted-foreground leading-relaxed">
+                <p className="text-xs font-medium text-emerald-100 leading-relaxed">
                   Baseado no cálculo de TMB e nível de atividade selecionado.
                 </p>
               </div>
@@ -458,7 +458,7 @@ export const MealPlanEditor = ({
 
           <div className="space-y-4">
             <div className="flex items-center justify-between px-2">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Macronutrientes</span>
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">Macronutrientes</span>
               <div className="w-12 h-px bg-muted" />
             </div>
             
@@ -512,10 +512,10 @@ export const MealPlanEditor = ({
 
         </div>
 
-        <div className="p-6 border-t border-border bg-muted/30/30">
+        <div className="p-6 border-t border-border bg-muted/30">
           <div className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border">
              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-             <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Sincronizado em tempo real</p>
+             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Sincronizado em tempo real</p>
           </div>
         </div>
       </motion.aside>
@@ -540,7 +540,7 @@ export const MealPlanEditor = ({
               </Button>
               
               <div className="flex flex-col">
-                <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
                   <span>Plano Alimentar</span>
                   <ChevronRight className="w-3 h-3" />
                   <span className="text-emerald-600">Edição</span>
@@ -552,7 +552,7 @@ export const MealPlanEditor = ({
             </div>
 
             <div className="hidden lg:flex items-center gap-1.5 p-1 bg-muted/80 rounded-xl border border-border/60 shadow-inner">
-              <div className="px-3 text-[9px] font-bold text-muted-foreground uppercase tracking-tight border-r border-border mr-1">
+              <div className="px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-tight border-r border-border mr-1">
                 Base de Dados
               </div>
               {[
@@ -565,7 +565,7 @@ export const MealPlanEditor = ({
                   key={source.id}
                   onClick={() => setCurrentFoodDataSource(source.id as any)}
                   className={cn(
-                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all whitespace-nowrap tracking-wide",
+                    "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap tracking-wide",
                     currentFoodDataSource === source.id
                       ? "bg-card text-emerald-600 shadow-sm ring-1 ring-border/10"
                       : "text-muted-foreground hover:text-foreground hover:bg-card/40"
@@ -596,6 +596,35 @@ export const MealPlanEditor = ({
           </div>
         </motion.div>
 
+        {/* Mobile macro summary — shown only when sidebar is hidden */}
+        <div className="lg:hidden border-b border-border bg-card px-4 py-2 print:hidden">
+          <div className="flex items-center justify-around gap-2">
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-orange-500" />
+              <span className="text-xs font-bold text-foreground">{mealTotals.kcal.toFixed(0)}</span>
+              <span className="text-[11px] text-muted-foreground">kcal</span>
+            </div>
+            <div className="w-px h-4 bg-border" />
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <span className="text-xs font-bold text-foreground">{mealTotals.protein.toFixed(0)}g</span>
+              <span className="text-[11px] text-muted-foreground">prot</span>
+            </div>
+            <div className="w-px h-4 bg-border" />
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span className="text-xs font-bold text-foreground">{mealTotals.carbs.toFixed(0)}g</span>
+              <span className="text-[11px] text-muted-foreground">carb</span>
+            </div>
+            <div className="w-px h-4 bg-border" />
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-purple-500" />
+              <span className="text-xs font-bold text-foreground">{mealTotals.fat.toFixed(0)}g</span>
+              <span className="text-[11px] text-muted-foreground">gord</span>
+            </div>
+          </div>
+        </div>
+
         <div className="flex-1 overflow-y-auto custom-scrollbar">
           <div className="max-w-5xl mx-auto w-full p-6 lg:p-10 space-y-12">
             
@@ -612,7 +641,7 @@ export const MealPlanEditor = ({
               <div className="space-y-10 relative">
                 <div className="grid grid-cols-1 gap-10">
                   <div className="space-y-3">
-                    <Label className="text-[10px] font-bold uppercase text-muted-foreground tracking-[0.2em] ml-1">Identificação do Plano</Label>
+                    <Label className="text-xs font-bold uppercase text-muted-foreground tracking-[0.2em] ml-1">Identificação do Plano</Label>
                     <Input
                       value={mealPlanName}
                       onChange={(e) => setMealPlanName(e.target.value)}
@@ -630,7 +659,7 @@ export const MealPlanEditor = ({
                     </div>
                     <div>
                       <h4 className="text-sm font-black text-foreground tracking-tight uppercase">Orientações Gerais</h4>
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest">Instruções comportamentais</p>
+                      <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Instruções comportamentais</p>
                     </div>
                   </div>
                   <Textarea
@@ -656,7 +685,7 @@ export const MealPlanEditor = ({
                 <div className="flex items-center gap-3">
                   <div className="px-4 py-2 bg-card rounded-2xl border border-border shadow-sm flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                       {mealItems.length} Alimentos selecionados
                     </span>
                   </div>
@@ -684,7 +713,7 @@ export const MealPlanEditor = ({
                               <Input
                                 value={mealType.label}
                                 onChange={(e) => updateMealType(mealType.id, 'label', e.target.value)}
-                                className="font-black text-xl border-none bg-muted/30/50 hover:bg-muted/50 focus:bg-card h-11 px-4 w-full lg:w-[320px] text-foreground focus:ring-2 focus:ring-emerald-500/20 rounded-xl placeholder:text-muted-foreground transition-all shadow-inner focus:shadow-none"
+                                className="font-black text-xl border-none bg-muted/50 hover:bg-muted/50 focus:bg-card h-11 px-4 w-full lg:w-[320px] text-foreground focus:ring-2 focus:ring-emerald-500/20 rounded-xl placeholder:text-muted-foreground transition-all shadow-inner focus:shadow-none"
                                 placeholder="Título da Refeição"
                               />
                               <div className="flex items-center gap-2 px-4 py-1.5 bg-card rounded-xl border-2 border-border focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/10 shadow-sm shrink-0 h-11 transition-all">
@@ -703,22 +732,22 @@ export const MealPlanEditor = ({
                         <div className="flex items-center gap-2 bg-card p-2 rounded-2xl shadow-sm border border-border">
                           <div className="flex items-center gap-3 px-3 py-1.5 bg-emerald-50/50 rounded-xl border border-emerald-100/50">
                             <div className="text-center">
-                              <p className="text-[8px] font-bold text-emerald-600 uppercase tracking-tighter">Energia</p>
-                              <p className="text-xs font-bold text-foreground">{totals.kcal.toFixed(0)}<span className="text-[9px] ml-0.5">kcal</span></p>
+                              <p className="text-[11px] font-bold text-emerald-600 uppercase tracking-tighter">Energia</p>
+                              <p className="text-xs font-bold text-foreground">{totals.kcal.toFixed(0)}<span className="text-[11px] ml-0.5">kcal</span></p>
                             </div>
                             <div className="w-px h-5 bg-emerald-100" />
                             <div className="text-center">
-                              <p className="text-[8px] font-bold text-blue-500 uppercase tracking-tighter">Prot</p>
+                              <p className="text-[11px] font-bold text-blue-500 uppercase tracking-tighter">Prot</p>
                               <p className="text-xs font-bold text-foreground">{totals.protein.toFixed(1)}g</p>
                             </div>
                             <div className="w-px h-5 bg-emerald-100" />
                             <div className="text-center">
-                              <p className="text-[8px] font-bold text-emerald-500 uppercase tracking-tighter">Carb</p>
+                              <p className="text-[11px] font-bold text-emerald-500 uppercase tracking-tighter">Carb</p>
                               <p className="text-xs font-bold text-foreground">{totals.carbs.toFixed(1)}g</p>
                             </div>
                             <div className="w-px h-5 bg-emerald-100" />
                             <div className="text-center">
-                              <p className="text-[8px] font-bold text-purple-500 uppercase tracking-tighter">Gord</p>
+                              <p className="text-[11px] font-bold text-purple-500 uppercase tracking-tighter">Gord</p>
                               <p className="text-xs font-bold text-foreground">{totals.fat.toFixed(1)}g</p>
                             </div>
                           </div>
@@ -770,7 +799,7 @@ export const MealPlanEditor = ({
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center gap-2 px-1">
                             <MessageSquare className="w-3 h-3 text-muted-foreground" />
-                            <Label className="text-[9px] uppercase font-bold text-muted-foreground tracking-widest">Observações específicas</Label>
+                            <Label className="text-[11px] uppercase font-bold text-muted-foreground tracking-widest">Observações específicas</Label>
                           </div>
                           <Textarea
                             placeholder="Observações importantes para esta refeição..."
@@ -779,10 +808,27 @@ export const MealPlanEditor = ({
                             onChange={(e) => setMealObservations(prev => ({ ...prev, [mealType.id]: e.target.value }))}
                           />
                         </div>
-                        <div className="lg:w-40 flex items-end">
-                          <div className="w-full p-3 bg-muted/30/50 rounded-xl border border-border flex flex-col items-center justify-center gap-1.5">
-                             <Info className="w-3.5 h-3.5 text-muted-foreground" />
-                             <p className="text-[8px] text-muted-foreground font-bold uppercase text-center leading-tight">Total Nutricional da Refeição</p>
+                        <div className="lg:w-48 flex items-end">
+                          <div className="w-full p-3 bg-muted/30 rounded-xl border border-border space-y-2">
+                            <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider text-center">Total da Refeição</p>
+                            <div className="grid grid-cols-2 gap-1.5">
+                              <div className="bg-orange-50 dark:bg-orange-950/20 rounded-lg px-2 py-1 text-center">
+                                <p className="text-[10px] font-bold text-orange-600 uppercase">Kcal</p>
+                                <p className="text-sm font-black text-foreground">{totals.kcal.toFixed(0)}</p>
+                              </div>
+                              <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg px-2 py-1 text-center">
+                                <p className="text-[10px] font-bold text-blue-600 uppercase">Prot</p>
+                                <p className="text-sm font-black text-foreground">{totals.protein.toFixed(1)}g</p>
+                              </div>
+                              <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-lg px-2 py-1 text-center">
+                                <p className="text-[10px] font-bold text-emerald-600 uppercase">Carb</p>
+                                <p className="text-sm font-black text-foreground">{totals.carbs.toFixed(1)}g</p>
+                              </div>
+                              <div className="bg-purple-50 dark:bg-purple-950/20 rounded-lg px-2 py-1 text-center">
+                                <p className="text-[10px] font-bold text-purple-600 uppercase">Gord</p>
+                                <p className="text-sm font-black text-foreground">{totals.fat.toFixed(1)}g</p>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>

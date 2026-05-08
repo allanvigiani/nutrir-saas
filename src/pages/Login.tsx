@@ -6,8 +6,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
 import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../lib/firebase';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, ChevronLeft, Moon, Sun } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { remoteLogger } from '../lib/remote-logger';
+import { recordSessionStart } from '../contexts/AuthContext';
 
 enum OperationType {
   CREATE = 'create',
@@ -73,6 +75,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export const Login = () => {
   const navigate = useNavigate();
+  const { theme, setTheme } = useTheme();
   const [showPassword, setShowPassword] = React.useState(false);
   const loginHeroImageUrl = import.meta.env.VITE_LOGIN_HERO_IMAGE_URL || '';
   const loginAvatarBaseUrl = import.meta.env.VITE_LOGIN_AVATAR_BASE_URL || '';
@@ -94,10 +97,11 @@ export const Login = () => {
         console.error("Failed to update last login:", error);
       });
 
+      recordSessionStart();
       remoteLogger.info("Login realizado com sucesso (Email/Senha)", { userId: user.uid, email: user.email });
 
       toast.success('Login realizado com sucesso!');
-      navigate('/');
+      navigate('/dashboard');
     } catch (error: any) {
       remoteLogger.error("Erro no login (Email/Senha)", error, { email: data.email });
       console.error("Login error:", error);
@@ -139,10 +143,11 @@ export const Login = () => {
         updatedAt: new Date().toISOString()
       });
 
+      recordSessionStart();
       remoteLogger.info("Login realizado com sucesso (Google)", { userId: user.uid, email: user.email });
 
       toast.success('Login com Google realizado com sucesso!');
-      navigate('/');
+      navigate('/dashboard');
     } catch (error: any) {
       console.error("Google login error:", {
         code: error?.code,
@@ -181,6 +186,21 @@ export const Login = () => {
       {/* Left Side - Login Form */}
       <div className="flex-1 flex flex-col justify-center px-8 sm:px-12 lg:px-24 py-12 bg-card">
         <div className="max-w-md w-full mx-auto space-y-8">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition text-sm mb-4 absolute left-6 top-6"
+            title="Voltar para a página inicial"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>Voltar</span>
+          </button>
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="absolute right-6 top-6 text-muted-foreground hover:text-foreground transition"
+            title={`Ativar modo ${theme === 'dark' ? 'claro' : 'escuro'}`}
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
           <div className="space-y-2 text-center">
             <div className="flex items-center justify-center gap-3 mb-8">
               <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-100">

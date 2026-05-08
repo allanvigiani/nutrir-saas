@@ -6,9 +6,11 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup } from 'firebase/auth';
 import { doc, setDoc, getDocs, query, where, collection, getDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../lib/firebase';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, ChevronLeft, Moon, Sun } from 'lucide-react';
+import { useTheme } from 'next-themes';
 import { maskCPF, maskCNPJ, maskPhone } from '../lib/utils';
 import { remoteLogger } from '../lib/remote-logger';
+import { recordSessionStart } from '../contexts/AuthContext';
 
 enum OperationType {
   CREATE = 'create',
@@ -88,6 +90,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export const Register = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { theme, setTheme } = useTheme();
   const [showPassword, setShowPassword] = React.useState(false);
   const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -182,8 +185,9 @@ export const Register = () => {
         handleFirestoreError(error, OperationType.WRITE, `nutritionists/${user.uid}`);
       }
 
+      recordSessionStart();
       toast.success('Conta criada com sucesso!');
-      navigate('/');
+      navigate('/dashboard');
     } catch (error: any) {
       remoteLogger.error("Erro no cadastro (Email/Senha)", error, { email: data.email });
       console.error("Registration error:", error);
@@ -207,6 +211,21 @@ export const Register = () => {
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition text-sm mb-4 absolute left-6 top-6"
+            title="Voltar para a página inicial"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            <span>Voltar</span>
+          </button>
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="absolute right-6 top-6 text-muted-foreground hover:text-foreground transition"
+            title={`Ativar modo ${theme === 'dark' ? 'claro' : 'escuro'}`}
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
           <div className="flex justify-center mb-4">
             <div className="w-12 h-12 bg-emerald-600 rounded-xl flex items-center justify-center">
               <span className="text-white font-bold text-2xl">N</span>
