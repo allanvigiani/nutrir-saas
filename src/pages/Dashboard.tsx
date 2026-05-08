@@ -130,16 +130,18 @@ export const Dashboard = () => {
     };
   }, [user, isAuthReady]);
 
-  const StatCard = ({ title, value, icon: Icon, color }: any) => (
-    <Card>
-      <CardContent className="p-4 px-6">
-        <div className="flex items-center justify-between">
-          <div>
+  const StatCard = ({ title, value, icon: Icon, iconBg, iconColor }: any) => (
+    <Card className="overflow-hidden border-border/60 hover:shadow-md transition-shadow duration-200">
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
             <p className="text-sm font-medium text-muted-foreground">{title}</p>
-            <h3 className="text-2xl font-bold text-card-foreground mt-1">{value}</h3>
+            <h3 className="text-3xl font-bold text-card-foreground tabular-nums">
+              {loading ? <span className="text-muted-foreground">—</span> : value}
+            </h3>
           </div>
-          <div className={cn("p-3 rounded-xl", color)}>
-            <Icon className="w-6 h-6 text-white" />
+          <div className={cn("p-2.5 rounded-xl", iconBg)}>
+            <Icon className={cn("w-5 h-5", iconColor)} />
           </div>
         </div>
       </CardContent>
@@ -156,14 +158,16 @@ export const Dashboard = () => {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Olá, {getFirstName()}</h1>
-          <p className="text-muted-foreground">Veja o que temos para hoje.</p>
+          <h1 className="text-2xl font-bold text-foreground tracking-tight">Olá, {getFirstName()} 👋</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}
+          </p>
         </div>
         <div className="flex gap-3">
           <PremiumFeature active={stats.activePatients >= 3}>
-            <Button 
-              nativeButton={false} 
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" 
+            <Button
+              nativeButton={false}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-9 px-4 gap-2 font-semibold text-sm transition-all shadow-sm shadow-primary/20 active:scale-95"
               render={<Link to="/patients" />}
             >
               <PlusCircle className="w-4 h-4" /> Novo Paciente
@@ -180,23 +184,26 @@ export const Dashboard = () => {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard 
-          title="Pacientes Ativos" 
-          value={stats.activePatients} 
-          icon={Users} 
-          color="bg-blue-500" 
+        <StatCard
+          title="Pacientes Ativos"
+          value={stats.activePatients}
+          icon={Users}
+          iconBg="bg-primary/10"
+          iconColor="text-primary"
         />
-        <StatCard 
-          title="Consultas do Mês" 
-          value={stats.monthConsultations} 
-          icon={TrendingUp} 
-          color="bg-emerald-500" 
+        <StatCard
+          title="Consultas do Mês"
+          value={stats.monthConsultations}
+          icon={TrendingUp}
+          iconBg="bg-emerald-100 dark:bg-emerald-950"
+          iconColor="text-emerald-600 dark:text-emerald-400"
         />
-        <StatCard 
-          title="Agenda de Hoje" 
-          value={stats.todayAppointments} 
-          icon={Calendar} 
-          color="bg-amber-500" 
+        <StatCard
+          title="Agenda de Hoje"
+          value={stats.todayAppointments}
+          icon={Calendar}
+          iconBg="bg-amber-100 dark:bg-amber-950"
+          iconColor="text-amber-600 dark:text-amber-400"
         />
       </div>
 

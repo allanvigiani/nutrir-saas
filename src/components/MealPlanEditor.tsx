@@ -83,7 +83,7 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
       whileHover={isSidebar ? { x: 4 } : { y: -2, scale: 1.01 }}
       className={cn(
         "bg-card rounded-[1.5rem] border border-border relative overflow-hidden transition-all duration-300",
-        isSidebar ? "p-5 shadow-sm hover:shadow-md hover:border-emerald-100" : "p-4 shadow-sm"
+        isSidebar ? "p-4 shadow-sm hover:shadow-md hover:border-emerald-100" : "p-4 shadow-sm"
       )}
     >
       <div className={cn("flex items-start justify-between", isSidebar ? "mb-4" : "mb-2")}>
@@ -414,10 +414,10 @@ export const MealPlanEditor = ({
         animate={{ x: 0, opacity: 1 }}
         className="w-[320px] bg-card border-r border-border flex flex-col h-full hidden lg:flex shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
       >
-        <div className="p-8 border-b border-border bg-muted/30">
-          <div className="flex items-center gap-4 mb-2">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-600/20">
-              <Activity className="w-5 h-5 text-white" />
+        <div className="p-5 border-b border-border bg-muted/30">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-2xl bg-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-600/20">
+              <Activity className="w-4 h-4 text-white" />
             </div>
             <div>
               <h2 className="text-sm font-black text-foreground tracking-tight uppercase">Dashboard</h2>
@@ -426,7 +426,7 @@ export const MealPlanEditor = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar bg-muted/20">
+        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-muted/20">
           {selectedCalculation && (
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
@@ -456,13 +456,13 @@ export const MealPlanEditor = ({
             </motion.div>
           )}
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between px-2">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between px-1">
               <span className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">Macronutrientes</span>
               <div className="w-12 h-px bg-muted" />
             </div>
-            
-            <div className="grid gap-4">
+
+            <div className="grid gap-3">
               <SummaryCard
                 label="Energia Total"
                 value={mealTotals.kcal}
@@ -512,7 +512,7 @@ export const MealPlanEditor = ({
 
         </div>
 
-        <div className="p-6 border-t border-border bg-muted/30">
+        <div className="p-4 border-t border-border bg-muted/30">
           <div className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border">
              <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Sincronizado em tempo real</p>
@@ -632,39 +632,45 @@ export const MealPlanEditor = ({
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card rounded-[2.5rem] p-8 lg:p-10 border border-border shadow-[0_20px_50px_rgba(0,0,0,0.03)] relative overflow-hidden"
+              className="bg-card rounded-[2rem] p-6 border border-border shadow-[0_20px_50px_rgba(0,0,0,0.03)] relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
                 <Edit2 className="w-48 h-48 text-foreground" />
               </div>
 
-              <div className="space-y-10 relative">
-                <div className="grid grid-cols-1 gap-10">
-                  <div className="space-y-3">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground tracking-[0.2em] ml-1">Identificação do Plano</Label>
+              <div className="space-y-6 relative">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-2 space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground tracking-[0.2em] ml-1">Nome do Plano</Label>
                     <Input
                       value={mealPlanName}
                       onChange={(e) => setMealPlanName(e.target.value)}
-                      className="text-2xl font-black border-2 border-border bg-card focus:bg-card focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 h-16 rounded-2xl transition-all shadow-sm px-6"
+                      className="text-xl font-black border-2 border-border bg-card focus:bg-card focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 h-12 rounded-2xl transition-all shadow-sm px-5"
                       placeholder="Ex: Estratégia de Cutting..."
                     />
                   </div>
-
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground tracking-[0.2em] ml-1">Ingestão de Água</Label>
+                    <div className="relative">
+                      <Droplets className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
+                      <Input
+                        value={waterIntake}
+                        onChange={(e) => setWaterIntake(e.target.value)}
+                        className="pl-9 border-2 border-border bg-card focus:bg-card focus:border-blue-400 focus:ring-4 focus:ring-blue-400/10 h-12 rounded-2xl transition-all shadow-sm"
+                        placeholder="Ex: 2,5L"
+                      />
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="pt-10 border-t border-border">
-                  <div className="flex items-center gap-4 mb-5">
-                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                      <MessageSquare className="w-5 h-5 text-emerald-600" />
-                    </div>
-                    <div>
-                      <h4 className="text-sm font-black text-foreground tracking-tight uppercase">Orientações Gerais</h4>
-                      <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Instruções comportamentais</p>
-                    </div>
+
+                <div className="pt-5 border-t border-border">
+                  <div className="flex items-center gap-2 mb-3 px-1">
+                    <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+                    <Label className="text-xs font-bold uppercase text-muted-foreground tracking-[0.2em]">Orientações Gerais</Label>
                   </div>
                   <Textarea
                     placeholder="Quais as orientações principais para este plano?"
-                    className="min-h-[140px] rounded-[1.5rem] border-2 border-border bg-card focus:bg-card focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm resize-none transition-all text-base font-medium leading-relaxed p-6"
+                    className="min-h-[110px] rounded-2xl border-2 border-border bg-card focus:bg-card focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm resize-none transition-all text-base font-medium leading-relaxed p-4"
                     value={generalInstructions}
                     onChange={(e) => setGeneralInstructions(e.target.value)}
                   />
@@ -795,41 +801,18 @@ export const MealPlanEditor = ({
                         </motion.button>
                       </div>
 
-                      <div className="pt-6 border-t border-border flex flex-col lg:flex-row gap-6">
-                        <div className="flex-1 space-y-2">
+                      <div className="pt-6 border-t border-border">
+                        <div className="space-y-2">
                           <div className="flex items-center gap-2 px-1">
                             <MessageSquare className="w-3 h-3 text-muted-foreground" />
                             <Label className="text-[11px] uppercase font-bold text-muted-foreground tracking-widest">Observações específicas</Label>
                           </div>
                           <Textarea
                             placeholder="Observações importantes para esta refeição..."
-                            className="min-h-[90px] text-sm font-medium bg-card border-2 border-border rounded-2xl resize-none focus:bg-card focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm transition-all p-5"
+                            className="min-h-[80px] text-sm font-medium bg-card border-2 border-border rounded-2xl resize-none focus:bg-card focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 shadow-sm transition-all p-4"
                             value={mealObservations[mealType.id] || ''}
                             onChange={(e) => setMealObservations(prev => ({ ...prev, [mealType.id]: e.target.value }))}
                           />
-                        </div>
-                        <div className="lg:w-48 flex items-end">
-                          <div className="w-full p-3 bg-muted/30 rounded-xl border border-border space-y-2">
-                            <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider text-center">Total da Refeição</p>
-                            <div className="grid grid-cols-2 gap-1.5">
-                              <div className="bg-orange-50 dark:bg-orange-950/20 rounded-lg px-2 py-1 text-center">
-                                <p className="text-[10px] font-bold text-orange-600 uppercase">Kcal</p>
-                                <p className="text-sm font-black text-foreground">{totals.kcal.toFixed(0)}</p>
-                              </div>
-                              <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg px-2 py-1 text-center">
-                                <p className="text-[10px] font-bold text-blue-600 uppercase">Prot</p>
-                                <p className="text-sm font-black text-foreground">{totals.protein.toFixed(1)}g</p>
-                              </div>
-                              <div className="bg-emerald-50 dark:bg-emerald-950/20 rounded-lg px-2 py-1 text-center">
-                                <p className="text-[10px] font-bold text-emerald-600 uppercase">Carb</p>
-                                <p className="text-sm font-black text-foreground">{totals.carbs.toFixed(1)}g</p>
-                              </div>
-                              <div className="bg-purple-50 dark:bg-purple-950/20 rounded-lg px-2 py-1 text-center">
-                                <p className="text-[10px] font-bold text-purple-600 uppercase">Gord</p>
-                                <p className="text-sm font-black text-foreground">{totals.fat.toFixed(1)}g</p>
-                              </div>
-                            </div>
-                          </div>
                         </div>
                       </div>
                     </motion.div>

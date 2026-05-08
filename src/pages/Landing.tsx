@@ -292,7 +292,7 @@ export function Landing() {
           <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {[
               {
-                text: 'Nutrir transformou minha prática. Gerencio 40+ pacientes facilmente, acompanho progresso em tempo real e os resultados são muito melhores. A ferramenta é intuitiva e economiza horas do meu tempo.',
+                text: 'Nutrir transformou minha prática. Gerencio 3 pacientes facilmente, acompanho progresso em tempo real e os resultados são muito melhores. A ferramenta é intuitiva e economiza horas do meu tempo.',
                 author: 'Dra. Maria Silva',
                 role: 'Nutricionista Clínica',
               },

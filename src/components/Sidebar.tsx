@@ -1,16 +1,16 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Calendar, 
+import {
+  LayoutDashboard,
+  Users,
+  Calendar,
   DollarSign,
-  Settings, 
+  Settings,
   ShieldCheck,
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Menu
+  Leaf
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
@@ -20,24 +20,25 @@ import { remoteLogger } from '../lib/remote-logger';
 import { useAuth } from '../contexts/AuthContext';
 import { ModeToggle } from './mode-toggle';
 
-const SidebarItem = ({ 
-  icon: Icon, 
-  label, 
-  to, 
-  collapsed, 
-  active 
+const SidebarItem = ({
+  icon: Icon,
+  label,
+  to,
+  collapsed,
+  active
 }: any) => (
   <Link
     to={to}
+    title={collapsed ? label : undefined}
     className={cn(
-      "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-      active 
-        ? "bg-primary/10 text-primary" 
+      "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
+      active
+        ? "bg-primary text-primary-foreground shadow-sm"
         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
     )}
   >
-    <Icon className="w-5 h-5 shrink-0" />
-    {!collapsed && <span className="font-medium">{label}</span>}
+    <Icon className={cn("w-4.5 h-4.5 shrink-0", collapsed && "w-5 h-5")} />
+    {!collapsed && <span className="font-medium text-sm">{label}</span>}
   </Link>
 );
 
@@ -71,34 +72,54 @@ export const Sidebar = () => {
   const userEmail = nutritionist?.email || user?.email || '';
 
   return (
-    <aside 
+    <aside
       className={cn(
-        "flex flex-col h-screen bg-card border-r border-border transition-all duration-300",
+        "flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300",
         collapsed ? "w-16" : "w-64"
       )}
     >
-      <div className="p-4 flex items-center justify-between">
+      {/* Logo */}
+      <div className={cn("flex items-center border-b border-sidebar-border", collapsed ? "p-3 justify-center" : "px-5 py-4 gap-3")}>
         {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-xl">N</span>
+          <>
+            <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-sm shadow-primary/30 shrink-0">
+              <Leaf className="w-4 h-4 text-primary-foreground" />
             </div>
-            <span className="font-bold text-xl text-card-foreground">Nutrir</span>
+            <span className="font-bold text-lg text-sidebar-foreground tracking-tight">Nutrir</span>
+          </>
+        )}
+        {collapsed && (
+          <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-sm shadow-primary/30">
+            <Leaf className="w-4 h-4 text-primary-foreground" />
           </div>
         )}
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          onClick={() => setCollapsed(!collapsed)}
-          className="ml-auto"
-        >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </Button>
+        {!collapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setCollapsed(!collapsed)}
+            className="ml-auto w-7 h-7 text-muted-foreground hover:text-foreground"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </Button>
+        )}
       </div>
 
-      <nav className="flex-1 px-2 py-4 space-y-1">
+      {collapsed && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setCollapsed(!collapsed)}
+          className="mx-auto mt-2 w-7 h-7 text-muted-foreground hover:text-foreground"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      )}
+
+      {/* Nav */}
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
         {navItems.map((item) => (
-          <SidebarItem 
+          <SidebarItem
             key={item.to}
             icon={item.icon}
             label={item.label}
@@ -109,32 +130,27 @@ export const Sidebar = () => {
         ))}
       </nav>
 
-      <div className="p-4 border-t border-border">
+      {/* Footer */}
+      <div className={cn("border-t border-sidebar-border", collapsed ? "p-3" : "px-4 py-4")}>
         {!collapsed && (
-          <div className="mb-4 px-2">
-            <p className="text-sm font-semibold text-card-foreground truncate">{userName}</p>
+          <div className="mb-3 px-1">
+            <p className="text-sm font-semibold text-sidebar-foreground truncate">{userName}</p>
             <p className="text-xs text-muted-foreground truncate">{userEmail}</p>
           </div>
         )}
-        <div className="flex flex-col gap-2">
-          {!collapsed && (
-             <div className="flex items-center justify-between px-2 mb-2">
-               <span className="text-sm font-medium text-muted-foreground">Tema</span>
-               <ModeToggle />
-             </div>
-          )}
-          {collapsed && (
-             <div className="flex justify-center mb-2">
-               <ModeToggle />
-             </div>
-          )}
-          <Button 
-            variant="ghost" 
-            className={cn("w-full justify-start text-muted-foreground hover:text-destructive hover:bg-destructive/10", collapsed && "px-2")}
+        <div className={cn("flex gap-2", collapsed ? "flex-col items-center" : "items-center justify-between")}>
+          <ModeToggle />
+          <Button
+            variant="ghost"
+            size={collapsed ? "icon" : "sm"}
+            className={cn(
+              "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
+              !collapsed && "flex-1 justify-start gap-2"
+            )}
             onClick={handleLogout}
           >
-            <LogOut className="w-5 h-5" />
-            {!collapsed && <span className="ml-3 font-medium">Sair</span>}
+            <LogOut className="w-4 h-4 shrink-0" />
+            {!collapsed && <span className="font-medium text-sm">Sair</span>}
           </Button>
         </div>
       </div>
