@@ -9,11 +9,11 @@ const SESSION_MAX_MS = 3 * 24 * 60 * 60 * 1000;  // 3 dias
 const SESSION_CHECK_INTERVAL_MS = 30 * 60 * 1000; // verifica a cada 30 min
 const INACTIVITY_MAX_MS = 2 * 60 * 60 * 1000;     // 2 horas sem atividade
 
-// Variável no módulo — evita problemas de closure dentro do useEffect
 let lastActivityAt = Date.now();
 
 const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'] as const;
 
+// Atualiza apenas o timestamp — não fecha o modal, isso é responsabilidade dos botões
 function resetActivity() {
   lastActivityAt = Date.now();
 }
@@ -42,6 +42,9 @@ interface AuthContextType {
   nutritionist: Nutritionist | null;
   loading: boolean;
   isAuthReady: boolean;
+  showInactivityWarning: boolean;
+  dismissInactivityWarning: () => void;
+  confirmSignOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -49,6 +52,9 @@ const AuthContext = createContext<AuthContextType>({
   nutritionist: null,
   loading: true,
   isAuthReady: false,
+  showInactivityWarning: false,
+  dismissInactivityWarning: () => {},
+  confirmSignOut: () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -56,9 +62,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [nutritionist, setNutritionist] = useState<Nutritionist | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false);
+
+  function dismissInactivityWarning() {
+    setShowInactivityWarning(false);
+    resetActivity();
+  }
+
+  function confirmSignOut() {
+    setShowInactivityWarning(false);
+    forceSignOut();
+  }
 
   useEffect(() => {
-    // Test Firestore connection on boot
     const testConnection = async () => {
       try {
         await getDocFromServer(doc(db, '_connection_test_', 'ping'));
@@ -95,7 +111,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const data = docSnap.data() as Nutritionist;
             setNutritionist({ id: docSnap.id, ...data } as Nutritionist);
 
-            // Proactive subscription verification (no máximo 1x por dia)
             const lastCheck = (data as any).lastSubscriptionCheck;
             const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
@@ -152,20 +167,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    // Registra qualquer interação do usuário para rastrear inatividade
     ACTIVITY_EVENTS.forEach(event => window.addEventListener(event, resetActivity, { passive: true }));
 
-    // Verifica sessão e inatividade quando o usuário retorna à aba
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        if (isSessionExpired() || isInactive()) forceSignOut();
-        else resetActivity(); // voltou à aba — considera como atividade
+        if (isSessionExpired()) {
+          forceSignOut();
+        } else if (isInactive()) {
+          setShowInactivityWarning(true);
+        } else {
+          resetActivity();
+        }
       }
     };
 
-    // Verifica sessão e inatividade a cada 30 min enquanto a aba estiver aberta
+    // Sessão expirada → desconexão imediata (hard limit de segurança)
+    // Inatividade → mostra aviso com countdown; o modal decide o signout
     const sessionCheckInterval = setInterval(() => {
-      if (isSessionExpired() || isInactive()) forceSignOut();
+      if (isSessionExpired()) {
+        forceSignOut();
+      } else if (isInactive()) {
+        setShowInactivityWarning(true);
+      }
     }, SESSION_CHECK_INTERVAL_MS);
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -180,7 +203,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, nutritionist, loading, isAuthReady }}>
+    <AuthContext.Provider value={{
+      user,
+      nutritionist,
+      loading,
+      isAuthReady,
+      showInactivityWarning,
+      dismissInactivityWarning,
+      confirmSignOut,
+    }}>
       {children}
     </AuthContext.Provider>
   );

@@ -23,12 +23,14 @@ import { Contato } from './pages/Contato';
 import { Toaster } from './components/ui/sonner';
 import { TooltipProvider } from './components/ui/tooltip';
 import { ThemeProvider } from './components/theme-provider';
+import { InactivityWarningModal } from './components/InactivityWarningModal';
 
 export default function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <AuthProvider>
         <TooltipProvider>
+            <InactivityWarningModal />
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Landing />} />
