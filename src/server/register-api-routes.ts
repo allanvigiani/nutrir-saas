@@ -9,7 +9,6 @@ import { logger } from "./logger.ts";
 import {
   createAiLimiter,
   createEmailLimiter,
-  createPaymentLimiter,
   createCalendarLimiter,
   createAuthLimiter,
   createGeneralLimiter,
@@ -20,32 +19,25 @@ type RegisterApiRoutesDeps = BaseRouteDeps & AsaasConfig & GoogleConfig;
 export function registerApiRoutes(deps: RegisterApiRoutesDeps) {
   const aiLimiter       = createAiLimiter();
   const emailLimiter    = createEmailLimiter();
-  const paymentLimiter  = createPaymentLimiter();
   const calendarLimiter = createCalendarLimiter();
   const authLimiter     = createAuthLimiter();
   const generalLimiter  = createGeneralLimiter();
 
-  // ── AI (Gemini) — 10 req/hora ────────────────────────────────────────────
+  // ── AI (Gemini) — 50 req/hora ────────────────────────────────────────────
   deps.app.use('/api/nutrition', aiLimiter);
 
-  // ── Email (Brevo) — 20 req/hora ──────────────────────────────────────────
+  // ── Email (Brevo) — 100 req/hora ─────────────────────────────────────────
   deps.app.use('/api/send-meal-plan',     emailLimiter);
   deps.app.use('/api/send-welcome-email', emailLimiter);
   deps.app.use('/api/test-email',         emailLimiter);
 
-  // ── Pagamentos (Asaas) — 30 req/15min ───────────────────────────────────
-  deps.app.use('/api/create-checkout-session', paymentLimiter);
-  deps.app.use('/api/verify-subscription',     paymentLimiter);
-  deps.app.use('/api/create-portal-session',   paymentLimiter);
-  deps.app.use('/api/cancel-subscription',     paymentLimiter);
-
-  // ── Google Calendar — 30 req/15min ──────────────────────────────────────
+  // ── Google Calendar — 150 req/15min ──────────────────────────────────────
   deps.app.use('/api/create-calendar-event', calendarLimiter);
 
-  // ── Google OAuth — 20 req/15min ──────────────────────────────────────────
+  // ── Google OAuth — 100 req/15min ─────────────────────────────────────────
   deps.app.use('/api/auth/google', authLimiter);
 
-  // ── Geral (logs, health, webhooks) — 100 req/min ────────────────────────
+  // ── Geral (logs, health, webhooks) — 500 req/min ─────────────────────────
   deps.app.use('/api/logs',          generalLimiter);
   deps.app.use('/api/health',        generalLimiter);
   deps.app.use('/api/asaas-webhook', generalLimiter);

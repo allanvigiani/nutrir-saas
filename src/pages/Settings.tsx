@@ -1080,7 +1080,15 @@ export const Settings = () => {
                       </button>
 
                       <p className="text-[10px] text-center mt-2 opacity-60">
-                        Pagamento processado com segurança pelo Asaas. Cancele a qualquer momento.
+                        Pagamento processado com segurança pelo{' '}
+                        <a
+                          href="https://www.asaas.com/sobre-nos"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity"
+                        >
+                          Asaas
+                        </a>. Cancele a qualquer momento.
                       </p>
                     </div>
                   )}

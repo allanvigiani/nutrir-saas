@@ -105,7 +105,15 @@ export const UpgradeModal = ({ isOpen, onClose }: UpgradeModalProps) => {
             Talvez mais tarde
           </Button>
           <p className="text-[10px] text-center mt-4 opacity-60 text-muted-foreground">
-            Pagamento processado com segurança pelo Asaas.
+            Pagamento processado com segurança pelo{' '}
+            <a
+              href="https://www.asaas.com/sobre-nos"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity"
+            >
+              Asaas
+            </a>.
           </p>
         </div>
       </DialogContent>
