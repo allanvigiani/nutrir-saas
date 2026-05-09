@@ -46,7 +46,7 @@ export function Cookies() {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">5. Contato</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Para dúvidas sobre nossa política de cookies, entre em contato em <a href="mailto:privacidade@nutrir.app" className="text-emerald-600 hover:underline">privacidade@nutrir.app</a>.
+              Para dúvidas sobre nossa política de cookies, entre em contato em <a href="mailto:privacidade@nutrir.app" className="text-primary hover:underline">privacidade@nutrir.app</a>.
             </p>
           </section>
         </div>

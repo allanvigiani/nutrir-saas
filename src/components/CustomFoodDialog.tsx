@@ -293,7 +293,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
 
           <div className="space-y-4 pt-4 border-t border-border">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-bold text-emerald-700">Medida Caseira (Opcional)</Label>
+              <Label className="text-sm font-bold text-primary">Medida Caseira (Opcional)</Label>
               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Ex: 1 unidade = 50g</span>
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -330,7 +330,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
             </Button>
             <Button 
               type="submit" 
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
+              className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Salvando...' : 'Salvar Alimento'}

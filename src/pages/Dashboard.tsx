@@ -189,15 +189,15 @@ export const Dashboard = () => {
           title="Pacientes Ativos"
           value={stats.activePatients}
           icon={Users}
-          iconBg="bg-primary/10"
-          iconColor="text-primary"
+          iconBg="bg-muted"
+          iconColor="text-muted-foreground"
         />
         <StatCard
           title="Consultas do Mês"
           value={stats.monthConsultations}
           icon={TrendingUp}
-          iconBg="bg-emerald-100 dark:bg-emerald-950"
-          iconColor="text-emerald-600 dark:text-emerald-400"
+          iconBg="bg-blue-50 dark:bg-blue-950/30"
+          iconColor="text-blue-500 dark:text-blue-400"
         />
         <StatCard
           title="Agenda de Hoje"
@@ -226,7 +226,7 @@ export const Dashboard = () => {
         <Card>
           <CardHeader>
             <CardTitle className="text-lg font-bold flex items-center gap-2">
-              <Clock className="w-5 h-5 text-emerald-600" />
+              <Clock className="w-5 h-5 text-muted-foreground" />
               Consultas de Hoje
             </CardTitle>
           </CardHeader>
@@ -244,7 +244,7 @@ export const Dashboard = () => {
                         <p className={cn(
                           "text-xs font-medium",
                           app.status === 'confirmed' && "text-blue-600",
-                          app.status === 'realized' && "text-emerald-600",
+                          app.status === 'realized' && "text-primary",
                           app.status === 'cancelled' && "text-red-600",
                           app.status === 'pending' && "text-amber-600"
                         )}>
@@ -253,7 +253,7 @@ export const Dashboard = () => {
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button nativeButton={false} variant="ghost" size="sm" className="text-emerald-600" render={<Link to={`/patients/${app.patient_id}`} />}>
+                      <Button nativeButton={false} variant="ghost" size="sm" className="text-primary" render={<Link to={`/patients/${app.patient_id}`} />}>
                         Ver Perfil
                       </Button>
                       <Button nativeButton={false} variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" render={<Link to={`/patients/${app.patient_id}?edit=true`} />}>
@@ -285,7 +285,7 @@ export const Dashboard = () => {
                 {recentPatients.map((patient) => (
                   <div key={patient.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                      <div className="w-10 h-10 rounded-full bg-muted text-muted-foreground flex items-center justify-center font-bold text-sm">
                         {patient.name.charAt(0)}
                       </div>
                       <div>

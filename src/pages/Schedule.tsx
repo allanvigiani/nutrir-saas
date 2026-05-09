@@ -360,19 +360,19 @@ export const Schedule = () => {
             <TabsList className="flex items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto overflow-x-auto">
               <TabsTrigger 
                 value="month" 
-                className="relative gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap text-sm font-medium"
+                className="relative gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap text-sm font-medium"
               >
                 Mês
               </TabsTrigger>
               <TabsTrigger 
                 value="week" 
-                className="relative gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap text-sm font-medium"
+                className="relative gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap text-sm font-medium"
               >
                 Semana
               </TabsTrigger>
               <TabsTrigger 
                 value="day" 
-                className="relative gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap text-sm font-medium"
+                className="relative gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap text-sm font-medium"
               >
                 Dia
               </TabsTrigger>
@@ -384,7 +384,7 @@ export const Schedule = () => {
             if (!open) setEditingAppointment(null);
           }}>
             <DialogTrigger 
-              render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" onClick={() => openNewModal()} />}
+              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" onClick={() => openNewModal()} />}
               nativeButton={true}
             >
               <Plus className="w-4 h-4" /> Novo Agendamento
@@ -482,21 +482,21 @@ export const Schedule = () => {
                   </div>
                 )}
                 {editingAppointment?.meetLink && (
-                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-between gap-4">
+                  <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-card rounded-lg flex items-center justify-center border border-emerald-100">
+                      <div className="w-10 h-10 bg-card rounded-lg flex items-center justify-center border border-primary/20">
                         <svg className="w-6 h-6" viewBox="0 0 24 24">
                           <path fill="#00ac47" d="M16 11c0-1.1-.9-2-2-2s-2 .9-2 2 .9 2 2 2 2-.9 2-2z"/>
                           <path fill="#00ac47" d="M19 7h-1V6c0-1.1-.9-2-2-2H8c-1.1 0-2 .9-2 2v1H5c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zm-3 12H8v-2h8v2zm0-4H8v-2h8v2zm0-4H8V9h8v2z"/>
                         </svg>
                       </div>
                       <div>
-                        <p className="text-xs font-bold text-emerald-800">Google Meet Gerado</p>
+                        <p className="text-xs font-bold text-secondary-foreground">Google Meet Gerado</p>
                         <a 
                           href={editingAppointment.meetLink} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-sm text-emerald-600 hover:underline break-all font-medium"
+                          className="text-sm text-primary hover:underline break-all font-medium"
                         >
                           {editingAppointment.meetLink}
                         </a>
@@ -505,7 +505,7 @@ export const Schedule = () => {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="bg-card border-emerald-200 text-emerald-700 hover:bg-emerald-100 shrink-0"
+                      className="bg-card border-primary/30 text-primary hover:bg-primary/15 shrink-0"
                       onClick={() => {
                         navigator.clipboard.writeText(editingAppointment.meetLink!);
                         toast.success('Link copiado!');
@@ -537,7 +537,7 @@ export const Schedule = () => {
                     </Button>
                   )}
                   <Button variant="outline" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
-                  <Button onClick={handleAddAppointment} className="bg-emerald-600 hover:bg-emerald-700">
+                  <Button onClick={handleAddAppointment} className="bg-primary hover:bg-primary/90">
                     {editingAppointment ? 'Salvar Alterações' : 'Confirmar Agendamento'}
                   </Button>
                 </div>
@@ -603,7 +603,7 @@ export const Schedule = () => {
                     className={cn(
                       "min-h-[120px] p-2 border-r border-b border-border transition-colors",
                       !isCurrentMonth && "bg-muted/30/30 text-muted-foreground",
-                      isToday(day) && "bg-emerald-50/30",
+                      isToday(day) && "bg-primary/10/30",
                       isPast && "bg-muted/30/50 text-muted-foreground",
                       !isPast && "hover:bg-muted/30/50 cursor-pointer",
                       idx % 7 === 6 && "border-r-0"
@@ -615,7 +615,7 @@ export const Schedule = () => {
                     <div className="flex justify-between items-start mb-2">
                       <span className={cn(
                         "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full",
-                        isToday(day) && "bg-emerald-600 text-white",
+                        isToday(day) && "bg-primary text-white",
                         !isCurrentMonth && "text-muted-foreground"
                       )}>
                         {format(day, 'd')}
@@ -628,7 +628,7 @@ export const Schedule = () => {
                           className={cn(
                             "text-[10px] p-1 rounded border truncate",
                             app.status === 'confirmed' ? "bg-blue-50 border-blue-100 text-blue-700" :
-                            app.status === 'realized' ? "bg-emerald-50 border-emerald-100 text-emerald-700" :
+                            app.status === 'realized' ? "bg-primary/10 border-primary/20 text-primary" :
                             app.status === 'cancelled' ? "bg-red-50 border-red-100 text-red-700" :
                             "bg-amber-50 border-amber-100 text-amber-700"
                           )}
@@ -663,12 +663,12 @@ export const Schedule = () => {
                 }).map(day => (
                   <div key={day.toString()} className={cn(
                     "py-2 text-center border-r border-border last:border-r-0 bg-muted/30/50",
-                    isToday(day) && "bg-emerald-50/50"
+                    isToday(day) && "bg-primary/8"
                   )}>
                     <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{format(day, 'EEE', { locale: ptBR })}</div>
                     <div className={cn(
                       "text-sm font-medium w-7 h-7 mx-auto flex items-center justify-center rounded-full mt-1",
-                      isToday(day) && "bg-emerald-600 text-white"
+                      isToday(day) && "bg-primary text-white"
                     )}>
                       {format(day, 'd')}
                     </div>
@@ -705,7 +705,7 @@ export const Schedule = () => {
                             className={cn(
                               "absolute left-1 right-1 p-1 rounded border text-[10px] overflow-hidden z-0 cursor-pointer hover:brightness-95 transition-all",
                               app.status === 'confirmed' ? "bg-blue-50 border-blue-100 text-blue-700" :
-                              app.status === 'realized' ? "bg-emerald-50 border-emerald-100 text-emerald-700" :
+                              app.status === 'realized' ? "bg-primary/10 border-primary/20 text-primary" :
                               app.status === 'cancelled' ? "bg-red-50 border-red-100 text-red-700" :
                               "bg-amber-50 border-amber-100 text-amber-700"
                             )}
@@ -732,12 +732,12 @@ export const Schedule = () => {
                 <div className="py-2 border-r border-border bg-muted/30/50"></div>
                 <div className={cn(
                   "col-span-7 py-2 text-center bg-muted/30/50",
-                  isToday(currentDate) && "bg-emerald-50/50"
+                  isToday(currentDate) && "bg-primary/8"
                 )}>
                   <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{format(currentDate, 'EEEE', { locale: ptBR })}</div>
                   <div className={cn(
                     "text-sm font-medium w-7 h-7 mx-auto flex items-center justify-center rounded-full mt-1",
-                    isToday(currentDate) && "bg-emerald-600 text-white"
+                    isToday(currentDate) && "bg-primary text-white"
                   )}>
                     {format(currentDate, 'd')}
                   </div>
@@ -769,7 +769,7 @@ export const Schedule = () => {
                           className={cn(
                             "absolute left-2 right-2 p-2 rounded border text-xs overflow-hidden z-0 cursor-pointer hover:brightness-95 transition-all",
                             app.status === 'confirmed' ? "bg-blue-50 border-blue-100 text-blue-700" :
-                            app.status === 'realized' ? "bg-emerald-50 border-emerald-100 text-emerald-700" :
+                            app.status === 'realized' ? "bg-primary/10 border-primary/20 text-primary" :
                             app.status === 'cancelled' ? "bg-red-50 border-red-100 text-red-700" :
                             "bg-amber-50 border-amber-100 text-amber-700"
                           )}
@@ -783,8 +783,8 @@ export const Schedule = () => {
                           <div className="font-medium">{getPatientName(app.patient_id)}</div>
                           <div className="text-[10px] opacity-70">Status: {translateStatus(app.status)}</div>
                           {app.meetLink && (
-                            <div className="mt-1 flex items-center gap-1 text-[10px] text-emerald-600 font-bold">
-                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <div className="mt-1 flex items-center gap-1 text-[10px] text-primary font-bold">
+                              <div className="w-1.5 h-1.5 rounded-full bg-primary/100 animate-pulse" />
                               Google Meet disponível
                             </div>
                           )}

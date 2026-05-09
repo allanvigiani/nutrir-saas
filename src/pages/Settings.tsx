@@ -493,31 +493,31 @@ export const Settings = () => {
         <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto mb-8 overflow-x-auto">
           <TabsTrigger 
             value="profile" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <User className="w-4 h-4" /> Perfil Profissional
           </TabsTrigger>
           <TabsTrigger 
             value="foods" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Utensils className="w-4 h-4" /> Alimentos Próprios
           </TabsTrigger>
           <TabsTrigger 
             value="security" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Shield className="w-4 h-4" /> Segurança
           </TabsTrigger>
           <TabsTrigger 
             value="subscription" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Award className="w-4 h-4" /> Assinatura e Plano
           </TabsTrigger>
           <TabsTrigger 
             value="integrations" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <RefreshCw className="w-4 h-4" /> Integrações
           </TabsTrigger>
@@ -536,9 +536,9 @@ export const Settings = () => {
                   <CardContent className="space-y-6">
                     <div className="flex items-center gap-6 mb-6">
                       <div className="relative group">
-                        <div className="w-24 h-24 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-3xl overflow-hidden border-4 border-white shadow-sm">
+                        <div className="w-24 h-24 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-3xl overflow-hidden border-4 border-white shadow-sm">
                           {isUploadingPhoto ? (
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                           ) : nutritionist?.photoUrl ? (
                             <img src={nutritionist.photoUrl} alt={nutritionist.name} className="w-full h-full object-cover" />
                           ) : (
@@ -555,7 +555,7 @@ export const Settings = () => {
                         />
                         <button 
                           type="button" 
-                          className="absolute bottom-0 right-0 p-2 bg-card rounded-full shadow-md border border-border text-muted-foreground hover:text-emerald-600 transition-colors disabled:opacity-50"
+                          className="absolute bottom-0 right-0 p-2 bg-card rounded-full shadow-md border border-border text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
                           onClick={() => document.getElementById('photo-upload')?.click()}
                           disabled={isUploadingPhoto}
                         >
@@ -567,7 +567,7 @@ export const Settings = () => {
                           <h3 className="font-bold text-foreground">{nutritionist?.name}</h3>
                           <Badge 
                             variant={nutritionist?.plan === 'premium' ? 'default' : 'secondary'} 
-                            className={nutritionist?.plan === 'premium' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : ''}
+                            className={nutritionist?.plan === 'premium' ? 'bg-primary/15 text-primary hover:bg-primary/15' : ''}
                           >
                             {nutritionist?.plan === 'premium' ? 'Premium' : 'Gratuito'}
                           </Badge>
@@ -641,7 +641,7 @@ export const Settings = () => {
                     </div>
                   </CardContent>
                   <CardFooter className="border-t border-border pt-6">
-                    <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 gap-2 rounded-xl h-8 px-6 font-bold text-sm" disabled={isSaving}>
+                    <Button type="submit" className="bg-primary hover:bg-primary/90 gap-2 rounded-xl h-8 px-6 font-bold text-sm" disabled={isSaving}>
                       <Save className="w-4 h-4" /> {isSaving ? 'Salvando...' : 'Salvar Alterações'}
                     </Button>
                   </CardFooter>
@@ -676,7 +676,7 @@ export const Settings = () => {
                 setEditingFood(null);
                 setIsFoodDialogOpen(true);
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95"
+              className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95"
             >
               <Plus className="w-4 h-4" /> Cadastrar Alimento
             </Button>
@@ -739,7 +739,7 @@ export const Settings = () => {
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                className="h-8 w-8 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
                                 onClick={() => {
                                   setEditingFood(food);
                                   setIsFoodDialogOpen(true);
@@ -831,7 +831,7 @@ export const Settings = () => {
               </CardContent>
               <CardFooter className="border-t border-border pt-6">
                 <Button 
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                  className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                   onClick={handleUpdatePassword}
                   disabled={isUpdatingPassword}
                 >
@@ -848,15 +848,15 @@ export const Settings = () => {
           <div className="max-w-2xl">
             <Card className={cn(
               "border-none shadow-sm",
-              nutritionist?.plan === 'premium' ? "bg-emerald-900 text-white" : "bg-card"
+              nutritionist?.plan === 'premium' ? "bg-primary/90 text-white" : "bg-card"
             )}>
               <CardHeader className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div className="space-y-1">
                   <CardTitle className={cn("text-xl font-bold flex items-center gap-2", nutritionist?.plan === 'premium' ? "text-white" : "text-foreground")}>
-                    <Award className={cn("w-6 h-6", nutritionist?.plan === 'premium' ? "text-emerald-400" : "text-emerald-600")} />
+                    <Award className={cn("w-6 h-6", nutritionist?.plan === 'premium' ? "text-primary" : "text-primary")} />
                     {nutritionist?.plan === 'premium' ? 'Plano Premium Ativo' : 'Plano Gratuito'}
                   </CardTitle>
-                  <CardDescription className={nutritionist?.plan === 'premium' ? "text-emerald-100" : "text-muted-foreground"}>
+                  <CardDescription className={nutritionist?.plan === 'premium' ? "text-primary-foreground/80" : "text-muted-foreground"}>
                     {nutritionist?.plan === 'premium' 
                       ? 'Você está usando a versão completa do sistema com todos os recursos liberados.' 
                       : 'Você está usando a versão limitada do sistema. Faça o upgrade para remover limites.'}
@@ -872,16 +872,16 @@ export const Settings = () => {
                     if (diffDays <= 7) {
                       const refundDeadline = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
                       return (
-                        <div className="bg-emerald-400/10 border border-emerald-400/20 rounded-xl p-3 flex items-start gap-2 max-w-xs">
-                          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-start gap-2 max-w-xs">
+                          <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                           <div className="space-y-1">
-                            <p className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Garantia Ativa</p>
-                            <p className="text-[11px] text-emerald-50 leading-tight">
+                            <p className="text-[10px] font-bold text-primary/70 uppercase tracking-wider">Garantia Ativa</p>
+                            <p className="text-[11px] text-primary-foreground leading-tight">
                               Reembolso integral disponível até{' '}
                               <span className="font-bold text-white">{refundDeadline.toLocaleDateString('pt-BR')}</span>.
                             </p>
                             <button 
-                              className="text-[10px] text-emerald-400 font-bold underline hover:text-white transition-colors"
+                              className="text-[10px] text-primary font-bold underline hover:text-primary-foreground transition-colors"
                               onClick={handleCancelSubscription}
                               disabled={isManaging}
                             >
@@ -899,33 +899,33 @@ export const Settings = () => {
                 <div className="space-y-6">
                   <div className={cn(
                     "grid grid-cols-1 md:grid-cols-2 gap-4",
-                    nutritionist?.plan === 'premium' ? "text-emerald-50" : "text-muted-foreground"
+                    nutritionist?.plan === 'premium' ? "text-primary-foreground" : "text-muted-foreground"
                   )}>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
-                      <Users className="w-5 h-5 text-emerald-400" />
+                      <Users className="w-5 h-5 text-primary" />
                       <div>
-                        <p className="text-xs font-medium text-emerald-200">Pacientes</p>
+                        <p className="text-xs font-medium text-primary-foreground/60">Pacientes</p>
                         <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxPatients} ativos`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
-                      <Activity className="w-5 h-5 text-emerald-400" />
+                      <Activity className="w-5 h-5 text-primary" />
                       <div>
-                        <p className="text-xs font-medium text-emerald-200">Planos Alimentares</p>
+                        <p className="text-xs font-medium text-primary-foreground/60">Planos Alimentares</p>
                         <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxMealPlans} ativos`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
-                      <Shield className="w-5 h-5 text-emerald-400" />
+                      <Shield className="w-5 h-5 text-primary" />
                       <div>
-                        <p className="text-xs font-medium text-emerald-200">Histórico</p>
+                        <p className="text-xs font-medium text-primary-foreground/60">Histórico</p>
                         <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Completo' : `${FREE_PLAN_LIMITS.historyMonths} meses`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
-                      <CreditCard className="w-5 h-5 text-emerald-400" />
+                      <CreditCard className="w-5 h-5 text-primary" />
                       <div>
-                        <p className="text-xs font-medium text-emerald-200">Exames</p>
+                        <p className="text-xs font-medium text-primary-foreground/60">Exames</p>
                         <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxExams} por paciente`}</p>
                       </div>
                     </div>
@@ -934,11 +934,11 @@ export const Settings = () => {
                   {(nutritionist?.plan === 'premium' || nutritionist?.cancelAtPeriodEnd) && (
                     <div className="pt-4 space-y-4">
                       {!nutritionist.cancelAtPeriodEnd && nutritionist.currentPeriodEnd && (
-                        <div className="bg-emerald-800/50 border border-emerald-700/50 rounded-xl p-4 flex items-start gap-3">
-                          <Calendar className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                        <div className="bg-primary/40 border border-primary/50 rounded-xl p-4 flex items-start gap-3">
+                          <Calendar className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                           <div className="space-y-1">
-                            <p className="text-sm font-bold text-emerald-100">Próxima Renovação</p>
-                            <p className="text-xs text-emerald-50">
+                            <p className="text-sm font-bold text-primary-foreground/80">Próxima Renovação</p>
+                            <p className="text-xs text-primary-foreground">
                               Sua assinatura será renovada automaticamente em{' '}
                               <span className="font-bold">
                                 {new Date(nutritionist.currentPeriodEnd).toLocaleDateString('pt-BR')}
@@ -972,7 +972,7 @@ export const Settings = () => {
                       )}
 
                       <Button 
-                        className="w-full bg-card text-emerald-700 hover:bg-emerald-50 border-none rounded-xl h-10 font-bold text-sm transition-all active:scale-95 shadow-sm" 
+                        className="w-full bg-card text-primary hover:bg-primary/10 border-none rounded-xl h-10 font-bold text-sm transition-all active:scale-95 shadow-sm" 
                         onClick={() => setIsManageDialogOpen(true)}
                         disabled={isManaging}
                       >
@@ -1002,7 +1002,7 @@ export const Settings = () => {
                                     setIsManageDialogOpen(false);
                                   }}
                                 >
-                                  <CreditCard className="w-5 h-5 text-emerald-600" />
+                                  <CreditCard className="w-5 h-5 text-primary" />
                                   <div className="text-left">
                                     <p className="font-bold text-sm">Ver Faturas e Pagamentos</p>
                                     <p className="text-[10px] text-muted-foreground">Acesse seu histórico de cobranças no Asaas</p>
@@ -1050,12 +1050,12 @@ export const Settings = () => {
                       <button 
                         onClick={() => verifySubscription(false)}
                         disabled={isVerifying}
-                        className="w-full text-[10px] text-center mt-2 opacity-40 hover:opacity-100 transition-opacity text-emerald-200 underline"
+                        className="w-full text-[10px] text-center mt-2 opacity-40 hover:opacity-100 transition-opacity text-primary-foreground/60 underline"
                       >
                         {isVerifying ? 'Sincronizando...' : 'Sincronizar status da assinatura'}
                       </button>
 
-                      <p className="text-[10px] text-center mt-2 opacity-60 text-emerald-200">
+                      <p className="text-[10px] text-center mt-2 opacity-60 text-primary-foreground/60">
                         Você será redirecionado para o portal de faturamento do Asaas em uma nova aba.
                       </p>
                     </div>
@@ -1064,7 +1064,7 @@ export const Settings = () => {
                   {nutritionist?.plan !== 'premium' && !nutritionist?.cancelAtPeriodEnd && (
                     <div className="pt-4 space-y-4">
                       <Button 
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-10 font-bold text-sm shadow-lg shadow-emerald-200 transition-all active:scale-95" 
+                        className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-10 font-bold text-sm shadow-lg shadow-primary/10 transition-all active:scale-95" 
                         onClick={handleSubscribe}
                         disabled={isSubscribing}
                       >
@@ -1190,8 +1190,8 @@ export const Settings = () => {
           <Card className="border-none shadow-sm overflow-hidden">
             <CardHeader className="bg-card border-b border-border pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-emerald-600" />
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-primary" />
                 </div>
                 <div>
                   <CardTitle className="text-xl font-bold text-foreground">Integrações Externas</CardTitle>
@@ -1230,7 +1230,7 @@ export const Settings = () => {
                 
                 {nutritionist?.googleCalendarConnected ? (
                   <div className="flex items-center gap-3">
-                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1 py-1 px-3">
+                    <Badge className="bg-primary/15 text-primary border-primary/30 gap-1 py-1 px-3">
                       <ShieldCheck className="w-3 h-3" /> Conectado
                     </Badge>
                     <Button 
@@ -1244,7 +1244,7 @@ export const Settings = () => {
                   </div>
                 ) : (
                   <Button 
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 rounded-xl"
+                    className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl"
                     onClick={handleConnectGoogle}
                     disabled={isConnectingGoogle}
                   >
@@ -1253,9 +1253,9 @@ export const Settings = () => {
                 )}
               </div>
 
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex gap-3">
-                <AlertCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                <div className="text-sm text-emerald-800">
+              <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 flex gap-3">
+                <AlertCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div className="text-sm text-secondary-foreground">
                   <p className="font-bold mb-1">Como funciona a integração?</p>
                   <ul className="list-disc list-inside space-y-1 opacity-90">
                     <li>Ao agendar uma consulta, um evento será criado na sua agenda principal do Google.</li>

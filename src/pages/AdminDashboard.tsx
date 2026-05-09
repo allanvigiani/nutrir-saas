@@ -126,7 +126,7 @@ export const AdminDashboard = () => {
   if (authLoading) {
     return (
       <div className="h-[60vh] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -194,19 +194,19 @@ export const AdminDashboard = () => {
         <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto mb-8 overflow-x-auto">
           <TabsTrigger 
             value="overview" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <LayoutDashboard className="w-4 h-4" /> Visão Geral
           </TabsTrigger>
           <TabsTrigger 
             value="nutritionists" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Users className="w-4 h-4" /> Nutricionistas
           </TabsTrigger>
           <TabsTrigger 
             value="settings" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <SettingsIcon className="w-4 h-4" /> Configurações do Plano
           </TabsTrigger>
@@ -231,7 +231,7 @@ export const AdminDashboard = () => {
             <Card className="border-none shadow-sm bg-card overflow-hidden">
               <CardContent className="py-4 px-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
                     <CreditCard className="w-6 h-6" />
                   </div>
                   <div>
@@ -335,7 +335,7 @@ export const AdminDashboard = () => {
                     {loading ? (
                       <tr>
                         <td colSpan={6} className="px-6 py-12 text-center">
-                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600 mx-auto"></div>
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                         </td>
                       </tr>
                     ) : filteredNutritionists.length === 0 ? (
@@ -362,7 +362,7 @@ export const AdminDashboard = () => {
                           <td className="px-6 py-4">
                             <span className={cn(
                               "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                              n.plan === 'premium' ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+                              n.plan === 'premium' ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
                             )}>
                               {n.plan === 'premium' ? 'Premium' : 'Gratuito'}
                             </span>

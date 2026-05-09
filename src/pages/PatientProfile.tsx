@@ -1217,7 +1217,7 @@ export const PatientProfile = () => {
   if (loading) {
     return (
       <div className="flex justify-center py-24">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -1244,7 +1244,7 @@ export const PatientProfile = () => {
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-2xl">
+            <div className="w-16 h-16 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-2xl">
               {patient.name.charAt(0)}
             </div>
             <div>
@@ -1253,7 +1253,7 @@ export const PatientProfile = () => {
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
+                  className="text-muted-foreground hover:text-primary hover:bg-primary/10"
                   onClick={() => setIsEditPatientModalOpen(true)}
                   disabled={patient.status === 'inactive'}
                   title="Editar dados cadastrais"
@@ -1268,7 +1268,7 @@ export const PatientProfile = () => {
                 <span>•</span>
                 <span className={cn(
                   "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                  patient.status === 'active' ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+                  patient.status === 'active' ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
                 )}>
                   {patient.status === 'active' ? 'Ativo' : 'Inativo'}
                 </span>
@@ -1281,7 +1281,7 @@ export const PatientProfile = () => {
           {!patient.access_token ? (
             <Button 
               variant="outline" 
-              className="h-8 text-sm font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-4"
+              className="h-8 text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 px-4"
               onClick={generateAccessToken}
               disabled={isGeneratingToken || patient.status === 'inactive'}
             >
@@ -1290,7 +1290,7 @@ export const PatientProfile = () => {
           ) : (
             <Button 
               variant="outline" 
-              className="h-8 text-sm font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50 px-4"
+              className="h-8 text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 px-4"
               onClick={shareAccessLink}
               disabled={patient.status === 'inactive'}
             >
@@ -1319,7 +1319,7 @@ export const PatientProfile = () => {
             }
           }}>
             <DialogTrigger
-              render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" disabled={patient.status === 'inactive'} onClick={() => {
+              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" disabled={patient.status === 'inactive'} onClick={() => {
                 setSelectedConsultation(null);
                 resetConsultation({
                   date: new Date().toISOString().split('T')[0],
@@ -1419,7 +1419,7 @@ export const PatientProfile = () => {
                   </Button>
                   <Button
                     type="submit"
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                    className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                     disabled={isConsultationSubmitting}
                   >
                     {isConsultationSubmitting ? 'Salvando...' : (selectedConsultation ? 'Salvar Alterações' : 'Finalizar Consulta')}
@@ -1433,20 +1433,20 @@ export const PatientProfile = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto mb-8 overflow-x-auto">
-          <TabsTrigger value="personal" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap">
+          <TabsTrigger value="personal" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
             <User className="w-4 h-4" /> Dados Pessoais
           </TabsTrigger>
 
-          <TabsTrigger value="consultations" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap">
+          <TabsTrigger value="consultations" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
             <Calendar className="w-4 h-4" /> Consultas
           </TabsTrigger>
-          <TabsTrigger value="mealplans" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap">
+          <TabsTrigger value="mealplans" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
             <FileText className="w-4 h-4" /> Planos Alimentares
           </TabsTrigger>
-          <TabsTrigger value="exams" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap">
+          <TabsTrigger value="exams" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
             <Beaker className="w-4 h-4" /> Exames
           </TabsTrigger>
-          <TabsTrigger value="evolution" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap">
+          <TabsTrigger value="evolution" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
             <TrendingUp className="w-4 h-4" /> Evolução
           </TabsTrigger>
         </TabsList>
@@ -1539,7 +1539,7 @@ export const PatientProfile = () => {
               </div>
               <Button
                 size="sm"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                 onClick={() => setIsConsultationModalOpen(true)}
                 disabled={
                   patient.status === 'inactive' ||
@@ -1588,7 +1588,7 @@ export const PatientProfile = () => {
                         <div className="flex items-center gap-3">
                           <span className={cn(
                             "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
-                            consultation.status === 'realized' ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                            consultation.status === 'realized' ? "bg-primary/15 text-primary" : "bg-red-100 text-red-700"
                           )}>
                             {consultation.status === 'realized' ? 'Realizada' : 'Cancelada'}
                           </span>
@@ -1597,7 +1597,7 @@ export const PatientProfile = () => {
                             <Button
                               variant="ghost"
                               size="icon-sm"
-                              className="text-muted-foreground hover:text-emerald-600 disabled:opacity-30"
+                              className="text-muted-foreground hover:text-primary disabled:opacity-30"
                               disabled={patient.status === 'inactive'}
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -1608,7 +1608,7 @@ export const PatientProfile = () => {
                             >
                               <Calculator className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-emerald-600 disabled:opacity-30" disabled={patient.status === 'inactive'} title="Editar consulta" onClick={(e) => {
+                            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-primary disabled:opacity-30" disabled={patient.status === 'inactive'} title="Editar consulta" onClick={(e) => {
                               e.stopPropagation();
                               setSelectedConsultation(consultation);
                               resetConsultation({
@@ -1675,7 +1675,7 @@ export const PatientProfile = () => {
                             <div className="space-y-4">
                               <div>
                                 <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
-                                  <AlertCircle className="w-3 h-3 text-emerald-500" /> Queixas Principais
+                                  <AlertCircle className="w-3 h-3 text-primary" /> Queixas Principais
                                 </h4>
                                 <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl border border-border min-h-[80px]">
                                   {consultation.complaints || 'Nenhuma queixa registrada.'}
@@ -1683,7 +1683,7 @@ export const PatientProfile = () => {
                               </div>
                               <div>
                                 <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
-                                  <TrendingUp className="w-3 h-3 text-emerald-500" /> Objetivos
+                                  <TrendingUp className="w-3 h-3 text-primary" /> Objetivos
                                 </h4>
                                 <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl border border-border min-h-[80px]">
                                   {consultation.objectives || 'Nenhum objetivo registrado.'}
@@ -1693,7 +1693,7 @@ export const PatientProfile = () => {
                             <div className="space-y-4">
                               <div>
                                 <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
-                                  <FileText className="w-3 h-3 text-emerald-500" /> Anamnese / Evolução
+                                  <FileText className="w-3 h-3 text-primary" /> Anamnese / Evolução
                                 </h4>
                                 <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl border border-border min-h-[180px] whitespace-pre-wrap">
                                   {consultation.anamnesis || 'Nenhuma anamnese registrada.'}
@@ -1712,13 +1712,13 @@ export const PatientProfile = () => {
                           <div className="pt-6 border-t border-border mt-6">
                             <div className="flex justify-between items-center mb-4">
                               <h4 className="text-sm font-bold text-muted-foreground flex items-center gap-2">
-                                <Calculator className="w-4 h-4 text-emerald-500" /> Cálculos Nutricionais
+                                <Calculator className="w-4 h-4 text-primary" /> Cálculos Nutricionais
                               </h4>
                                 <div className="flex items-center gap-2">
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 h-8 text-xs"
+                                    className="text-primary border-primary/30 hover:bg-primary/10 h-8 text-xs"
                                     onClick={() => navigate(`/patients/${id}/meal-plan/new`, { state: { consultationId: consultation.id } })}
                                   >
                                     <Plus className="w-3.5 h-3.5 mr-1" /> Criar Plano
@@ -1726,7 +1726,7 @@ export const PatientProfile = () => {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="text-emerald-700 border-emerald-200 hover:bg-emerald-50 h-8 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                                    className="text-primary border-primary/30 hover:bg-primary/10 h-8 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                                     title={
                                       !isPremium && calculations.some(c => c.consultation_id === consultation.id)
                                         ? 'Plano gratuito: 1 cálculo por consulta'
@@ -1753,7 +1753,7 @@ export const PatientProfile = () => {
                                         <p className="text-xs text-muted-foreground">{formatDateSafely(calc.createdAt, "dd 'de' MMMM 'de' yyyy")}</p>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-sm font-black text-emerald-600">{calc.result.getAjustado} kcal</p>
+                                        <p className="text-sm font-black text-primary">{calc.result.getAjustado} kcal</p>
                                         <p className="text-[10px] text-muted-foreground uppercase font-bold">{calc.result.formulaUtilizada.replace('_', '/')}</p>
                                       </div>
                                     </div>
@@ -1808,7 +1808,7 @@ export const PatientProfile = () => {
                                     <div className="flex justify-end pt-2">
                                       <Button
                                         size="sm"
-                                        className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm text-xs h-8"
+                                        className="bg-primary hover:bg-primary/90 text-white rounded-lg shadow-sm text-xs h-8"
                                         onClick={() => navigate(`/patients/${id}/meal-plan/new`, { state: { calculation: calc } })}
                                       >
                                         Criar Plano Alimentar
@@ -1833,19 +1833,19 @@ export const PatientProfile = () => {
               )}
 
               {hasHiddenHistory && (
-                <div className="mt-6 p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="mt-6 p-4 rounded-xl bg-primary/10 border border-primary/20 flex flex-col md:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                      <Zap className="w-5 h-5 text-emerald-600" />
+                    <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                      <Zap className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-emerald-900">Histórico Oculto</p>
-                      <p className="text-xs text-emerald-700">Existem consultas mais antigas que não estão visíveis no plano gratuito.</p>
+                      <p className="text-sm font-bold text-foreground">Histórico Oculto</p>
+                      <p className="text-xs text-primary">Existem consultas mais antigas que não estão visíveis no plano gratuito.</p>
                     </div>
                   </div>
                   <Button
                     onClick={() => setIsUpgradeModalOpen(true)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl h-8 px-4 text-xs gap-2 shrink-0"
+                    className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl h-8 px-4 text-xs gap-2 shrink-0"
                   >
                     Ver Tudo com Premium
                   </Button>
@@ -1863,7 +1863,7 @@ export const PatientProfile = () => {
                 <CardDescription>Gerencie as dietas prescritas.</CardDescription>
               </div>
               <div className="flex flex-col items-end text-right gap-3">
-                <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded-full">
+                <span className="text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/10 px-2 py-1 rounded-full">
                   Jornada do Paciente
                 </span>
               </div>
@@ -1873,7 +1873,7 @@ export const PatientProfile = () => {
               {mealPlans.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {mealPlans.map((plan) => (
-                    <div key={plan.id} className="p-4 rounded-xl border border-border hover:border-emerald-200 transition-colors">
+                    <div key={plan.id} className="p-4 rounded-xl border border-border hover:border-primary/30 transition-colors">
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <p className="font-bold text-foreground">{plan.name || `Plano Alimentar #${plan.id.slice(0, 4)}`}</p>
@@ -1881,7 +1881,7 @@ export const PatientProfile = () => {
                         </div>
                         <span className={cn(
                           "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
-                          plan.status === 'active' ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"
+                          plan.status === 'active' ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
                         )}>
                           {plan.status === 'active' ? 'Ativo' : 'Arquivado'}
                         </span>
@@ -1890,10 +1890,10 @@ export const PatientProfile = () => {
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => viewMealPlan(plan)}>Visualizar</Button>
                         <Button variant="outline" size="sm" className="flex-1 disabled:opacity-50" onClick={() => editMealPlan(plan)} disabled={patient.status === 'inactive'}>Editar</Button>
 
-                        <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50" onClick={() => sendMealPlanByEmail(plan)} title="Enviar por E-mail">
+                        <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => sendMealPlanByEmail(plan)} title="Enviar por E-mail">
                           <Mail className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50" onClick={() => exportMealPlanPDF(plan)} title="Imprimir PDF">
+                        <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => exportMealPlanPDF(plan)} title="Imprimir PDF">
                           <Printer className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="sm" className="px-2 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30" onClick={() => deleteMealPlan(plan.id)} disabled={patient.status === 'inactive'} title="Excluir plano">
@@ -1946,9 +1946,9 @@ export const PatientProfile = () => {
 
               <div className="flex-1 overflow-y-auto p-6 space-y-8 print:p-0">
                 {/* Print Header (Only visible when printing) */}
-                <div className="hidden print:flex items-center justify-between mb-8 pb-6 border-b border-emerald-200">
+                <div className="hidden print:flex items-center justify-between mb-8 pb-6 border-b border-primary/30">
                   <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xl">
+                    <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-xl">
                       N
                     </div>
                     <div>
@@ -1957,12 +1957,12 @@ export const PatientProfile = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <h3 className="text-lg font-bold text-emerald-700 uppercase tracking-wider">Plano Alimentar</h3>
+                    <h3 className="text-lg font-bold text-primary uppercase tracking-wider">Plano Alimentar</h3>
                     <p className="text-xs text-muted-foreground">{selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}</p>
                   </div>
                 </div>
 
-                <div className="hidden print:grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-6 bg-card border border-emerald-100 rounded-2xl">
+                <div className="hidden print:grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-6 bg-card border border-primary/20 rounded-2xl">
                   <div>
                     <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Paciente</p>
                     <p className="font-bold text-foreground text-lg">{patient?.name}</p>
@@ -1979,7 +1979,7 @@ export const PatientProfile = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4">
                   <SummaryCard label="Calorias" value={viewMealTotals.kcal} unit="kcal" icon={Activity} color="bg-orange-50 text-orange-600" progressColor="bg-orange-500" />
                   <SummaryCard label="Proteínas" value={viewMealTotals.protein} unit="g" icon={Dna} color="bg-blue-50 text-blue-600" progressColor="bg-blue-500" />
-                  <SummaryCard label="Carboidratos" value={viewMealTotals.carbs} unit="g" icon={Zap} color="bg-emerald-50 text-emerald-600" progressColor="bg-emerald-500" />
+                  <SummaryCard label="Carboidratos" value={viewMealTotals.carbs} unit="g" icon={Zap} color="bg-primary/10 text-primary" progressColor="bg-primary/100" />
                   <SummaryCard label="Gorduras" value={viewMealTotals.fat} unit="g" icon={Droplets} color="bg-purple-50 text-purple-600" progressColor="bg-purple-500" />
                 </div>
 
@@ -2001,8 +2001,8 @@ export const PatientProfile = () => {
                   </div>
                   <div>
                     <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
-                      <div className="flex items-center gap-3 text-emerald-600 mb-2">
-                        <div className="p-2 rounded-xl bg-emerald-50">
+                      <div className="flex items-center gap-3 text-primary mb-2">
+                        <div className="p-2 rounded-xl bg-primary/10">
                           <Activity className="w-5 h-5" />
                         </div>
                         <h4 className="font-bold uppercase tracking-wider text-xs">Orientações Gerais</h4>
@@ -2179,9 +2179,9 @@ export const PatientProfile = () => {
         {/* Hidden Print Container - Always in DOM for silent printing */}
         <div className="hidden print-content-wrapper pointer-events-none opacity-0 fixed -z-50">
           <div className="p-8 bg-card">
-            <div className="flex items-center justify-between mb-8 pb-6 border-b border-emerald-200">
+            <div className="flex items-center justify-between mb-8 pb-6 border-b border-primary/30">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-xl">
+                <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-xl">
                   N
                 </div>
                 <div>
@@ -2190,12 +2190,12 @@ export const PatientProfile = () => {
                 </div>
               </div>
               <div className="text-right">
-                <h3 className="text-lg font-bold text-emerald-700 uppercase tracking-wider">Plano Alimentar</h3>
+                <h3 className="text-lg font-bold text-primary uppercase tracking-wider">Plano Alimentar</h3>
                 <p className="text-xs text-muted-foreground">{selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 mb-8 p-6 bg-card border border-emerald-100 rounded-2xl">
+            <div className="grid grid-cols-2 gap-6 mb-8 p-6 bg-card border border-primary/20 rounded-2xl">
               <div>
                 <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Paciente</p>
                 <p className="font-bold text-foreground text-lg">{patient?.name}</p>
@@ -2229,7 +2229,7 @@ export const PatientProfile = () => {
 
             {selectedMealPlan?.generalInstructions && (
               <div className="mb-8">
-                <h4 className="font-bold text-emerald-800 text-sm uppercase tracking-widest mb-2">Orientações Gerais</h4>
+                <h4 className="font-bold text-secondary-foreground text-sm uppercase tracking-widest mb-2">Orientações Gerais</h4>
                 <div className="p-5 bg-card rounded-xl border border-border text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">
                   {selectedMealPlan.generalInstructions}
                 </div>
@@ -2309,7 +2309,7 @@ export const PatientProfile = () => {
               }}>
                 <PremiumFeature active={isLabExamLimitReached}>
                   <DialogTrigger
-                    render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" disabled={patient.status === 'inactive'} />}
+                    render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" disabled={patient.status === 'inactive'} />}
                     nativeButton={true}
                   >
                     <Plus className="w-4 h-4" /> Registrar Exame
@@ -2467,7 +2467,7 @@ export const PatientProfile = () => {
                       </Button>
                       <Button
                         type="submit"
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
+                        className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
                       >
                         {selectedExam ? 'Atualizar Exame' : 'Salvar Exame'}
                       </Button>
@@ -2493,7 +2493,7 @@ export const PatientProfile = () => {
                             <p className="font-bold text-foreground">{exam.title || 'Exame laboratorial'}</p>
                             <div className="flex items-center gap-2 mt-1">
                               <p className="text-sm text-muted-foreground">{formatDateSafely(exam.date, "dd 'de' MMMM 'de' yyyy")}</p>
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold uppercase tracking-wider">
+                              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
                                 {exam.markers?.length || 0} marcadores
                               </span>
 
@@ -2504,7 +2504,7 @@ export const PatientProfile = () => {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            className="text-muted-foreground hover:text-emerald-600 disabled:opacity-30"
+                            className="text-muted-foreground hover:text-primary disabled:opacity-30"
                             title="Editar exame"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -2563,7 +2563,7 @@ export const PatientProfile = () => {
                                     <td className="px-4 py-3">
                                       <span className={cn(
                                         "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
-                                        marker.status === 'normal' ? "bg-emerald-50 text-emerald-600" :
+                                        marker.status === 'normal' ? "bg-primary/10 text-primary" :
                                           marker.status === 'alto' ? "bg-red-50 text-red-600" :
                                             marker.status === 'baixo' ? "bg-orange-50 text-orange-600" :
                                               "bg-blue-50 text-blue-600"
@@ -2593,19 +2593,19 @@ export const PatientProfile = () => {
               )}
 
               {hasHiddenHistory && (
-                <div className="mt-6 p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="mt-6 p-4 rounded-xl bg-primary/10 border border-primary/20 flex flex-col md:flex-row items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-                      <Zap className="w-5 h-5 text-emerald-600" />
+                    <div className="w-10 h-10 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                      <Zap className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-emerald-900">Histórico Oculto</p>
-                      <p className="text-xs text-emerald-700">Existem exames mais antigos que não estão visíveis no plano gratuito.</p>
+                      <p className="text-sm font-bold text-foreground">Histórico Oculto</p>
+                      <p className="text-xs text-primary">Existem exames mais antigos que não estão visíveis no plano gratuito.</p>
                     </div>
                   </div>
                   <Button
                     onClick={() => setIsUpgradeModalOpen(true)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl h-8 px-4 text-xs gap-2 shrink-0"
+                    className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl h-8 px-4 text-xs gap-2 shrink-0"
                   >
                     Ver Tudo com Premium
                   </Button>
@@ -2905,7 +2905,7 @@ export const PatientProfile = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
+                className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
               >
                 Salvar Alterações
               </Button>

@@ -33,8 +33,8 @@ export function LandingNavbar() {
             onClick={() => navigate('/')}
             className="flex items-center gap-2"
           >
-            <div className="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">N</span>
+            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-lg">N</span>
             </div>
             <span className="font-bold text-xl">Nutrir</span>
           </button>
@@ -69,8 +69,8 @@ export function LandingNavbar() {
               <DropdownMenu>
                 <DropdownMenuTrigger render={
                   <Button variant="ghost" className="flex items-center gap-2 text-sm font-medium">
-                    <div className="w-7 h-7 rounded-full bg-emerald-600 flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">{firstName.charAt(0).toUpperCase()}</span>
+                    <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
+                      <span className="text-primary-foreground text-xs font-bold">{firstName.charAt(0).toUpperCase()}</span>
                     </div>
                     <span className="hidden sm:inline">{firstName}</span>
                     <ChevronDown className="w-3 h-3 text-muted-foreground" />
@@ -83,7 +83,7 @@ export function LandingNavbar() {
                   </div>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate('/dashboard')} className="cursor-pointer gap-2">
-                    <LayoutDashboard className="w-4 h-4 text-emerald-600" />
+                    <LayoutDashboard className="w-4 h-4 text-primary" />
                     Área do Nutricionista
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
@@ -100,7 +100,7 @@ export function LandingNavbar() {
                 </Button>
                 <Button
                   onClick={() => navigate('/register')}
-                  className="text-sm bg-emerald-600 hover:bg-emerald-700 text-white"
+                  className="text-sm bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   <span className="hidden sm:inline">Começar Grátis</span>
                   <span className="sm:hidden">Grátis</span>

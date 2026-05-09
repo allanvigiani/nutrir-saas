@@ -168,7 +168,7 @@ export function MealPlanEdit() {
     return (
       <div className="flex h-screen items-center justify-center bg-muted/30">
         <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mx-auto" />
+          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
           <p className="text-muted-foreground font-medium">Carregando editor...</p>
         </div>
       </div>
