@@ -38,7 +38,7 @@ export function Contato() {
       <main className="pt-24 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
           <div className="text-center space-y-4 mb-16">
-            <h1 className="text-4xl font-bold">Entre em <span className="text-emerald-600">Contato</span></h1>
+            <h1 className="text-4xl font-bold">Entre em <span className="text-primary">Contato</span></h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Tem alguma dúvida, sugestão ou precisa de suporte? Nossa equipe está pronta para ajudar.
             </p>
@@ -49,10 +49,10 @@ export function Contato() {
             <div className="space-y-4">
               <Card>
                 <CardContent className="pt-6 space-y-3">
-                  <Mail className="w-8 h-8 text-emerald-600" />
+                  <Mail className="w-8 h-8 text-primary" />
                   <h3 className="font-semibold">E-mail</h3>
                   <p className="text-sm text-muted-foreground">Para suporte e dúvidas gerais</p>
-                  <a href="mailto:contato@nutrir.app" className="text-sm text-emerald-600 hover:underline">
+                  <a href="mailto:contato@nutrir.app" className="text-sm text-primary hover:underline">
                     contato@nutrir.app
                   </a>
                 </CardContent>
@@ -60,7 +60,7 @@ export function Contato() {
 
               <Card>
                 <CardContent className="pt-6 space-y-3">
-                  <Clock className="w-8 h-8 text-emerald-600" />
+                  <Clock className="w-8 h-8 text-primary" />
                   <h3 className="font-semibold">Horário de Atendimento</h3>
                   <p className="text-sm text-muted-foreground">Segunda a Sexta<br />09h – 18h (BRT)</p>
                 </CardContent>
@@ -105,7 +105,7 @@ export function Contato() {
 
                     <Button
                       type="submit"
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+                      className="w-full bg-primary hover:bg-primary/90 text-white"
                       size="lg"
                       disabled={isSubmitting}
                     >

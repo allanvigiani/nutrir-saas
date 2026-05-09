@@ -44,14 +44,14 @@ export function Privacidade() {
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">5. Seus Direitos (LGPD)</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Em conformidade com a Lei Geral de Proteção de Dados (Lei 13.709/2018), você tem direito a: acessar, corrigir ou excluir seus dados; revogar consentimentos; e solicitar portabilidade. Entre em contato via <a href="mailto:privacidade@nutrir.app" className="text-emerald-600 hover:underline">privacidade@nutrir.app</a>.
+              Em conformidade com a Lei Geral de Proteção de Dados (Lei 13.709/2018), você tem direito a: acessar, corrigir ou excluir seus dados; revogar consentimentos; e solicitar portabilidade. Entre em contato via <a href="mailto:privacidade@nutrir.app" className="text-primary hover:underline">privacidade@nutrir.app</a>.
             </p>
           </section>
 
           <section className="space-y-4">
             <h2 className="text-2xl font-semibold">6. Contato</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Para dúvidas sobre esta política, entre em contato com nosso Encarregado de Proteção de Dados (DPO) em <a href="mailto:privacidade@nutrir.app" className="text-emerald-600 hover:underline">privacidade@nutrir.app</a>.
+              Para dúvidas sobre esta política, entre em contato com nosso Encarregado de Proteção de Dados (DPO) em <a href="mailto:privacidade@nutrir.app" className="text-primary hover:underline">privacidade@nutrir.app</a>.
             </p>
           </section>
         </div>

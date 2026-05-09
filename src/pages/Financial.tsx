@@ -428,7 +428,7 @@ export const Financial = () => {
           <p className="text-muted-foreground">Gerencie pagamentos e emita recibos para seus pacientes.</p>
         </div>
         <Button 
-          className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95"
+          className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95"
           onClick={() => {
             reset();
             setIsModalOpen(true);
@@ -442,7 +442,7 @@ export const Financial = () => {
         <Card className="border-none shadow-sm">
           <CardContent className="py-4 px-6">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 border border-emerald-100">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
                 <CheckCircle2 className="w-6 h-6" />
               </div>
               <div>
@@ -495,7 +495,7 @@ export const Financial = () => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input 
                   placeholder="Buscar por paciente..." 
-                  className="pl-10 w-full sm:w-64 rounded-xl border-border focus:ring-emerald-500"
+                  className="pl-10 w-full sm:w-64 rounded-xl border-border focus:ring-primary"
                   value={searchTerm}
                   onChange={(e) => {
                     setSearchTerm(e.target.value);
@@ -569,7 +569,7 @@ export const Financial = () => {
                   <tr>
                     <td colSpan={6} className="px-6 py-12 text-center">
                       <div className="flex flex-col items-center gap-3">
-                        <div className="w-8 h-8 border-4 border-emerald-600/20 border-t-emerald-600 rounded-full animate-spin" />
+                        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin" />
                         <p className="text-muted-foreground font-medium">Carregando transações...</p>
                       </div>
                     </td>
@@ -616,7 +616,7 @@ export const Financial = () => {
                         <td className="px-6 py-4">
                           <span className={cn(
                             "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider inline-flex items-center gap-1.5",
-                            payment.status === 'paid' ? "bg-emerald-100 text-emerald-700" :
+                            payment.status === 'paid' ? "bg-primary/15 text-primary" :
                             payment.status === 'pending' ? "bg-amber-100 text-amber-700" :
                             "bg-red-100 text-red-700"
                           )}>
@@ -649,7 +649,7 @@ export const Financial = () => {
                             <Button 
                               variant="ghost" 
                               size="icon" 
-                              className="h-8 w-8 text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                              className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
                               title="Emitir Recibo"
                               onClick={() => generateReceipt(payment)}
                               disabled={payment.status !== 'paid'}
@@ -697,7 +697,7 @@ export const Financial = () => {
                       variant={currentPage === page ? 'default' : 'outline'}
                       className={cn(
                         "h-8 w-8 rounded-lg text-xs font-bold",
-                        currentPage === page ? "bg-emerald-600 hover:bg-emerald-700" : "border-border text-muted-foreground"
+                        currentPage === page ? "bg-primary hover:bg-primary/90" : "border-border text-muted-foreground"
                       )}
                       onClick={() => setCurrentPage(page)}
                     >
@@ -762,7 +762,7 @@ export const Financial = () => {
             <Button 
               type="button" 
               onClick={handleUpdatePaymentStatus}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
+              className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
             >
               Atualizar Status
             </Button>
@@ -774,7 +774,7 @@ export const Financial = () => {
         <DialogContent className="sm:max-w-[600px] rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
           <DialogHeader className="p-4 bg-muted/30 border-b border-border">
             <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-emerald-600" />
+              <DollarSign className="w-5 h-5 text-primary" />
               Novo Pagamento
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-sm">Registre uma nova entrada financeira no sistema.</DialogDescription>
@@ -785,7 +785,7 @@ export const Financial = () => {
               <div className="space-y-2">
                 <Label htmlFor="patient_id" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Paciente</Label>
                 <Select value={patientIdValue} onValueChange={(v) => setValue('patient_id', v)}>
-                  <SelectTrigger className="h-10 rounded-xl border-border focus:ring-emerald-500">
+                  <SelectTrigger className="h-10 rounded-xl border-border focus:ring-primary">
                     <SelectValue placeholder="Selecione o paciente">
                       {patients.find(p => p.id === patientIdValue)?.name}
                     </SelectValue>
@@ -805,7 +805,7 @@ export const Financial = () => {
                   <Input 
                     id="amount"
                     placeholder="0,00" 
-                    className="h-10 rounded-xl border-border focus:ring-emerald-500"
+                    className="h-10 rounded-xl border-border focus:ring-primary"
                     {...register('amount')}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -820,7 +820,7 @@ export const Financial = () => {
                   <Input 
                     id="date"
                     type="date" 
-                    className="h-10 rounded-xl border-border focus:ring-emerald-500"
+                    className="h-10 rounded-xl border-border focus:ring-primary"
                     {...register('date')}
                   />
                   {errors.date && <p className="text-xs text-red-500">{errors.date.message}</p>}
@@ -831,7 +831,7 @@ export const Financial = () => {
                 <div className="space-y-2">
                   <Label htmlFor="method" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Método</Label>
                   <Select value={methodValue} onValueChange={(v: any) => setValue('method', v)}>
-                    <SelectTrigger className="h-10 rounded-xl border-border focus:ring-emerald-500">
+                    <SelectTrigger className="h-10 rounded-xl border-border focus:ring-primary">
                       <SelectValue>
                         {methodValue === 'pix' ? 'PIX' : 
                          methodValue === 'credit_card' ? 'Cartão de Crédito' : 
@@ -852,7 +852,7 @@ export const Financial = () => {
                 <div className="space-y-2">
                   <Label htmlFor="status" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status</Label>
                   <Select value={statusValue} onValueChange={(v: any) => setValue('status', v)}>
-                    <SelectTrigger className="h-10 rounded-xl border-border focus:ring-emerald-500">
+                    <SelectTrigger className="h-10 rounded-xl border-border focus:ring-primary">
                       <SelectValue>
                         {statusValue === 'paid' ? 'Pago' : 
                          statusValue === 'pending' ? 'Pendente' : 
@@ -873,7 +873,7 @@ export const Financial = () => {
                 <Input 
                   id="description"
                   placeholder="Ex: Consulta de rotina, Pacote 5 sessões..." 
-                  className="h-10 rounded-xl border-border focus:ring-emerald-500"
+                  className="h-10 rounded-xl border-border focus:ring-primary"
                   {...register('description')}
                 />
               </div>
@@ -890,7 +890,7 @@ export const Financial = () => {
               </Button>
               <Button 
                 type="submit" 
-                className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" 
+                className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" 
                 disabled={isSubmitting}
               >
                 {isSubmitting ? 'Salvando...' : 'Registrar Pagamento'}

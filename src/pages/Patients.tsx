@@ -428,7 +428,7 @@ export const Patients = () => {
         }}>
           <PremiumFeature active={isLimitReached}>
             <DialogTrigger 
-              render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" onClick={openNewModal} />}
+              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" onClick={openNewModal} />}
               nativeButton={true}
             >
               <UserPlus className="w-4 h-4" /> Novo Paciente
@@ -510,7 +510,7 @@ export const Patients = () => {
 
               <div className="border-t pt-4">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-600" />
+                  <Activity className="w-4 h-4 text-primary" />
                   Dados Clínicos Iniciais
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -549,7 +549,7 @@ export const Patients = () => {
                 </Button>
                 <Button 
                   type="submit" 
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" 
+                  className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" 
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Salvando...' : editingPatient ? 'Salvar Alterações' : 'Salvar Paciente'}
@@ -594,7 +594,7 @@ export const Patients = () => {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       ) : filteredPatients.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -603,7 +603,7 @@ export const Patients = () => {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4 gap-4">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-lg shrink-0">
                       {patient.name.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -615,7 +615,7 @@ export const Patients = () => {
                     <div className={cn(
                       "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
                       patient.status === 'active' 
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
+                        ? "bg-primary/10 text-primary border-primary/30" 
                         : "bg-muted/30 text-muted-foreground border-border"
                     )}>
                       {patient.status === 'active' ? 'Ativo' : 'Inativo'}
@@ -625,7 +625,7 @@ export const Patients = () => {
                       size="icon"
                       className={cn(
                         "h-8 w-8 rounded-full",
-                        patient.status === 'active' ? "text-muted-foreground hover:text-red-500 hover:bg-red-50" : "text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50"
+                        patient.status === 'active' ? "text-muted-foreground hover:text-red-500 hover:bg-red-50" : "text-muted-foreground hover:text-primary hover:bg-primary/10"
                       )}
                       onClick={() => togglePatientStatus(patient)}
                       title={patient.status === 'active' ? 'Desativar Paciente' : 'Ativar Paciente'}
@@ -663,7 +663,7 @@ export const Patients = () => {
                   {!patient.access_token ? (
                     <Button 
                       variant="outline" 
-                      className="flex-1 h-8 text-[10px] font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      className="flex-1 h-8 text-[10px] font-bold border-primary/30 text-primary hover:bg-primary/10"
                       onClick={() => generateAccessToken(patient)}
                       disabled={isGeneratingToken === patient.id || patient.status === 'inactive'}
                     >
@@ -672,7 +672,7 @@ export const Patients = () => {
                   ) : (
                     <Button 
                       variant="outline" 
-                      className="flex-1 h-8 text-[10px] font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      className="flex-1 h-8 text-[10px] font-bold border-primary/30 text-primary hover:bg-primary/10"
                       onClick={() => shareAccessLink(patient)}
                       disabled={patient.status === 'inactive'}
                     >

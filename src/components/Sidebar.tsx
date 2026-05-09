@@ -31,10 +31,10 @@ const SidebarItem = ({
     to={to}
     title={collapsed ? label : undefined}
     className={cn(
-      "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
+      "flex items-center gap-3 px-3 py-2.5 transition-all duration-200 group",
       active
-        ? "bg-primary text-primary-foreground shadow-sm"
-        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+        ? "bg-primary text-primary-foreground shadow-sm rounded-full"
+        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-lg"
     )}
   >
     <Icon className={cn("w-4.5 h-4.5 shrink-0", collapsed && "w-5 h-5")} />

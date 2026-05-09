@@ -54,7 +54,7 @@ export const ForgotPassword = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <div className="max-w-md w-full bg-card rounded-3xl shadow-xl shadow-slate-200/60 p-8 text-center space-y-6">
-          <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
+          <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10" />
           </div>
           <div className="space-y-2">
@@ -66,7 +66,7 @@ export const ForgotPassword = () => {
           </div>
           <Button 
             onClick={() => navigate('/login')}
-            className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl"
+            className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl"
           >
             Voltar para o Login
           </Button>
@@ -84,7 +84,7 @@ export const ForgotPassword = () => {
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">N</span>
               </div>
               <span className="font-bold text-foreground">Nutrir</span>
@@ -107,7 +107,7 @@ export const ForgotPassword = () => {
                     id="email" 
                     type="email" 
                     placeholder="exemplo@email.com" 
-                    className="h-12 rounded-xl border-border focus:ring-emerald-500 focus:border-emerald-500 pl-11"
+                    className="h-12 rounded-xl border-border focus:ring-primary focus:border-primary pl-11"
                     {...form.register('email')}
                   />
                   <Mail className="w-5 h-5 text-muted-foreground absolute left-4 top-1/2 -translate-y-1/2" />
@@ -117,7 +117,7 @@ export const ForgotPassword = () => {
 
               <Button 
                 type="submit" 
-                className="w-full h-12 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-100 transition-all" 
+                className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/10 transition-all" 
                 disabled={isLoading}
               >
                 {isLoading ? 'Enviando...' : 'Enviar Link de Redefinição'}

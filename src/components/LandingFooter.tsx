@@ -9,8 +9,8 @@ export function LandingFooter() {
         <div className="grid md:grid-cols-4 gap-8 mb-12">
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">N</span>
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-sm">N</span>
               </div>
               <span className="font-bold">Nutrir</span>
             </div>

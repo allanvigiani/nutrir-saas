@@ -394,7 +394,7 @@ export const Register = () => {
       </div>
 
       {/* Right Side - Brand Panel (mesmo padrão do Login) */}
-      <div className="hidden md:flex flex-1 relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-500">
+      <div className="hidden md:flex flex-1 relative overflow-hidden bg-gradient-to-br from-primary/90 via-primary to-primary/70">
         {registerHeroImageUrl ? (
           <img
             src={registerHeroImageUrl}

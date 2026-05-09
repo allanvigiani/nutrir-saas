@@ -312,7 +312,7 @@ export const Login = () => {
       </div>
 
       {/* Right Side - Brand Panel */}
-      <div className="hidden md:flex flex-1 relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-600 to-emerald-500">
+      <div className="hidden md:flex flex-1 relative overflow-hidden bg-gradient-to-br from-primary/90 via-primary to-primary/70">
         {loginHeroImageUrl ? (
           <img
             src={loginHeroImageUrl}
@@ -357,7 +357,7 @@ export const Login = () => {
               <div className="flex justify-center gap-3 pt-2">
                 <div className="flex -space-x-3">
                   {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="w-9 h-9 rounded-full border-2 border-emerald-600 bg-emerald-100 overflow-hidden">
+                    <div key={i} className="w-9 h-9 rounded-full border-2 border-primary bg-primary/15 overflow-hidden">
                       <img src={`${loginAvatarBaseUrl}?img=${i + 10}`} alt="User" />
                     </div>
                   ))}

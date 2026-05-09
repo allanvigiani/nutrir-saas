@@ -156,10 +156,10 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-foreground text-sm">{food.name}</span>
                     {('nutritionist_id' in food) && (
-                      <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold uppercase">Próprio</span>
+                      <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold uppercase">Próprio</span>
                     )}
                   </div>
-                  {value === food.name && <Check className="w-4 h-4 text-emerald-600" />}
+                  {value === food.name && <Check className="w-4 h-4 text-primary" />}
                 </div>
                 <div className="flex gap-3 text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
                   <span>{formatKcal(food.kcal)} kcal</span>
@@ -168,7 +168,7 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
                   <span>G: {formatMacro(food.fat)}g</span>
                   <span>Base: {formatBaseQuantity(food.baseQuantity)}{food.baseUnit}</span>
                   {food.serving && (
-                    <span className="text-emerald-600 font-bold">1 {food.serving.name} = {Math.round(food.serving.weight)}g</span>
+                    <span className="text-primary font-bold">1 {food.serving.name} = {Math.round(food.serving.weight)}g</span>
                   )}
                 </div>
               </button>
@@ -182,7 +182,7 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
                     onAddNew(value);
                     setIsOpen(false);
                   }}
-                  className="flex items-center justify-center gap-2 w-full py-2 px-4 bg-emerald-50 text-emerald-700 rounded-lg font-bold text-sm hover:bg-emerald-100 transition-colors"
+                  className="flex items-center justify-center gap-2 w-full py-2 px-4 bg-primary/10 text-primary rounded-lg font-bold text-sm hover:bg-primary/15 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
                   Cadastrar "{value}"

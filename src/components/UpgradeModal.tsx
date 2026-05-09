@@ -32,8 +32,8 @@ export const UpgradeModal = ({ isOpen, onClose }: UpgradeModalProps) => {
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <div className="mx-auto w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mb-4">
-            <ShieldCheck className="w-6 h-6 text-emerald-600" />
+          <div className="mx-auto w-12 h-12 rounded-full bg-primary/15 flex items-center justify-center mb-4">
+            <ShieldCheck className="w-6 h-6 text-primary" />
           </div>
           <DialogTitle className="text-2xl text-center font-bold text-foreground">
             Seja Premium no Nutrir
@@ -46,8 +46,8 @@ export const UpgradeModal = ({ isOpen, onClose }: UpgradeModalProps) => {
         <div className="space-y-4 py-4">
           {benefits.map((benefit, index) => (
             <div key={index} className="flex items-start gap-3">
-              <div className="mt-1 w-5 h-5 rounded-full bg-emerald-50 flex items-center justify-center shrink-0">
-                <Check className="w-3 h-3 text-emerald-600" />
+              <div className="mt-1 w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                <Check className="w-3 h-3 text-primary" />
               </div>
               <div className="flex gap-2 items-center">
                 <benefit.icon className="w-4 h-4 text-muted-foreground" />
@@ -67,7 +67,7 @@ export const UpgradeModal = ({ isOpen, onClose }: UpgradeModalProps) => {
           <Button 
             onClick={handleSubscribe}
             disabled={isSubscribing}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-6 rounded-xl shadow-lg shadow-emerald-100 transition-all active:scale-[0.98]"
+            className="w-full bg-primary hover:bg-primary/90 text-white font-semibold py-6 rounded-xl shadow-lg shadow-primary/10 transition-all active:scale-[0.98]"
           >
             {isSubscribing ? (
               <>
