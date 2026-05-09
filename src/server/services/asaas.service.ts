@@ -32,25 +32,33 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           lastSubscriptionCheck: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
-        try {
-          const userDoc = await getDocWithFallback("nutritionists", userId);
-          if (userDoc.exists) {
-            const userData = userDoc.data;
-            if (userData?.email) {
-              logger.info(`[Asaas Service] Enviando email de boas-vindas Premium`, { userId, email: userData.email });
-              await sendEmail({
-                to: userData.email,
-                subject: "💎 Bem-vindo ao Plano Premium Nutrir!",
-                html: getPremiumWelcomeTemplate(userData.name || "Nutricionista"),
-              });
+        // Envia email de boas-vindas apenas uma vez (PAYMENT_RECEIVED é o evento definitivo;
+        // PAYMENT_CONFIRMED pode chegar junto — checa se já enviou antes via welcomeEmailSentAt)
+        if (event.event === "PAYMENT_RECEIVED") {
+          try {
+            const userDoc = await getDocWithFallback("nutritionists", userId);
+            if (userDoc.exists) {
+              const userData = userDoc.data;
+              if (userData?.email && !userData?.welcomeEmailSentAt) {
+                logger.info(`[Asaas Service] Enviando email de boas-vindas Premium`, { userId, email: userData.email });
+                await sendEmail({
+                  to: userData.email,
+                  subject: "💎 Bem-vindo ao Plano Premium Nutrir!",
+                  html: getPremiumWelcomeTemplate(userData.name || "Nutricionista"),
+                });
+                await updateUserData({ welcomeEmailSentAt: new Date().toISOString() });
+              }
             }
+          } catch (error) {
+            logger.error("[Email] Erro ao enviar boas-vindas Premium no webhook", error, { userId });
           }
-        } catch (error) {
-          logger.error("[Email] Erro ao enviar boas-vindas Premium no webhook", error, { userId });
         }
         break;
       case "PAYMENT_OVERDUE":
         await updateUserData({ subscriptionStatus: "overdue", updatedAt: new Date().toISOString() });
+        break;
+      case "PAYMENT_CANCELLED":
+        await updateUserData({ subscriptionStatus: "cancelled", updatedAt: new Date().toISOString() });
         break;
       case "PAYMENT_REFUNDED":
       case "PAYMENT_CHARGEBACK_REQUESTED":
@@ -111,13 +119,13 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
       customer = customers.data[0];
       if (!customer.externalReference) {
         await asaasClient.request(`/customers/${customer.id}`, {
-          method: "POST",
+          method: "PUT",
           body: JSON.stringify({ externalReference: userId }),
         });
       }
       if (!customer.cpfCnpj && sanitizedCpfCnpj) {
         customer = await asaasClient.request(`/customers/${customer.id}`, {
-          method: "POST",
+          method: "PUT",
           body: JSON.stringify({ cpfCnpj: sanitizedCpfCnpj }),
         });
       }
@@ -182,8 +190,14 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
     const activeSub = sortedSubs.find((s: any) => s.status === "ACTIVE");
     const sub = activeSub || sortedSubs[0];
 
-    const payments = await asaasClient.request(`/payments?subscription=${sub.id}&status=CONFIRMED,RECEIVED`);
-    const hasPaidPayment = payments.data && payments.data.length > 0;
+    // Asaas não aceita múltiplos status num único parâmetro — consultas separadas
+    const [confirmedPayments, receivedPayments] = await Promise.all([
+      asaasClient.request(`/payments?subscription=${sub.id}&status=CONFIRMED`),
+      asaasClient.request(`/payments?subscription=${sub.id}&status=RECEIVED`),
+    ]);
+    const hasPaidPayment =
+      (confirmedPayments.data && confirmedPayments.data.length > 0) ||
+      (receivedPayments.data && receivedPayments.data.length > 0);
     const nextDueDate = sub.nextDueDate ? new Date(sub.nextDueDate + "T23:59:59") : null;
     const now = new Date();
 

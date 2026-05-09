@@ -274,7 +274,8 @@ describe('AsaasService.verifySubscription', () => {
     asaasClient.request
       .mockResolvedValueOnce({ data: [{ id: 'cust_1' }] })
       .mockResolvedValueOnce({ data: [{ id: 'sub_1', status: 'ACTIVE', dateCreated: '2026-01-01', nextDueDate: dueDateStr }] })
-      .mockResolvedValueOnce({ data: [{ id: 'pay_1' }] }); // pagamento confirmado
+      .mockResolvedValueOnce({ data: [{ id: 'pay_1' }] }) // ?status=CONFIRMED
+      .mockResolvedValueOnce({ data: [] });                // ?status=RECEIVED
 
     const result = await service.verifySubscription('premium@test.com');
     expect(result.plan).toBe('premium');
@@ -285,7 +286,8 @@ describe('AsaasService.verifySubscription', () => {
     asaasClient.request
       .mockResolvedValueOnce({ data: [{ id: 'cust_1' }] })
       .mockResolvedValueOnce({ data: [{ id: 'sub_1', status: 'ACTIVE', dateCreated: '2026-01-01', nextDueDate: '2026-05-01' }] })
-      .mockResolvedValueOnce({ data: [] }); // sem pagamentos
+      .mockResolvedValueOnce({ data: [] }) // ?status=CONFIRMED
+      .mockResolvedValueOnce({ data: [] }); // ?status=RECEIVED
 
     const result = await service.verifySubscription('pending@test.com');
     expect(result.plan).toBe('free');

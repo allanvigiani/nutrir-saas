@@ -24,14 +24,20 @@ export function createAsaasClient({ asaasApiUrl, asaasApiKey }: CreateAsaasClien
         method: options.method || "GET"
       });
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15_000);
+
       const response = await fetch(url, {
         ...options,
+        signal: controller.signal,
         headers: {
           access_token: asaasApiKey || "",
           "Content-Type": "application/json",
           ...options.headers,
         },
       });
+
+      clearTimeout(timeoutId);
 
       const text = await response.text();
       logger.debug(`[Asaas API] Response: ${response.status} for ${apiPath}`, { status: response.status });
