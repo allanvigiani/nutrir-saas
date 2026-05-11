@@ -1,0 +1,89 @@
+{
+  "skill_name": "asaas-integration",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Tem um bug no sistema de assinaturas: quando o usuário cancela o plano premium dentro dos 7 dias, o reembolso está sendo processado mas o campo `hadRefundBefore` não está sendo salvo no Firestore quando o usuário não é encontrado pelo email na collection `nutritionists`. O resultado é que o usuário consegue pedir reembolso múltiplas vezes. Como corrigir esse bug sem quebrar o fluxo normal de cancelamento?",
+      "expected_output": "Identificar a falha na lógica de cancelamento no asaas.service.ts onde hadRefundBefore só é atualizado se userDocId foi encontrado, e propor correção que garanta que o refund só seja processado se o usuário for encontrado, ou que grave hadRefundBefore mesmo antes de processar o reembolso.",
+      "files": ["src/server/services/asaas.service.ts"],
+      "assertions": [
+        {
+          "text": "References the correct file src/server/services/asaas.service.ts",
+          "passed": null,
+          "evidence": null
+        },
+        {
+          "text": "Identifies that hadRefundBefore is only set inside the userDocId block after the refund",
+          "passed": null,
+          "evidence": null
+        },
+        {
+          "text": "Proposes a fix that prevents duplicate refunds (e.g. check hadRefundBefore before processing, or ensure the userId lookup happens first)",
+          "passed": null,
+          "evidence": null
+        },
+        {
+          "text": "Does NOT suggest breaking changes to the factory function signature or Firestore schema",
+          "passed": null,
+          "evidence": null
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Preciso implementar o tratamento do evento de webhook `PAYMENT_DUNNING_RECEIVED` no sistema. Esse evento é disparado pelo Asaas quando um pagamento em atraso é finalmente recuperado via régua de cobrança (dunning). O comportamento deve ser igual ao PAYMENT_CONFIRMED: liberar o premium e não enviar o email de boas-vindas (pois o usuário já era premium antes). Como implementar isso corretamente?",
+      "expected_output": "Adicionar case PAYMENT_DUNNING_RECEIVED no switch do handleWebhookEvent no asaas.service.ts, com comportamento similar a PAYMENT_CONFIRMED mas sem o bloco de envio de email, e adicionar o teste correspondente.",
+      "files": ["src/server/services/asaas.service.ts", "src/tests/services/asaas.service.test.ts"],
+      "assertions": [
+        {
+          "text": "Adds PAYMENT_DUNNING_RECEIVED case to the switch in handleWebhookEvent",
+          "passed": null,
+          "evidence": null
+        },
+        {
+          "text": "Sets plan: 'premium' and subscriptionStatus: 'active' in the Firestore update",
+          "passed": null,
+          "evidence": null
+        },
+        {
+          "text": "Does NOT include the welcome email block (since dunning means the user was already premium)",
+          "passed": null,
+          "evidence": null
+        },
+        {
+          "text": "Adds a test case in asaas.service.test.ts for the new event",
+          "passed": null,
+          "evidence": null
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "O webhook do Asaas está chegando mas o plano do usuário não está sendo atualizado. Ao fazer debug, vejo no log: `[Asaas Webhook] Evento ignorado - Nenhum externalReference (userId) encontrado` para eventos do tipo SUBSCRIPTION_CREATED. O evento tem essa estrutura:\n\n```json\n{\"event\": \"SUBSCRIPTION_CREATED\", \"subscription\": {\"id\": \"sub_abc123\", \"status\": \"ACTIVE\", \"nextDueDate\": \"2026-06-01\"}, \"payment\": null}\n```\n\nPor que o evento está sendo ignorado e como corrigir?",
+      "expected_output": "Identificar que o evento SUBSCRIPTION_CREATED não tem payment (é null), então payment?.externalReference é undefined. A subscription também não tem externalReference no payload de exemplo. O fix correto é garantir que ao criar a subscription o externalReference seja passado, ou lidar com o caso onde subscription.externalReference pode existir mesmo sem payment.",
+      "files": ["src/server/services/asaas.service.ts"],
+      "assertions": [
+        {
+          "text": "Correctly identifies that payment is null so payment?.externalReference is undefined",
+          "passed": null,
+          "evidence": null
+        },
+        {
+          "text": "Points out that subscription.externalReference is also missing from the example payload",
+          "passed": null,
+          "evidence": null
+        },
+        {
+          "text": "Suggests the root cause is either a missing externalReference when creating the subscription via POST /subscriptions, or the payload not including it",
+          "passed": null,
+          "evidence": null
+        },
+        {
+          "text": "Does not suggest removing the userId guard (that would break security)",
+          "passed": null,
+          "evidence": null
+        }
+      ]
+    }
+  ]
+}

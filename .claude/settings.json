@@ -3,6 +3,10 @@
     {
       "name": "security-check",
       "path": ".claude/skills/security-check"
+    },
+    {
+      "name": "asaas-integration",
+      "path": ".claude/skills/asaas-integration"
     }
   ]
 }
