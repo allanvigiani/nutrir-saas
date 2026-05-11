@@ -11,7 +11,8 @@ import {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function makeReq(ip = '127.0.0.1') {
-  return { ip, headers: {}, method: 'POST', path: '/api/test' } as any;
+  // app.get é necessário para o express-rate-limit v8 não lançar no trustProxy check
+  return { ip, headers: {}, method: 'POST', path: '/api/test', app: { get: () => undefined } } as any;
 }
 
 function makeRes() {
