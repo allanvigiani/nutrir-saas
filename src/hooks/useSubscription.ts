@@ -1,14 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+
+const PENDING_PAYMENT_KEY = 'nutrir_pending_payment';
 
 export const useSubscription = () => {
   const { user } = useAuth();
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isManaging, setIsManaging] = useState(false);
+  // Ref para acessar verifySubscription dentro do listener sem closure stale
+  const verifyRef = useRef<((silent?: boolean) => Promise<void>) | null>(null);
 
   const handleManageSubscription = async () => {
     if (!user?.email) return;
@@ -171,12 +175,12 @@ export const useSubscription = () => {
       
       if (session.url) {
         console.log("Redirecionando para:", session.url);
-        // Usar window.open para evitar restrições de iframe que podem causar tela branca
+        // Marca pagamento pendente — ao voltar para a aba, verifica automaticamente
+        localStorage.setItem(PENDING_PAYMENT_KEY, 'true');
         const checkoutWindow = window.open(session.url, '_blank');
-        
+
         if (!checkoutWindow) {
           console.warn("Popup bloqueado, tentando redirecionar na mesma janela");
-          // Se o popup for bloqueado, tenta redirecionar na mesma janela
           window.location.href = session.url;
         }
       } else {
@@ -243,6 +247,25 @@ export const useSubscription = () => {
       toast.dismiss(toastId);
     }
   };
+
+  // Mantém a ref sempre atualizada com a versão atual de verifySubscription
+  verifyRef.current = verifySubscription;
+
+  // Ao retornar à aba após abrir o checkout Asaas, verifica silenciosamente
+  useEffect(() => {
+    if (!user) return;
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && localStorage.getItem(PENDING_PAYMENT_KEY)) {
+        verifyRef.current?.(true).then(() => {
+          localStorage.removeItem(PENDING_PAYMENT_KEY);
+        });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [user]);
 
   return {
     handleSubscribe,

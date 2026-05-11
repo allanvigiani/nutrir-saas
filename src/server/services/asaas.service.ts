@@ -23,8 +23,11 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
       case "PAYMENT_CREATED":
         await updateUserData({ subscriptionStatus: "pending", updatedAt: new Date().toISOString() });
         break;
-      case "PAYMENT_RECEIVED":
+
+      // Cartão de crédito: CONFIRMED chega imediatamente ao pagar;
+      // RECEIVED chega 32 dias depois (liquidação). Premium liberado em CONFIRMED.
       case "PAYMENT_CONFIRMED":
+      case "PAYMENT_RECEIVED":
         await updateUserData({
           plan: "premium",
           subscriptionStatus: "active",
@@ -32,9 +35,9 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           lastSubscriptionCheck: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
-        // Envia email de boas-vindas apenas uma vez (PAYMENT_RECEIVED é o evento definitivo;
-        // PAYMENT_CONFIRMED pode chegar junto — checa se já enviou antes via welcomeEmailSentAt)
-        if (event.event === "PAYMENT_RECEIVED") {
+        // Email enviado no PAYMENT_CONFIRMED (primeiro evento que libera o acesso).
+        // welcomeEmailSentAt garante que não duplica quando PAYMENT_RECEIVED chegar 32 dias depois.
+        if (event.event === "PAYMENT_CONFIRMED") {
           try {
             const userDoc = await getDocWithFallback("nutritionists", userId);
             if (userDoc.exists) {
@@ -54,13 +57,35 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           }
         }
         break;
+
       case "PAYMENT_OVERDUE":
         await updateUserData({ subscriptionStatus: "overdue", updatedAt: new Date().toISOString() });
         break;
-      case "PAYMENT_CANCELLED":
-        await updateUserData({ subscriptionStatus: "cancelled", updatedAt: new Date().toISOString() });
+
+      // Análise de risco — específico de cartão de crédito
+      case "PAYMENT_AWAITING_RISK_ANALYSIS":
+        await updateUserData({ subscriptionStatus: "pending_risk_analysis", updatedAt: new Date().toISOString() });
         break;
+      case "PAYMENT_APPROVED_BY_RISK_ANALYSIS":
+        // Aprovado pela análise — pagamento segue para CONFIRMED automaticamente; apenas loga
+        logger.info(`[Asaas Webhook] Pagamento aprovado pela análise de risco`, { userId });
+        break;
+      case "PAYMENT_REPROVED_BY_RISK_ANALYSIS":
+        // Reprovado — cartão rejeitado, acesso não liberado
+        await updateUserData({
+          plan: "free",
+          subscriptionStatus: "payment_failed",
+          updatedAt: new Date().toISOString(),
+        });
+        break;
+      case "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED":
+        // Falha na captura do cartão (ex: cartão sem limite, recusado pela operadora)
+        await updateUserData({ subscriptionStatus: "payment_failed", updatedAt: new Date().toISOString() });
+        break;
+
+      // Estornos e chargebacks
       case "PAYMENT_REFUNDED":
+      case "PAYMENT_PARTIALLY_REFUNDED":
       case "PAYMENT_CHARGEBACK_REQUESTED":
         await updateUserData({
           plan: "free",
@@ -68,6 +93,11 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           hadRefundBefore: true,
           updatedAt: new Date().toISOString(),
         });
+        break;
+
+      // Cobrança deletada (PAYMENT_CANCELLED não é um evento válido do Asaas)
+      case "PAYMENT_DELETED":
+        await updateUserData({ subscriptionStatus: "cancelled", updatedAt: new Date().toISOString() });
         break;
       case "SUBSCRIPTION_CREATED":
         await updateUserData({

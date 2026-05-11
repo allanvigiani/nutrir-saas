@@ -112,9 +112,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setNutritionist({ id: docSnap.id, ...data } as Nutritionist);
 
             const lastCheck = (data as any).lastSubscriptionCheck;
-            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
-            if (!lastCheck || lastCheck < oneDayAgo) {
+            if (!lastCheck || lastCheck < oneHourAgo) {
               firebaseUser.getIdToken().then(token => {
                 fetch('/api/verify-subscription', {
                   method: 'POST',
