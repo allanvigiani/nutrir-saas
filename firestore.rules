@@ -143,7 +143,15 @@ service cloud.firestore {
 
     function isValidNutritionist(data) {
       return hasRequiredFields(['name', 'email']) &&
-             hasOnlyAllowedFields(['name', 'email', 'crn', 'cpf', 'cnpj', 'phone', 'specialties', 'photoUrl', 'role', 'plan', 'createdAt', 'updatedAt', 'lastLogin', 'subscriptionId', 'subscriptionStatus', 'cancelAtPeriodEnd', 'currentPeriodEnd', 'firstSubscriptionDate', 'hadRefundBefore', 'lastSubscriptionCheck', 'googleCalendarTokens', 'googleCalendarConnected']) &&
+             hasOnlyAllowedFields([
+               'name', 'email', 'crn', 'cpf', 'cnpj', 'phone',
+               'specialties', 'photoUrl', 'role', 'plan',
+               'createdAt', 'updatedAt', 'lastLogin',
+               'subscriptionId', 'subscriptionStatus', 'cancelAtPeriodEnd',
+               'currentPeriodEnd', 'firstSubscriptionDate', 'hadRefundBefore',
+               'lastSubscriptionCheck', 'googleCalendarTokens', 'googleCalendarConnected',
+               'hasSeenTutorial', 'welcomeEmailSentAt'
+             ]) &&
              isValidString(data.name, 100) &&
              isValidEmail(data.email) &&
              isValidOptionalString(data, 'crn', 50) &&
@@ -166,7 +174,9 @@ service cloud.firestore {
              (!('hadRefundBefore' in data) || data.hadRefundBefore is bool) &&
              isValidOptionalString(data, 'lastSubscriptionCheck', 50) &&
              isValidOptionalMap(data, 'googleCalendarTokens', 20) &&
-             (!('googleCalendarConnected' in data) || data.googleCalendarConnected is bool);
+             (!('googleCalendarConnected' in data) || data.googleCalendarConnected is bool) &&
+             (!('hasSeenTutorial' in data) || data.hasSeenTutorial is bool) &&
+             (!('welcomeEmailSentAt' in data) || data.welcomeEmailSentAt is string);
     }
 
 

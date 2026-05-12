@@ -22,6 +22,8 @@ export interface Nutritionist {
   lastLogin?: string;
   googleCalendarConnected?: boolean;
   googleCalendarTokens?: any;
+  welcomeEmailSentAt?: string;
+  hasSeenTutorial?: boolean;
 }
 
 export interface Patient {

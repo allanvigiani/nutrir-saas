@@ -24,13 +24,17 @@ import { Toaster } from './components/ui/sonner';
 import { TooltipProvider } from './components/ui/tooltip';
 import { ThemeProvider } from './components/theme-provider';
 import { InactivityWarningModal } from './components/InactivityWarningModal';
+import { TutorialProvider } from './contexts/TutorialContext';
+import { TutorialModal } from './components/TutorialModal';
 
 export default function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <AuthProvider>
+        <TutorialProvider>
         <TooltipProvider>
             <InactivityWarningModal />
+            <TutorialModal />
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Landing />} />
@@ -60,6 +64,7 @@ export default function App() {
               <Toaster position="top-right" />
             </BrowserRouter>
         </TooltipProvider>
+        </TutorialProvider>
       </AuthProvider>
     </ThemeProvider>
   );

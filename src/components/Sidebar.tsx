@@ -10,7 +10,8 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
-  Leaf
+  Leaf,
+  BookOpen
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
@@ -18,6 +19,7 @@ import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { remoteLogger } from '../lib/remote-logger';
 import { useAuth } from '../contexts/AuthContext';
+import { useTutorial } from '../contexts/TutorialContext';
 import { ModeToggle } from './mode-toggle';
 
 const SidebarItem = ({
@@ -46,6 +48,7 @@ export const Sidebar = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const location = useLocation();
   const { user, nutritionist } = useAuth();
+  const { openTutorial } = useTutorial();
 
   const handleLogout = () => {
     if (auth.currentUser) {
@@ -129,6 +132,23 @@ export const Sidebar = () => {
           />
         ))}
       </nav>
+
+      {/* Tutorial */}
+      <div className={cn("px-3 pb-2")}>
+        <Button
+          variant="ghost"
+          size={collapsed ? "icon" : "sm"}
+          title="Ver tutorial"
+          onClick={openTutorial}
+          className={cn(
+            "w-full text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent",
+            collapsed ? "justify-center" : "justify-start gap-2"
+          )}
+        >
+          <BookOpen className="w-4 h-4 shrink-0" />
+          {!collapsed && <span className="font-medium text-sm">Tutorial</span>}
+        </Button>
+      </div>
 
       {/* Footer */}
       <div className={cn("border-t border-sidebar-border", collapsed ? "p-3" : "px-4 py-4")}>
