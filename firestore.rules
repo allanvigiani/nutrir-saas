@@ -49,11 +49,6 @@ service cloud.firestore {
           get(/databases/$(database)/documents/nutritionists/$(request.auth.uid)).data.role == 'admin');
     }
 
-    function isPatientWithToken(patientId, token) {
-      return exists(/databases/$(database)/documents/patients/$(patientId)) &&
-             get(/databases/$(database)/documents/patients/$(patientId)).data.access_token == token;
-    }
-
     function isValidPatient(data) {
       return hasRequiredFields(['nutritionist_id', 'name', 'birthDate', 'gender', 'cpf', 'phone', 'email', 'address', 'objective', 'activityLevel', 'status', 'createdAt', 'updatedAt']) &&
              hasOnlyAllowedFields(['nutritionist_id', 'name', 'birthDate', 'gender', 'cpf', 'access_token', 'phone', 'email', 'address', 'objective', 'activityLevel', 'diseases', 'medications', 'allergies', 'photoUrl', 'status', 'createdAt', 'updatedAt', 'uid']) &&
@@ -148,7 +143,15 @@ service cloud.firestore {
 
     function isValidNutritionist(data) {
       return hasRequiredFields(['name', 'email']) &&
-             hasOnlyAllowedFields(['name', 'email', 'crn', 'cpf', 'cnpj', 'phone', 'specialties', 'photoUrl', 'role', 'plan', 'createdAt', 'updatedAt', 'lastLogin', 'subscriptionId', 'subscriptionStatus', 'cancelAtPeriodEnd', 'currentPeriodEnd', 'firstSubscriptionDate', 'hadRefundBefore', 'lastSubscriptionCheck', 'googleCalendarTokens', 'googleCalendarConnected']) &&
+             hasOnlyAllowedFields([
+               'name', 'email', 'crn', 'cpf', 'cnpj', 'phone',
+               'specialties', 'photoUrl', 'role', 'plan',
+               'createdAt', 'updatedAt', 'lastLogin',
+               'subscriptionId', 'subscriptionStatus', 'cancelAtPeriodEnd',
+               'currentPeriodEnd', 'firstSubscriptionDate', 'hadRefundBefore',
+               'lastSubscriptionCheck', 'googleCalendarTokens', 'googleCalendarConnected',
+               'hasSeenTutorial', 'welcomeEmailSentAt'
+             ]) &&
              isValidString(data.name, 100) &&
              isValidEmail(data.email) &&
              isValidOptionalString(data, 'crn', 50) &&
@@ -171,7 +174,9 @@ service cloud.firestore {
              (!('hadRefundBefore' in data) || data.hadRefundBefore is bool) &&
              isValidOptionalString(data, 'lastSubscriptionCheck', 50) &&
              isValidOptionalMap(data, 'googleCalendarTokens', 20) &&
-             (!('googleCalendarConnected' in data) || data.googleCalendarConnected is bool);
+             (!('googleCalendarConnected' in data) || data.googleCalendarConnected is bool) &&
+             (!('hasSeenTutorial' in data) || data.hasSeenTutorial is bool) &&
+             (!('welcomeEmailSentAt' in data) || data.welcomeEmailSentAt is string);
     }
 
 
@@ -214,7 +219,7 @@ service cloud.firestore {
       return hasRequiredFields(['meal_plan_id', 'nutritionist_id', 'meal', 'food', 'quantity', 'unit']) &&
              hasOnlyAllowedFields(['meal_plan_id', 'nutritionist_id', 'access_token', 'meal', 'food', 'quantity', 'unit', 'kcal', 'protein', 'carbs', 'fat', 'base_kcal', 'base_protein', 'base_carbs', 'base_fat', 'base_quantity', 'serving_name', 'serving_weight']) &&
              (data.nutritionist_id == request.auth.uid || isAdmin()) &&
-             isValidEnum(data.meal, ['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner', 'supper']) &&
+             data.meal is string && data.meal.size() > 0 && data.meal.size() <= 100 &&
              data.food is string && data.food.size() <= 200 &&
              data.quantity is string && data.quantity.size() <= 50 &&
              data.unit is string && data.unit.size() <= 50 &&
@@ -247,7 +252,7 @@ service cloud.firestore {
     function isValidAppointment(data) {
       return hasRequiredFields(['patient_id', 'nutritionist_id', 'date', 'status', 'createdAt', 'updatedAt']) &&
              hasOnlyAllowedFields(['patient_id', 'nutritionist_id', 'access_token', 'date', 'status', 'googleEventId', 'meetLink', 'createdAt', 'updatedAt']) &&
-             (request.auth == null || data.nutritionist_id == request.auth.uid || isAdmin()) &&
+             (data.nutritionist_id == request.auth.uid || isAdmin()) &&
              isValidDateTime(data.date) &&
              isValidEnum(data.status, ['confirmed', 'pending', 'cancelled', 'realized']) &&
              isValidDateTime(data.createdAt) &&
@@ -279,6 +284,13 @@ service cloud.firestore {
              isValidOptionalString(data, 'description', 1000) &&
              isValidDateTime(data.createdAt) &&
              isValidDateTime(data.updatedAt);
+    }
+
+    function isValidNutritionCalculation(data) {
+      return hasRequiredFields(['patient_id', 'consultation_id', 'nutritionist_id', 'name', 'input', 'result', 'createdAt']) &&
+             (data.nutritionist_id == request.auth.uid || isAdmin()) &&
+             isValidString(data.name, 100) &&
+             isValidDateTime(data.createdAt);
     }
 
     // ===============================================================
@@ -342,15 +354,14 @@ service cloud.firestore {
       allow list: if (isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin())) ||
                    (request.query.filters.access_token != null && resource.data.access_token == request.query.filters.access_token);
       allow create: if isAuthenticated() && isValidAppointment(request.resource.data);
-      allow update: if (isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidAppointment(request.resource.data) && areImmutableFieldsUnchanged(['patient_id', 'nutritionist_id', 'createdAt'])) ||
-                    (request.auth == null && 
-                     request.resource.data.diff(resource.data).affectedKeys().hasOnly(['googleEventId', 'meetLink', 'updatedAt']) &&
-                     isValidAppointment(request.resource.data));
+      // Atualizações de googleEventId/meetLink devem ir pelo backend Express (Admin SDK),
+      // nunca diretamente pelo cliente. Unauthenticated writes removidos.
+      allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidAppointment(request.resource.data) && areImmutableFieldsUnchanged(['patient_id', 'nutritionist_id', 'createdAt']);
       allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
     }
 
     match /settings/{settingsId} {
-      allow read: if isAuthenticated();
+      allow read: if isAdmin();
       allow write: if isAdmin();
     }
 
@@ -365,6 +376,13 @@ service cloud.firestore {
       allow read: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
       allow create: if isAuthenticated() && isValidPayment(request.resource.data);
       allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidPayment(request.resource.data) && areImmutableFieldsUnchanged(['patient_id', 'nutritionist_id', 'createdAt']);
+      allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+    }
+
+    match /nutrition_calculations/{calcId} {
+      allow read: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidNutritionCalculation(request.resource.data);
+      allow update: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin()) && isValidNutritionCalculation(request.resource.data) && areImmutableFieldsUnchanged(['patient_id', 'nutritionist_id', 'consultation_id', 'createdAt']);
       allow delete: if isAuthenticated() && (resource.data.nutritionist_id == request.auth.uid || isAdmin());
     }
   }

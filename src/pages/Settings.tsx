@@ -53,12 +53,13 @@ import {
 } from "../components/ui/dialog";
 import { cn, maskCPF, maskCNPJ, maskPhone } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
-import { useSettings } from '../contexts/SettingsContext';
+import { FREE_PLAN_LIMITS } from '../lib/planLimits';
 import { doc, updateDoc, collection, query, where, onSnapshot, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../lib/firebase';
 import { signOut, updatePassword } from 'firebase/auth';
 import { toast } from 'sonner';
+import { remoteLogger } from '../lib/remote-logger';
 import { CustomFood } from '../types';
 import { CustomFoodDialog } from '../components/CustomFoodDialog';
 import { useSubscription } from '../hooks/useSubscription';
@@ -131,7 +132,6 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export const Settings = () => {
   const { nutritionist, user } = useAuth();
-  const { settings } = useSettings();
   const [searchParams] = useSearchParams();
   const { 
     handleSubscribe, 
@@ -154,9 +154,7 @@ export const Settings = () => {
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showResetAllConfirm, setShowResetAllConfirm] = useState(false);
-  const [showResetTokensConfirm, setShowResetTokensConfirm] = useState(false);
   const [isResettingAll, setIsResettingAll] = useState(false);
-  const [isResettingTokens, setIsResettingTokens] = useState(false);
   const [foodToDelete, setFoodToDelete] = useState<string | null>(null);
   const [editingFood, setEditingFood] = useState<CustomFood | null>(null);
   const [foodSearch, setFoodSearch] = useState('');
@@ -233,43 +231,6 @@ export const Settings = () => {
       toast.error('Erro: ' + (error.message || 'Tente novamente.'), { id: toastId });
     } finally {
       setIsResettingAll(false);
-    }
-  };
-
-  const handleResetAllAccessTokens = async () => {
-    if (!user) return;
-    setIsResettingTokens(true);
-    const toastId = toast.loading('Resetando todos os códigos de acesso...');
-
-    try {
-      const collectionsToReset = ['patients', 'consultations', 'meal_plans', 'meal_plan_items', 'lab_exams', 'appointments'];
-      let totalReset = 0;
-
-      for (const colName of collectionsToReset) {
-        // Buscar todos os documentos que possuem access_token
-        const q = query(collection(db, colName), where('access_token', '!=', ''));
-        const snapshot = await getDocs(q);
-        
-        if (!snapshot.empty) {
-          const batch = writeBatch(db);
-          snapshot.docs.forEach((docSnap) => {
-            batch.update(doc(db, colName, docSnap.id), { 
-              access_token: null,
-              updatedAt: new Date().toISOString()
-            });
-            totalReset++;
-          });
-          await batch.commit();
-        }
-      }
-
-      toast.success(`${totalReset} códigos de acesso foram resetados com sucesso!`, { id: toastId });
-      setShowResetTokensConfirm(false);
-    } catch (error: any) {
-      console.error('Erro ao resetar tokens:', error);
-      toast.error('Erro ao resetar códigos: ' + (error.message || 'Tente novamente.'), { id: toastId });
-    } finally {
-      setIsResettingTokens(false);
     }
   };
 
@@ -403,6 +364,9 @@ export const Settings = () => {
   };
 
   const handleLogout = () => {
+    if (auth.currentUser) {
+      remoteLogger.info("Logout realizado (Configurações)", { userId: auth.currentUser.uid, email: auth.currentUser.email });
+    }
     signOut(auth);
   };
 
@@ -521,39 +485,39 @@ export const Settings = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-slate-900">Configurações</h1>
-        <p className="text-slate-500">Gerencie seu perfil e preferências do sistema.</p>
+        <h1 className="text-3xl font-bold text-foreground">Configurações</h1>
+        <p className="text-muted-foreground">Gerencie seu perfil e preferências do sistema.</p>
       </div>
 
       <Tabs defaultValue={defaultTab} className="w-full">
-        <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-slate-200 p-0 rounded-none h-auto mb-8 overflow-x-auto">
+        <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto mb-8 overflow-x-auto">
           <TabsTrigger 
             value="profile" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <User className="w-4 h-4" /> Perfil Profissional
           </TabsTrigger>
           <TabsTrigger 
             value="foods" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Utensils className="w-4 h-4" /> Alimentos Próprios
           </TabsTrigger>
           <TabsTrigger 
             value="security" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Shield className="w-4 h-4" /> Segurança
           </TabsTrigger>
           <TabsTrigger 
             value="subscription" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Award className="w-4 h-4" /> Assinatura e Plano
           </TabsTrigger>
           <TabsTrigger 
             value="integrations" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-emerald-600 data-[state=active]:bg-transparent data-[state=active]:text-emerald-700 transition-all whitespace-nowrap"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <RefreshCw className="w-4 h-4" /> Integrações
           </TabsTrigger>
@@ -572,9 +536,9 @@ export const Settings = () => {
                   <CardContent className="space-y-6">
                     <div className="flex items-center gap-6 mb-6">
                       <div className="relative group">
-                        <div className="w-24 h-24 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-3xl overflow-hidden border-4 border-white shadow-sm">
+                        <div className="w-24 h-24 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-3xl overflow-hidden border-4 border-white shadow-sm">
                           {isUploadingPhoto ? (
-                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                           ) : nutritionist?.photoUrl ? (
                             <img src={nutritionist.photoUrl} alt={nutritionist.name} className="w-full h-full object-cover" />
                           ) : (
@@ -591,7 +555,7 @@ export const Settings = () => {
                         />
                         <button 
                           type="button" 
-                          className="absolute bottom-0 right-0 p-2 bg-white rounded-full shadow-md border border-slate-200 text-slate-600 hover:text-emerald-600 transition-colors disabled:opacity-50"
+                          className="absolute bottom-0 right-0 p-2 bg-card rounded-full shadow-md border border-border text-muted-foreground hover:text-primary transition-colors disabled:opacity-50"
                           onClick={() => document.getElementById('photo-upload')?.click()}
                           disabled={isUploadingPhoto}
                         >
@@ -600,15 +564,15 @@ export const Settings = () => {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-slate-900">{nutritionist?.name}</h3>
+                          <h3 className="font-bold text-foreground">{nutritionist?.name}</h3>
                           <Badge 
                             variant={nutritionist?.plan === 'premium' ? 'default' : 'secondary'} 
-                            className={nutritionist?.plan === 'premium' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : ''}
+                            className={nutritionist?.plan === 'premium' ? 'bg-primary/15 text-primary hover:bg-primary/15' : ''}
                           >
                             {nutritionist?.plan === 'premium' ? 'Premium' : 'Gratuito'}
                           </Badge>
                         </div>
-                        <p className="text-sm text-slate-500">Nutricionista • CRN {nutritionist?.crn}</p>
+                        <p className="text-sm text-muted-foreground">Nutricionista • CRN {nutritionist?.crn}</p>
                       </div>
                     </div>
 
@@ -618,7 +582,7 @@ export const Settings = () => {
                           <Input 
                             id="cpf" 
                             {...register('cpf')} 
-                            className="bg-slate-50 border-none rounded-xl h-8 text-sm" 
+                            className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
                             onChange={(e) => {
                               const masked = maskCPF(e.target.value);
                               setValue('cpf', masked);
@@ -631,7 +595,7 @@ export const Settings = () => {
                           <Input 
                             id="cnpj" 
                             {...register('cnpj')} 
-                            className="bg-slate-50 border-none rounded-xl h-8 text-sm" 
+                            className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
                             onChange={(e) => {
                               const masked = maskCNPJ(e.target.value);
                               setValue('cnpj', masked);
@@ -644,24 +608,24 @@ export const Settings = () => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="name">Nome Completo</Label>
-                        <Input id="name" {...register('name')} className="bg-slate-50 border-none rounded-xl h-8 text-sm" />
+                        <Input id="name" {...register('name')} className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
                         {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="crn">CRN</Label>
-                        <Input id="crn" {...register('crn')} className="bg-slate-50 border-none rounded-xl h-8 text-sm" />
+                        <Input id="crn" {...register('crn')} className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
                         {errors.crn && <p className="text-sm text-red-500">{errors.crn.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">E-mail (Não editável)</Label>
-                        <Input id="email" value={nutritionist?.email || ''} disabled className="bg-slate-100 border-none rounded-xl h-8 text-sm" />
+                        <Input id="email" value={nutritionist?.email || ''} disabled className="bg-muted border-none rounded-xl h-8 text-sm" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="phone">Telefone</Label>
                         <Input 
                           id="phone" 
                           {...register('phone')} 
-                          className="bg-slate-50 border-none rounded-xl h-8 text-sm" 
+                          className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
                           onChange={(e) => {
                             const masked = maskPhone(e.target.value);
                             setValue('phone', masked);
@@ -673,11 +637,11 @@ export const Settings = () => {
 
                     <div className="space-y-2">
                       <Label htmlFor="specialties">Especialidades (Separadas por vírgula)</Label>
-                      <Input id="specialties" placeholder="Ex: Nutrição Esportiva, Clínica, Funcional" {...register('specialties')} className="bg-slate-50 border-none rounded-xl h-8 text-sm" />
+                      <Input id="specialties" placeholder="Ex: Nutrição Esportiva, Clínica, Funcional" {...register('specialties')} className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
                     </div>
                   </CardContent>
-                  <CardFooter className="border-t border-slate-100 pt-6">
-                    <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 gap-2 rounded-xl h-8 px-6 font-bold text-sm" disabled={isSaving}>
+                  <CardFooter className="border-t border-border pt-6">
+                    <Button type="submit" className="bg-primary hover:bg-primary/90 gap-2 rounded-xl h-8 px-6 font-bold text-sm" disabled={isSaving}>
                       <Save className="w-4 h-4" /> {isSaving ? 'Salvando...' : 'Salvar Alterações'}
                     </Button>
                   </CardFooter>
@@ -686,17 +650,19 @@ export const Settings = () => {
             </div>
             
             <div className="space-y-6">
-              <Card className="border-none shadow-sm bg-white">
+              <Card className="border-none shadow-sm bg-card">
                 <CardHeader>
                   <CardTitle className="text-lg font-bold text-red-600">Sair do Sistema</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-slate-500 mb-4">Deseja encerrar sua sessão atual?</p>
+                  <p className="text-sm text-muted-foreground mb-4">Deseja encerrar sua sessão atual?</p>
                   <Button variant="destructive" className="w-full gap-2 rounded-xl h-8 font-bold text-sm" onClick={handleLogout}>
                     <LogOut className="w-4 h-4" /> Sair da Conta
                   </Button>
                 </CardContent>
               </Card>
+
+
             </div>
           </div>
         </TabsContent>
@@ -704,15 +670,15 @@ export const Settings = () => {
         <TabsContent value="foods" className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Alimentos Próprios</h2>
-              <p className="text-slate-500 text-sm">Cadastre alimentos específicos que não constam na tabela TACO.</p>
+              <h2 className="text-xl font-bold text-foreground">Alimentos Próprios</h2>
+              <p className="text-muted-foreground text-sm">Cadastre alimentos específicos que não constam na tabela TACO.</p>
             </div>
             <Button 
               onClick={() => {
                 setEditingFood(null);
                 setIsFoodDialogOpen(true);
               }}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95"
+              className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95"
             >
               <Plus className="w-4 h-4" /> Cadastrar Alimento
             </Button>
@@ -721,12 +687,12 @@ export const Settings = () => {
           <Card className="border-none shadow-sm overflow-hidden">
             <CardHeader className="pb-0">
               <div className="relative">
-                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input 
                   placeholder="Pesquisar em seus alimentos..." 
                   value={foodSearch}
                   onChange={(e) => setFoodSearch(e.target.value)}
-                  className="pl-10 bg-slate-50 border-none rounded-xl h-8 text-sm"
+                  className="pl-10 bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
               </div>
             </CardHeader>
@@ -734,7 +700,7 @@ export const Settings = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="bg-slate-50 text-slate-500 text-left border-b">
+                    <tr className="bg-muted/30 text-muted-foreground text-left border-b">
                       <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Alimento</th>
                       <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Base</th>
                       <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Medida</th>
@@ -745,29 +711,29 @@ export const Settings = () => {
                       <th className="px-6 py-4 w-24 text-center">Ações</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-border">
                     {filteredFoods.length > 0 ? (
                       filteredFoods.map((food) => (
-                        <tr key={food.id} className="hover:bg-slate-50/50 transition-colors">
+                        <tr key={food.id} className="hover:bg-muted/30/50 transition-colors">
                           <td className="px-6 py-4">
-                            <span className="font-semibold text-slate-900">{food.name}</span>
+                            <span className="font-semibold text-foreground">{food.name}</span>
                           </td>
-                          <td className="px-4 py-4 text-center text-slate-600">
+                          <td className="px-4 py-4 text-center text-muted-foreground">
                             {food.baseQuantity}{food.baseUnit}
                           </td>
-                          <td className="px-4 py-4 text-center text-slate-600">
+                          <td className="px-4 py-4 text-center text-muted-foreground">
                             {food.serving ? `1 ${food.serving.name} (${food.serving.weight}g)` : '-'}
                           </td>
-                          <td className="px-4 py-4 text-center font-medium text-slate-700">
+                          <td className="px-4 py-4 text-center font-medium text-muted-foreground">
                             {food.kcal}
                           </td>
-                          <td className="px-4 py-4 text-center text-slate-600">
+                          <td className="px-4 py-4 text-center text-muted-foreground">
                             {food.protein}
                           </td>
-                          <td className="px-4 py-4 text-center text-slate-600">
+                          <td className="px-4 py-4 text-center text-muted-foreground">
                             {food.carbs}
                           </td>
-                          <td className="px-4 py-4 text-center text-slate-600">
+                          <td className="px-4 py-4 text-center text-muted-foreground">
                             {food.fat}
                           </td>
                           <td className="px-6 py-4">
@@ -775,7 +741,7 @@ export const Settings = () => {
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                className="h-8 w-8 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                                className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg"
                                 onClick={() => {
                                   setEditingFood(food);
                                   setIsFoodDialogOpen(true);
@@ -786,7 +752,7 @@ export const Settings = () => {
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                className="h-8 w-8 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg"
                                 onClick={() => setFoodToDelete(food.id)}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -798,7 +764,7 @@ export const Settings = () => {
                     ) : (
                       <tr>
                         <td colSpan={7} className="px-6 py-12 text-center">
-                          <div className="flex flex-col items-center gap-2 text-slate-400">
+                          <div className="flex flex-col items-center gap-2 text-muted-foreground">
                             <Utensils className="w-12 h-12 opacity-20" />
                             <p className="font-medium">Nenhum alimento próprio cadastrado.</p>
                             {foodSearch && <p className="text-xs">Tente uma busca diferente.</p>}
@@ -850,7 +816,7 @@ export const Settings = () => {
                       type="password" 
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="bg-slate-50 border-none rounded-xl h-8 text-sm" 
+                      className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
                     />
                   </div>
                   <div className="space-y-2">
@@ -860,14 +826,14 @@ export const Settings = () => {
                       type="password" 
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      className="bg-slate-50 border-none rounded-xl h-8 text-sm" 
+                      className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
                     />
                   </div>
                 </div>
               </CardContent>
-              <CardFooter className="border-t border-slate-100 pt-6">
+              <CardFooter className="border-t border-border pt-6">
                 <Button 
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                  className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                   onClick={handleUpdatePassword}
                   disabled={isUpdatingPassword}
                 >
@@ -876,47 +842,7 @@ export const Settings = () => {
               </CardFooter>
             </Card>
 
-            <Card className="border-none shadow-sm border-red-100 bg-red-50/30 mt-8">
-              <CardHeader>
-                <CardTitle className="text-lg font-bold text-red-600">Zona de Perigo</CardTitle>
-                <CardDescription>Ações irreversíveis que afetam o acesso dos pacientes.</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 bg-white rounded-xl border border-red-100">
-                  <div>
-                    <p className="font-bold text-slate-900 text-sm">Resetar Todos os Códigos de Acesso</p>
-                    <p className="text-xs text-slate-500">Invalida todos os links de acesso enviados aos pacientes. Eles precisarão de novos links.</p>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    className="border-red-200 text-red-600 hover:bg-red-50 h-8 rounded-xl text-xs font-bold"
-                    onClick={() => setShowResetTokensConfirm(true)}
-                    disabled={isResettingTokens}
-                  >
-                    {isResettingTokens ? 'Resetando...' : 'Resetar Todos os Códigos'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
 
-            <Dialog open={showResetTokensConfirm} onOpenChange={setShowResetTokensConfirm}>
-              <DialogContent className="sm:max-w-[400px]">
-                <DialogHeader>
-                  <DialogTitle>Confirmar Reset de Códigos</DialogTitle>
-                  <DialogDescription>
-                    Isso irá invalidar todos os links de acesso de todos os seus pacientes. 
-                    Eles não conseguirão mais acessar seus perfis até que você gere novos links.
-                    Deseja continuar?
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="flex justify-end gap-3 mt-4">
-                  <Button variant="ghost" onClick={() => setShowResetTokensConfirm(false)} disabled={isResettingTokens}>Cancelar</Button>
-                  <Button variant="destructive" onClick={handleResetAllAccessTokens} disabled={isResettingTokens}>
-                    {isResettingTokens ? 'Resetando...' : 'Sim, Resetar Tudo'}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
           </div>
         </TabsContent>
 
@@ -924,15 +850,15 @@ export const Settings = () => {
           <div className="max-w-2xl">
             <Card className={cn(
               "border-none shadow-sm",
-              nutritionist?.plan === 'premium' ? "bg-emerald-900 text-white" : "bg-white"
+              nutritionist?.plan === 'premium' ? "bg-primary/90 text-white" : "bg-card"
             )}>
               <CardHeader className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div className="space-y-1">
-                  <CardTitle className={cn("text-xl font-bold flex items-center gap-2", nutritionist?.plan === 'premium' ? "text-white" : "text-slate-900")}>
-                    <Award className={cn("w-6 h-6", nutritionist?.plan === 'premium' ? "text-emerald-400" : "text-emerald-600")} />
+                  <CardTitle className={cn("text-xl font-bold flex items-center gap-2", nutritionist?.plan === 'premium' ? "text-white" : "text-foreground")}>
+                    <Award className={cn("w-6 h-6", nutritionist?.plan === 'premium' ? "text-primary" : "text-primary")} />
                     {nutritionist?.plan === 'premium' ? 'Plano Premium Ativo' : 'Plano Gratuito'}
                   </CardTitle>
-                  <CardDescription className={nutritionist?.plan === 'premium' ? "text-emerald-100" : "text-slate-500"}>
+                  <CardDescription className={nutritionist?.plan === 'premium' ? "text-primary-foreground/80" : "text-muted-foreground"}>
                     {nutritionist?.plan === 'premium' 
                       ? 'Você está usando a versão completa do sistema com todos os recursos liberados.' 
                       : 'Você está usando a versão limitada do sistema. Faça o upgrade para remover limites.'}
@@ -948,16 +874,16 @@ export const Settings = () => {
                     if (diffDays <= 7) {
                       const refundDeadline = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
                       return (
-                        <div className="bg-emerald-400/10 border border-emerald-400/20 rounded-xl p-3 flex items-start gap-2 max-w-xs">
-                          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                        <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-start gap-2 max-w-xs">
+                          <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                           <div className="space-y-1">
-                            <p className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider">Garantia Ativa</p>
-                            <p className="text-[11px] text-emerald-50 leading-tight">
+                            <p className="text-[10px] font-bold text-primary/70 uppercase tracking-wider">Garantia Ativa</p>
+                            <p className="text-[11px] text-primary-foreground leading-tight">
                               Reembolso integral disponível até{' '}
                               <span className="font-bold text-white">{refundDeadline.toLocaleDateString('pt-BR')}</span>.
                             </p>
                             <button 
-                              className="text-[10px] text-emerald-400 font-bold underline hover:text-white transition-colors"
+                              className="text-[10px] text-primary font-bold underline hover:text-primary-foreground transition-colors"
                               onClick={handleCancelSubscription}
                               disabled={isManaging}
                             >
@@ -975,34 +901,34 @@ export const Settings = () => {
                 <div className="space-y-6">
                   <div className={cn(
                     "grid grid-cols-1 md:grid-cols-2 gap-4",
-                    nutritionist?.plan === 'premium' ? "text-emerald-50" : "text-slate-600"
+                    nutritionist?.plan === 'premium' ? "text-primary-foreground" : "text-muted-foreground"
                   )}>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
-                      <Users className="w-5 h-5 text-emerald-400" />
+                      <Users className="w-5 h-5 text-primary" />
                       <div>
-                        <p className="text-xs font-medium text-emerald-200">Pacientes</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${settings.free.maxPatients} ativos`}</p>
+                        <p className="text-xs font-medium text-primary-foreground/60">Pacientes</p>
+                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxPatients} ativos`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
-                      <Activity className="w-5 h-5 text-emerald-400" />
+                      <Activity className="w-5 h-5 text-primary" />
                       <div>
-                        <p className="text-xs font-medium text-emerald-200">Planos Alimentares</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${settings.free.maxMealPlans} ativos`}</p>
+                        <p className="text-xs font-medium text-primary-foreground/60">Planos Alimentares</p>
+                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxMealPlans} ativos`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
-                      <Shield className="w-5 h-5 text-emerald-400" />
+                      <Shield className="w-5 h-5 text-primary" />
                       <div>
-                        <p className="text-xs font-medium text-emerald-200">Histórico</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Completo' : `${settings.free.historyMonths} meses`}</p>
+                        <p className="text-xs font-medium text-primary-foreground/60">Histórico</p>
+                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Completo' : `${FREE_PLAN_LIMITS.historyMonths} meses`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
-                      <CreditCard className="w-5 h-5 text-emerald-400" />
+                      <CreditCard className="w-5 h-5 text-primary" />
                       <div>
-                        <p className="text-xs font-medium text-emerald-200">Exames</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${settings.free.maxExams} por paciente`}</p>
+                        <p className="text-xs font-medium text-primary-foreground/60">Exames</p>
+                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxExams} por paciente`}</p>
                       </div>
                     </div>
                   </div>
@@ -1010,11 +936,11 @@ export const Settings = () => {
                   {(nutritionist?.plan === 'premium' || nutritionist?.cancelAtPeriodEnd) && (
                     <div className="pt-4 space-y-4">
                       {!nutritionist.cancelAtPeriodEnd && nutritionist.currentPeriodEnd && (
-                        <div className="bg-emerald-800/50 border border-emerald-700/50 rounded-xl p-4 flex items-start gap-3">
-                          <Calendar className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                        <div className="bg-primary/40 border border-primary/50 rounded-xl p-4 flex items-start gap-3">
+                          <Calendar className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                           <div className="space-y-1">
-                            <p className="text-sm font-bold text-emerald-100">Próxima Renovação</p>
-                            <p className="text-xs text-emerald-50">
+                            <p className="text-sm font-bold text-primary-foreground/80">Próxima Renovação</p>
+                            <p className="text-xs text-primary-foreground">
                               Sua assinatura será renovada automaticamente em{' '}
                               <span className="font-bold">
                                 {new Date(nutritionist.currentPeriodEnd).toLocaleDateString('pt-BR')}
@@ -1048,7 +974,7 @@ export const Settings = () => {
                       )}
 
                       <Button 
-                        className="w-full bg-white text-emerald-700 hover:bg-emerald-50 border-none rounded-xl h-10 font-bold text-sm transition-all active:scale-95 shadow-sm" 
+                        className="w-full bg-card text-primary hover:bg-primary/10 border-none rounded-xl h-10 font-bold text-sm transition-all active:scale-95 shadow-sm" 
                         onClick={() => setIsManageDialogOpen(true)}
                         disabled={isManaging}
                       >
@@ -1078,10 +1004,10 @@ export const Settings = () => {
                                     setIsManageDialogOpen(false);
                                   }}
                                 >
-                                  <CreditCard className="w-5 h-5 text-emerald-600" />
+                                  <CreditCard className="w-5 h-5 text-primary" />
                                   <div className="text-left">
                                     <p className="font-bold text-sm">Ver Faturas e Pagamentos</p>
-                                    <p className="text-[10px] text-slate-500">Acesse seu histórico de cobranças no Asaas</p>
+                                    <p className="text-[10px] text-muted-foreground">Acesse seu histórico de cobranças no Asaas</p>
                                   </div>
                                 </Button>
 
@@ -1093,7 +1019,7 @@ export const Settings = () => {
                                   <Trash2 className="w-5 h-5 text-red-500" />
                                   <div className="text-left">
                                     <p className="font-bold text-sm">Cancelar Assinatura</p>
-                                    <p className="text-[10px] text-slate-500">Interromper renovações automáticas</p>
+                                    <p className="text-[10px] text-muted-foreground">Interromper renovações automáticas</p>
                                   </div>
                                 </Button>
                               </>
@@ -1126,12 +1052,12 @@ export const Settings = () => {
                       <button 
                         onClick={() => verifySubscription(false)}
                         disabled={isVerifying}
-                        className="w-full text-[10px] text-center mt-2 opacity-40 hover:opacity-100 transition-opacity text-emerald-200 underline"
+                        className="w-full text-[10px] text-center mt-2 opacity-40 hover:opacity-100 transition-opacity text-primary-foreground/60 underline"
                       >
                         {isVerifying ? 'Sincronizando...' : 'Sincronizar status da assinatura'}
                       </button>
 
-                      <p className="text-[10px] text-center mt-2 opacity-60 text-emerald-200">
+                      <p className="text-[10px] text-center mt-2 opacity-60 text-primary-foreground/60">
                         Você será redirecionado para o portal de faturamento do Asaas em uma nova aba.
                       </p>
                     </div>
@@ -1140,7 +1066,7 @@ export const Settings = () => {
                   {nutritionist?.plan !== 'premium' && !nutritionist?.cancelAtPeriodEnd && (
                     <div className="pt-4 space-y-4">
                       <Button 
-                        className="w-full bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-10 font-bold text-sm shadow-lg shadow-emerald-200 transition-all active:scale-95" 
+                        className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-10 font-bold text-sm shadow-lg shadow-primary/10 transition-all active:scale-95" 
                         onClick={handleSubscribe}
                         disabled={isSubscribing}
                       >
@@ -1150,26 +1076,34 @@ export const Settings = () => {
                       <button 
                         onClick={() => verifySubscription(false)}
                         disabled={isVerifying}
-                        className="w-full text-[10px] text-center mt-2 opacity-40 hover:opacity-100 transition-opacity text-slate-400 underline"
+                        className="w-full text-[10px] text-center mt-2 opacity-40 hover:opacity-100 transition-opacity text-muted-foreground underline"
                       >
                         {isVerifying ? 'Sincronizando...' : 'Já assinou? Clique aqui para sincronizar status'}
                       </button>
 
                       <p className="text-[10px] text-center mt-2 opacity-60">
-                        Pagamento processado com segurança pelo Asaas. Cancele a qualquer momento.
+                        Pagamento processado com segurança pelo{' '}
+                        <a
+                          href="https://www.asaas.com/sobre-nos"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity"
+                        >
+                          Asaas
+                        </a>. Cancele a qualquer momento.
                       </p>
                     </div>
                   )}
 
                   {/* Ferramenta de Desenvolvedor - Visível apenas para o Admin principal */}
                   {nutritionist?.role === 'admin' && (
-                    <div className="mt-8 pt-6 border-t border-slate-100">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Ferramentas de Desenvolvedor</p>
+                    <div className="mt-8 pt-6 border-t border-border">
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Ferramentas de Desenvolvedor</p>
                       {!showResetConfirm ? (
                         <Button 
                           variant="outline" 
                           size="sm"
-                          className="w-full border-dashed border-slate-300 text-slate-500 hover:bg-slate-50 text-[10px] h-8"
+                          className="w-full border-dashed border-border text-muted-foreground hover:bg-muted/30 text-[10px] h-8"
                           onClick={() => setShowResetConfirm(true)}
                         >
                           Resetar MEU Status (Teste)
@@ -1245,7 +1179,7 @@ export const Settings = () => {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                className="flex-1 text-[10px] h-8 border-slate-300"
+                                className="flex-1 text-[10px] h-8 border-border"
                                 onClick={() => setShowResetAllConfirm(false)}
                                 disabled={isResettingAll}
                               >
@@ -1264,21 +1198,21 @@ export const Settings = () => {
         </TabsContent>
         <TabsContent value="integrations" className="space-y-6">
           <Card className="border-none shadow-sm overflow-hidden">
-            <CardHeader className="bg-white border-b border-slate-100 pb-4">
+            <CardHeader className="bg-card border-b border-border pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center">
-                  <Calendar className="w-5 h-5 text-emerald-600" />
+                <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
+                  <Calendar className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-xl font-bold text-slate-900">Integrações Externas</CardTitle>
+                  <CardTitle className="text-xl font-bold text-foreground">Integrações Externas</CardTitle>
                   <CardDescription>Conecte o Nutrir com outras ferramentas que você utiliza.</CardDescription>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl border border-slate-100 bg-slate-50/30 gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl border border-border bg-muted/30/30 gap-4">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white rounded-xl shadow-sm flex items-center justify-center border border-slate-100">
+                  <div className="w-12 h-12 bg-card rounded-xl shadow-sm flex items-center justify-center border border-border">
                     <svg className="w-6 h-6" viewBox="0 0 24 24">
                       <path
                         fill="#4285F4"
@@ -1299,14 +1233,14 @@ export const Settings = () => {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="font-bold text-slate-900">Google Agenda</h3>
-                    <p className="text-sm text-slate-500">Sincronize suas consultas e gere links do Google Meet automaticamente.</p>
+                    <h3 className="font-bold text-foreground">Google Agenda</h3>
+                    <p className="text-sm text-muted-foreground">Sincronize suas consultas e gere links do Google Meet automaticamente.</p>
                   </div>
                 </div>
                 
                 {nutritionist?.googleCalendarConnected ? (
                   <div className="flex items-center gap-3">
-                    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 gap-1 py-1 px-3">
+                    <Badge className="bg-primary/15 text-primary border-primary/30 gap-1 py-1 px-3">
                       <ShieldCheck className="w-3 h-3" /> Conectado
                     </Badge>
                     <Button 
@@ -1320,7 +1254,7 @@ export const Settings = () => {
                   </div>
                 ) : (
                   <Button 
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 rounded-xl"
+                    className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl"
                     onClick={handleConnectGoogle}
                     disabled={isConnectingGoogle}
                   >
@@ -1329,9 +1263,9 @@ export const Settings = () => {
                 )}
               </div>
 
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 flex gap-3">
-                <AlertCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                <div className="text-sm text-emerald-800">
+              <div className="p-4 rounded-xl bg-primary/10 border border-primary/20 flex gap-3">
+                <AlertCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                <div className="text-sm text-secondary-foreground">
                   <p className="font-bold mb-1">Como funciona a integração?</p>
                   <ul className="list-disc list-inside space-y-1 opacity-90">
                     <li>Ao agendar uma consulta, um evento será criado na sua agenda principal do Google.</li>

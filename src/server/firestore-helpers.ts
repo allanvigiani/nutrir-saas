@@ -1,4 +1,5 @@
 import admin from "firebase-admin";
+import { logger } from "./logger.ts";
 import { getFirestore as getAdminFirestore } from "firebase-admin/firestore";
 import { initializeApp as initializeClientApp } from "firebase/app";
 import {
@@ -42,7 +43,7 @@ export function createFirestoreHelpers(firebaseConfig: any) {
       return { exists: false };
     } catch (err: any) {
       if (isPermissionDeniedError(err)) {
-        console.warn(
+        logger.warn(
           `[Firestore] Admin SDK PERMISSION_DENIED on read ${collectionName}/${docId}, trying Client SDK...`,
         );
         const clientDoc = await getDoc(doc(clientDb, collectionName, docId));
@@ -58,7 +59,7 @@ export function createFirestoreHelpers(firebaseConfig: any) {
       await adminDb.collection(collectionName).doc(docId).update(data);
     } catch (err: any) {
       if (isPermissionDeniedError(err)) {
-        console.warn(
+        logger.warn(
           `[Firestore] Admin SDK PERMISSION_DENIED on update ${collectionName}/${docId}, trying Client SDK...`,
         );
         await updateDoc(doc(clientDb, collectionName, docId), data);
@@ -74,7 +75,7 @@ export function createFirestoreHelpers(firebaseConfig: any) {
       return snapshot;
     } catch (err: any) {
       if (isPermissionDeniedError(err)) {
-        console.warn(`[Firestore] Admin SDK PERMISSION_DENIED on query ${collectionName}, trying Client SDK...`);
+        logger.warn(`[Firestore] Admin SDK PERMISSION_DENIED on query ${collectionName}, trying Client SDK...`);
         const q = query(collection(clientDb, collectionName), where(field, operator, value));
         const snapshot = await getDocs(q);
         return snapshot;

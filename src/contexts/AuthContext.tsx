@@ -1,15 +1,50 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User } from 'firebase/auth';
+import { onAuthStateChanged, signOut, User } from 'firebase/auth';
 import { auth, db } from '../lib/firebase';
-import { doc, getDoc, onSnapshot, updateDoc, getDocFromServer, query, collection, where } from 'firebase/firestore';
-import { Nutritionist, Patient } from '../types';
-import { toast } from 'sonner';
+import { doc, onSnapshot, updateDoc, getDocFromServer } from 'firebase/firestore';
+import { Nutritionist } from '../types';
+
+const SESSION_KEY = 'nutrir_session_start';
+const SESSION_MAX_MS = 3 * 24 * 60 * 60 * 1000;  // 3 dias
+const SESSION_CHECK_INTERVAL_MS = 30 * 60 * 1000; // verifica a cada 30 min
+const INACTIVITY_MAX_MS = 2 * 60 * 60 * 1000;     // 2 horas sem atividade
+
+let lastActivityAt = Date.now();
+
+const ACTIVITY_EVENTS = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'] as const;
+
+// Atualiza apenas o timestamp — não fecha o modal, isso é responsabilidade dos botões
+function resetActivity() {
+  lastActivityAt = Date.now();
+}
+
+function isInactive(): boolean {
+  return Date.now() - lastActivityAt > INACTIVITY_MAX_MS;
+}
+
+export function recordSessionStart() {
+  localStorage.setItem(SESSION_KEY, Date.now().toString());
+}
+
+function isSessionExpired(): boolean {
+  const raw = localStorage.getItem(SESSION_KEY);
+  if (!raw) return true;
+  return Date.now() - parseInt(raw, 10) > SESSION_MAX_MS;
+}
+
+async function forceSignOut() {
+  localStorage.removeItem(SESSION_KEY);
+  await signOut(auth);
+}
 
 interface AuthContextType {
   user: User | null;
   nutritionist: Nutritionist | null;
   loading: boolean;
   isAuthReady: boolean;
+  showInactivityWarning: boolean;
+  dismissInactivityWarning: () => void;
+  confirmSignOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -17,6 +52,9 @@ const AuthContext = createContext<AuthContextType>({
   nutritionist: null,
   loading: true,
   isAuthReady: false,
+  showInactivityWarning: false,
+  dismissInactivityWarning: () => {},
+  confirmSignOut: () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -24,9 +62,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [nutritionist, setNutritionist] = useState<Nutritionist | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false);
+
+  function dismissInactivityWarning() {
+    setShowInactivityWarning(false);
+    resetActivity();
+  }
+
+  function confirmSignOut() {
+    setShowInactivityWarning(false);
+    forceSignOut();
+  }
 
   useEffect(() => {
-    // Test Firestore connection on boot
     const testConnection = async () => {
       try {
         await getDocFromServer(doc(db, '_connection_test_', 'ping'));
@@ -39,45 +87,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     testConnection();
 
     let unsubNutritionist: (() => void) | null = null;
-    let unsubPatient: (() => void) | null = null;
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (unsubNutritionist) {
         unsubNutritionist();
         unsubNutritionist = null;
       }
 
-      if (user) {
-        // 1. Buscar perfil de Nutricionista
-        unsubNutritionist = onSnapshot(doc(db, 'nutritionists', user.uid), async (docSnap) => {
+      if (firebaseUser && isSessionExpired()) {
+        await forceSignOut();
+        setUser(null);
+        setNutritionist(null);
+        setLoading(false);
+        setIsAuthReady(true);
+        return;
+      }
+
+      setUser(firebaseUser);
+
+      if (firebaseUser) {
+        unsubNutritionist = onSnapshot(doc(db, 'nutritionists', firebaseUser.uid), async (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data() as Nutritionist;
-            
             setNutritionist({ id: docSnap.id, ...data } as Nutritionist);
 
-            // Proactive subscription verification:
             const lastCheck = (data as any).lastSubscriptionCheck;
-            const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-            
-            if (!lastCheck || lastCheck < oneDayAgo) {
-              user.getIdToken().then(token => {
+            const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+            if (!lastCheck || lastCheck < oneHourAgo) {
+              firebaseUser.getIdToken().then(token => {
                 fetch('/api/verify-subscription', {
                   method: 'POST',
-                  headers: { 
+                  headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                   },
-                  body: JSON.stringify({ email: user.email }),
+                  body: JSON.stringify({ email: firebaseUser.email }),
                 })
                 .then(res => res.json())
                 .then(async (asaasData) => {
                   const planChanged = asaasData.plan && asaasData.plan !== data.plan;
                   const cancelStatusChanged = asaasData.cancelAtPeriodEnd !== undefined && asaasData.cancelAtPeriodEnd !== data.cancelAtPeriodEnd;
-                  
+
                   if (planChanged || cancelStatusChanged) {
-                    await updateDoc(doc(db, 'nutritionists', user.uid), {
+                    await updateDoc(doc(db, 'nutritionists', firebaseUser.uid), {
                       plan: asaasData.plan || 'free',
                       subscriptionId: asaasData.subscriptionId || null,
                       subscriptionStatus: asaasData.subscriptionStatus || null,
@@ -87,7 +140,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                       updatedAt: new Date().toISOString(),
                     });
                   } else {
-                    await updateDoc(doc(db, 'nutritionists', user.uid), {
+                    await updateDoc(doc(db, 'nutritionists', firebaseUser.uid), {
                       lastSubscriptionCheck: new Date().toISOString()
                     });
                   }
@@ -98,7 +151,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           } else {
             setNutritionist(null);
           }
-          
+
           setLoading(false);
           setIsAuthReady(true);
         }, (error) => {
@@ -114,14 +167,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    ACTIVITY_EVENTS.forEach(event => window.addEventListener(event, resetActivity, { passive: true }));
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        if (isSessionExpired()) {
+          forceSignOut();
+        } else if (isInactive()) {
+          setShowInactivityWarning(true);
+        } else {
+          resetActivity();
+        }
+      }
+    };
+
+    // Sessão expirada → desconexão imediata (hard limit de segurança)
+    // Inatividade → mostra aviso com countdown; o modal decide o signout
+    const sessionCheckInterval = setInterval(() => {
+      if (isSessionExpired()) {
+        forceSignOut();
+      } else if (isInactive()) {
+        setShowInactivityWarning(true);
+      }
+    }, SESSION_CHECK_INTERVAL_MS);
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       unsubscribe();
       if (unsubNutritionist) unsubNutritionist();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearInterval(sessionCheckInterval);
+      ACTIVITY_EVENTS.forEach(event => window.removeEventListener(event, resetActivity));
     };
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, nutritionist, loading, isAuthReady }}>
+    <AuthContext.Provider value={{
+      user,
+      nutritionist,
+      loading,
+      isAuthReady,
+      showInactivityWarning,
+      dismissInactivityWarning,
+      confirmSignOut,
+    }}>
       {children}
     </AuthContext.Provider>
   );

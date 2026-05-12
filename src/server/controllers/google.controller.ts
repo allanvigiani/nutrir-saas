@@ -1,3 +1,5 @@
+import { logger } from "../logger.ts";
+
 type GoogleControllerDeps = {
   isSuperAdmin: (user: { email?: string | null }) => boolean;
   googleService: {
@@ -49,7 +51,7 @@ export function createGoogleController({ isSuperAdmin, googleService }: GoogleCo
         </body></html>
       `);
     } catch (error: any) {
-      console.error("[Google Auth] Error in callback:", error);
+      logger.error("[Google Auth] Error in callback", error);
       return res.status(500).send("Erro ao processar autenticação com Google.");
     }
   }
@@ -75,7 +77,7 @@ export function createGoogleController({ isSuperAdmin, googleService }: GoogleCo
           link: googleCalendarEnableApiUrl || undefined,
         });
       }
-      console.error("[Google Calendar] Error creating event:", error);
+      logger.error("[Google Calendar] Error creating event", error);
       return res.status(500).json({ error: error.message });
     }
   }

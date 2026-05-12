@@ -1,4 +1,5 @@
 import { getPremiumWelcomeTemplate, sendEmail } from "../../lib/mail.ts";
+import { logger } from "../logger.ts";
 import type { AsaasClient } from "../integrations/asaas.client.ts";
 import type { FirestoreHelpers } from "../types.ts";
 
@@ -22,8 +23,11 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
       case "PAYMENT_CREATED":
         await updateUserData({ subscriptionStatus: "pending", updatedAt: new Date().toISOString() });
         break;
-      case "PAYMENT_RECEIVED":
+
+      // Cartão de crédito: CONFIRMED chega imediatamente ao pagar;
+      // RECEIVED chega 32 dias depois (liquidação). Premium liberado em CONFIRMED.
       case "PAYMENT_CONFIRMED":
+      case "PAYMENT_RECEIVED":
         await updateUserData({
           plan: "premium",
           subscriptionStatus: "active",
@@ -31,26 +35,57 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           lastSubscriptionCheck: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         });
-        try {
-          const userDoc = await getDocWithFallback("nutritionists", userId);
-          if (userDoc.exists) {
-            const userData = userDoc.data;
-            if (userData?.email) {
-              await sendEmail({
-                to: userData.email,
-                subject: "💎 Bem-vindo ao Plano Premium Nutrir!",
-                html: getPremiumWelcomeTemplate(userData.name || "Nutricionista"),
-              });
+        // Email enviado no PAYMENT_CONFIRMED (primeiro evento que libera o acesso).
+        // welcomeEmailSentAt garante que não duplica quando PAYMENT_RECEIVED chegar 32 dias depois.
+        if (event.event === "PAYMENT_CONFIRMED") {
+          try {
+            const userDoc = await getDocWithFallback("nutritionists", userId);
+            if (userDoc.exists) {
+              const userData = userDoc.data;
+              if (userData?.email && !userData?.welcomeEmailSentAt) {
+                logger.info(`[Asaas Service] Enviando email de boas-vindas Premium`, { userId, email: userData.email });
+                await sendEmail({
+                  to: userData.email,
+                  subject: "💎 Bem-vindo ao Plano Premium Nutrir!",
+                  html: getPremiumWelcomeTemplate(userData.name || "Nutricionista"),
+                });
+                await updateUserData({ welcomeEmailSentAt: new Date().toISOString() });
+              }
             }
+          } catch (error) {
+            logger.error("[Email] Erro ao enviar boas-vindas Premium no webhook", error, { userId });
           }
-        } catch (error) {
-          console.error("[Email] Erro ao enviar boas-vindas Premium no webhook:", error);
         }
         break;
+
       case "PAYMENT_OVERDUE":
         await updateUserData({ subscriptionStatus: "overdue", updatedAt: new Date().toISOString() });
         break;
+
+      // Análise de risco — específico de cartão de crédito
+      case "PAYMENT_AWAITING_RISK_ANALYSIS":
+        await updateUserData({ subscriptionStatus: "pending_risk_analysis", updatedAt: new Date().toISOString() });
+        break;
+      case "PAYMENT_APPROVED_BY_RISK_ANALYSIS":
+        // Aprovado pela análise — pagamento segue para CONFIRMED automaticamente; apenas loga
+        logger.info(`[Asaas Webhook] Pagamento aprovado pela análise de risco`, { userId });
+        break;
+      case "PAYMENT_REPROVED_BY_RISK_ANALYSIS":
+        // Reprovado — cartão rejeitado, acesso não liberado
+        await updateUserData({
+          plan: "free",
+          subscriptionStatus: "payment_failed",
+          updatedAt: new Date().toISOString(),
+        });
+        break;
+      case "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED":
+        // Falha na captura do cartão (ex: cartão sem limite, recusado pela operadora)
+        await updateUserData({ subscriptionStatus: "payment_failed", updatedAt: new Date().toISOString() });
+        break;
+
+      // Estornos e chargebacks
       case "PAYMENT_REFUNDED":
+      case "PAYMENT_PARTIALLY_REFUNDED":
       case "PAYMENT_CHARGEBACK_REQUESTED":
         await updateUserData({
           plan: "free",
@@ -58,6 +93,11 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           hadRefundBefore: true,
           updatedAt: new Date().toISOString(),
         });
+        break;
+
+      // Cobrança deletada (PAYMENT_CANCELLED não é um evento válido do Asaas)
+      case "PAYMENT_DELETED":
+        await updateUserData({ subscriptionStatus: "cancelled", updatedAt: new Date().toISOString() });
         break;
       case "SUBSCRIPTION_CREATED":
         await updateUserData({
@@ -109,13 +149,13 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
       customer = customers.data[0];
       if (!customer.externalReference) {
         await asaasClient.request(`/customers/${customer.id}`, {
-          method: "POST",
+          method: "PUT",
           body: JSON.stringify({ externalReference: userId }),
         });
       }
       if (!customer.cpfCnpj && sanitizedCpfCnpj) {
         customer = await asaasClient.request(`/customers/${customer.id}`, {
-          method: "POST",
+          method: "PUT",
           body: JSON.stringify({ cpfCnpj: sanitizedCpfCnpj }),
         });
       }
@@ -180,8 +220,14 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
     const activeSub = sortedSubs.find((s: any) => s.status === "ACTIVE");
     const sub = activeSub || sortedSubs[0];
 
-    const payments = await asaasClient.request(`/payments?subscription=${sub.id}&status=CONFIRMED,RECEIVED`);
-    const hasPaidPayment = payments.data && payments.data.length > 0;
+    // Asaas não aceita múltiplos status num único parâmetro — consultas separadas
+    const [confirmedPayments, receivedPayments] = await Promise.all([
+      asaasClient.request(`/payments?subscription=${sub.id}&status=CONFIRMED`),
+      asaasClient.request(`/payments?subscription=${sub.id}&status=RECEIVED`),
+    ]);
+    const hasPaidPayment =
+      (confirmedPayments.data && confirmedPayments.data.length > 0) ||
+      (receivedPayments.data && receivedPayments.data.length > 0);
     const nextDueDate = sub.nextDueDate ? new Date(sub.nextDueDate + "T23:59:59") : null;
     const now = new Date();
 
@@ -244,7 +290,7 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           }
         }
       } catch (refundErr: any) {
-        console.error("[Refund] Erro ao processar estorno:", refundErr.message);
+        logger.error("[Refund] Erro ao processar estorno", refundErr, { email, subscriptionId: activeSub.id });
       }
     }
 
@@ -264,8 +310,9 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           updateData.hadRefundBefore = true;
         }
         await updateDocWithFallback("nutritionists", userDocId, updateData);
+        logger.info(`[Asaas Service] Assinatura cancelada com sucesso`, { email, refunded });
       } catch (fsError) {
-        console.error("Erro ao atualizar Firestore no cancelamento:", fsError);
+        logger.error("Erro ao atualizar Firestore no cancelamento", fsError, { email });
       }
     }
 

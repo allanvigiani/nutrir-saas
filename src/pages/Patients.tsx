@@ -44,7 +44,7 @@ import {
 } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import { useAuth } from '../contexts/AuthContext';
-import { useSettings } from '../contexts/SettingsContext';
+import { FREE_PLAN_LIMITS } from '../lib/planLimits';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, orderBy, serverTimestamp, onSnapshot, writeBatch } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
 
@@ -135,7 +135,6 @@ type PatientFormValues = z.infer<typeof patientSchema>;
 export const Patients = () => {
   const { user, nutritionist, isAuthReady } = useAuth();
   const isPremium = nutritionist?.plan === 'premium';
-  const { settings } = useSettings();
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -229,9 +228,9 @@ export const Patients = () => {
     const newStatus = patient.status === 'active' ? 'inactive' : 'active';
 
     // If activating, check limit
-    if (newStatus === 'active' && nutritionist?.plan === 'free') {
+    if (newStatus === 'active' && !isPremium) {
       const activePatients = patients.filter(p => p.status === 'active');
-      const maxPatients = settings.free.maxPatients;
+      const maxPatients = FREE_PLAN_LIMITS.maxPatients;
       if (activePatients.length >= maxPatients) {
         toast.error(`O plano gratuito permite apenas ${maxPatients} pacientes ativos.`);
         return;
@@ -255,9 +254,9 @@ export const Patients = () => {
     if (!user) return;
 
     // Premium check: Free plan allows only a limited number of active patients
-    if (!editingPatient && nutritionist?.plan === 'free') {
+    if (!editingPatient && !isPremium) {
       const activePatients = patients.filter(p => p.status === 'active');
-      const maxPatients = settings.free.maxPatients;
+      const maxPatients = FREE_PLAN_LIMITS.maxPatients;
       if (activePatients.length >= maxPatients) {
         toast.error(`O plano gratuito permite apenas ${maxPatients} pacientes ativos.`);
         return;
@@ -413,14 +412,14 @@ export const Patients = () => {
   });
 
   const activePatientsCount = patients.filter(p => p.status === 'active').length;
-  const isLimitReached = activePatientsCount >= 3;
+  const isLimitReached = !isPremium && activePatientsCount >= FREE_PLAN_LIMITS.maxPatients;
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-slate-900">Pacientes</h1>
-          <p className="text-slate-500">Gerencie todos os seus pacientes em um só lugar.</p>
+          <h1 className="text-3xl font-bold text-foreground">Pacientes</h1>
+          <p className="text-muted-foreground">Gerencie todos os seus pacientes em um só lugar.</p>
         </div>
         
         <Dialog open={isModalOpen} onOpenChange={(open) => {
@@ -429,7 +428,7 @@ export const Patients = () => {
         }}>
           <PremiumFeature active={isLimitReached}>
             <DialogTrigger 
-              render={<Button className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" onClick={openNewModal} />}
+              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" onClick={openNewModal} />}
               nativeButton={true}
             >
               <UserPlus className="w-4 h-4" /> Novo Paciente
@@ -511,7 +510,7 @@ export const Patients = () => {
 
               <div className="border-t pt-4">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-emerald-600" />
+                  <Activity className="w-4 h-4 text-primary" />
                   Dados Clínicos Iniciais
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -539,18 +538,18 @@ export const Patients = () => {
                 </div>
               </div>
 
-              <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t border-slate-100 mt-4">
+              <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t border-border mt-4">
                 <Button 
                   type="button" 
                   variant="outline" 
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-xl h-8 px-4 border-slate-200 text-slate-600 text-sm hover:bg-slate-50 transition-all active:scale-95"
+                  className="rounded-xl h-8 px-4 border-border text-muted-foreground text-sm hover:bg-muted/30 transition-all active:scale-95"
                 >
                   Cancelar
                 </Button>
                 <Button 
                   type="submit" 
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" 
+                  className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" 
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Salvando...' : editingPatient ? 'Salvar Alterações' : 'Salvar Paciente'}
@@ -564,14 +563,14 @@ export const Patients = () => {
       {!isPremium && isLimitReached && (
         <PremiumBanner 
           title="Limite de Pacientes Atingido" 
-          description="Você atingiu o limite de 3 pacientes ativos do plano gratuito. Assine o Premium para cadastrar pacientes ilimitados."
+          description={`Você atingiu o limite de ${FREE_PLAN_LIMITS.maxPatients} pacientes ativos do plano gratuito. Assine o Premium para cadastrar pacientes ilimitados.`}
           className="mb-8"
         />
       )}
 
       <div className="flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input 
             placeholder="Buscar por nome ou CPF..." 
             className="pl-10"
@@ -595,7 +594,7 @@ export const Patients = () => {
 
       {loading ? (
         <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-600"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
       ) : filteredPatients.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -604,20 +603,20 @@ export const Patients = () => {
               <CardContent className="p-6">
                 <div className="flex items-start justify-between mb-4 gap-4">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-lg shrink-0">
                       {patient.name.charAt(0)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-slate-900 truncate" title={patient.name}>{patient.name}</h3>
-                      <p className="text-xs text-slate-500">{patient.cpf}</p>
+                      <h3 className="font-bold text-foreground truncate" title={patient.name}>{patient.name}</h3>
+                      <p className="text-xs text-muted-foreground">{patient.cpf}</p>
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
                     <div className={cn(
                       "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
                       patient.status === 'active' 
-                        ? "bg-emerald-50 text-emerald-700 border-emerald-200" 
-                        : "bg-slate-50 text-slate-500 border-slate-200"
+                        ? "bg-primary/10 text-primary border-primary/30" 
+                        : "bg-muted/30 text-muted-foreground border-border"
                     )}>
                       {patient.status === 'active' ? 'Ativo' : 'Inativo'}
                     </div>
@@ -626,7 +625,7 @@ export const Patients = () => {
                       size="icon"
                       className={cn(
                         "h-8 w-8 rounded-full",
-                        patient.status === 'active' ? "text-slate-400 hover:text-red-500 hover:bg-red-50" : "text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                        patient.status === 'active' ? "text-muted-foreground hover:text-red-500 hover:bg-red-50" : "text-muted-foreground hover:text-primary hover:bg-primary/10"
                       )}
                       onClick={() => togglePatientStatus(patient)}
                       title={patient.status === 'active' ? 'Desativar Paciente' : 'Ativar Paciente'}
@@ -637,15 +636,15 @@ export const Patients = () => {
                 </div>
                 
                 <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Mail className="w-4 h-4" />
                     <span className="truncate">{patient.email}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Phone className="w-4 h-4" />
                     <span>{patient.phone}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <CalendarIcon className="w-4 h-4" />
                     <span>Nasc: {format(parseISO(patient.birthDate), 'dd/MM/yyyy')}</span>
                   </div>
@@ -655,15 +654,16 @@ export const Patients = () => {
                   <Button 
                     nativeButton={false} 
                     render={<Link to={`/patients/${patient.id}`} />} 
-                    className="flex-1 bg-slate-100 text-slate-900 hover:bg-slate-200 h-8 text-sm font-medium" 
+                    className="flex-1 bg-muted text-foreground hover:bg-accent h-8 text-sm font-medium" 
                     variant="secondary"
                   >
                     Ver Prontuário
                   </Button>
+                  {/* 
                   {!patient.access_token ? (
                     <Button 
                       variant="outline" 
-                      className="flex-1 h-8 text-[10px] font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      className="flex-1 h-8 text-[10px] font-bold border-primary/30 text-primary hover:bg-primary/10"
                       onClick={() => generateAccessToken(patient)}
                       disabled={isGeneratingToken === patient.id || patient.status === 'inactive'}
                     >
@@ -672,13 +672,14 @@ export const Patients = () => {
                   ) : (
                     <Button 
                       variant="outline" 
-                      className="flex-1 h-8 text-[10px] font-bold border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                      className="flex-1 h-8 text-[10px] font-bold border-primary/30 text-primary hover:bg-primary/10"
                       onClick={() => shareAccessLink(patient)}
                       disabled={patient.status === 'inactive'}
                     >
                       ENVIAR WHATSAPP
                     </Button>
                   )}
+                  */}
                   <Button 
                     variant="outline" 
                     className="h-8 w-8 p-0" 
@@ -694,10 +695,10 @@ export const Patients = () => {
           ))}
         </div>
       ) : (
-        <div className="text-center py-12 bg-white rounded-xl border border-dashed border-slate-300">
-          <AlertCircle className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-slate-900">Nenhum paciente encontrado</h3>
-          <p className="text-slate-500">Tente ajustar sua busca ou cadastrar um novo paciente.</p>
+        <div className="text-center py-12 bg-card rounded-xl border border-dashed border-border">
+          <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-foreground">Nenhum paciente encontrado</h3>
+          <p className="text-muted-foreground">Tente ajustar sua busca ou cadastrar um novo paciente.</p>
         </div>
       )}
     </div>

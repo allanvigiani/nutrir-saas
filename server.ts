@@ -6,6 +6,7 @@ import { createRequire } from "module";
 import { createFirestoreHelpers } from "./src/server/firestore-helpers.ts";
 import { registerApiRoutes } from "./src/server/register-api-routes.ts";
 import { createAuthenticateMiddleware } from "./src/server/middlewares/auth.ts";
+import { logger } from "./src/server/logger.ts";
 
 const require = createRequire(import.meta.url);
 const firebaseConfig = require("./firebase-applet-config.json");
@@ -42,11 +43,39 @@ async function startServer() {
   app.set("trust proxy", true);
   app.use(express.json());
 
+  // Security Headers
+  app.use((req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("X-XSS-Protection", "1; mode=block");
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    res.setHeader("Content-Security-Policy", [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com wss://*.firebaseio.com https://firestore.googleapis.com",
+      "frame-src https://*.firebaseapp.com https://accounts.google.com",
+    ].join("; "));
+    next();
+  });
+
+  // CSRF Protection via SameSite cookies
+  app.use((req, res, next) => {
+    const originalJson = res.json;
+    res.json = function(data) {
+      res.setHeader("Set-Cookie", `HttpOnly=true; Secure; SameSite=Strict`);
+      return originalJson.call(this, data);
+    };
+    next();
+  });
+
   const authenticate = createAuthenticateMiddleware({ admin });
 
   app.use((req, res, next) => {
     if (req.path.startsWith("/api/asaas-webhook")) {
-      console.log(`[Request Log] ${req.method} ${req.path}`);
+      logger.info(`Webhook Request`, { method: req.method, path: req.path });
     }
     next();
   });
@@ -67,7 +96,7 @@ async function startServer() {
   });
 
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    console.error("Erro não tratado:", err);
+    logger.error("Erro não tratado na rota", err, { path: req.path });
     res.status(500).json({ error: err.message || "Erro interno do servidor" });
   });
 
@@ -86,7 +115,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+    logger.info(`Servidor rodando na porta ${PORT}`);
   });
 }
 

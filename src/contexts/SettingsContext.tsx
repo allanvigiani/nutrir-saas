@@ -57,6 +57,8 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
 interface GlobalSettings {
   free: {
     maxPatients: number;
+    maxConsultationsPerMonth: number;
+    maxConsultationsPerPatientPerMonth: number;
     maxMealPlans: number;
     maxExams: number;
     historyMonths: number;
@@ -71,7 +73,9 @@ interface SettingsContextType {
 
 const defaultSettings: GlobalSettings = {
   free: {
-    maxPatients: 3,
+    maxPatients: 2,
+    maxConsultationsPerMonth: 2,
+    maxConsultationsPerPatientPerMonth: 1,
     maxMealPlans: 1,
     maxExams: 1,
     historyMonths: 3,
@@ -97,7 +101,13 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const unsub = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
       if (docSnap.exists()) {
-        setSettings(docSnap.data() as GlobalSettings);
+        const data = docSnap.data();
+        setSettings({
+          free: {
+            ...defaultSettings.free,
+            ...data.free,
+          },
+        });
       } else {
         // If it doesn't exist, we use defaults but don't create it here 
         // to avoid permission issues if not admin.

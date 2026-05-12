@@ -209,10 +209,10 @@ export const PatientAccess = () => {
     const mealTypesList = [
       { id: 'breakfast', label: 'Café da Manhã', icon: Sun, color: 'bg-amber-50 border-amber-100 text-amber-700' },
       { id: 'morning_snack', label: 'Lanche da Manhã', icon: Apple, color: 'bg-rose-50 border-rose-100 text-rose-700' },
-      { id: 'lunch', label: 'Almoço', icon: Utensils, color: 'bg-emerald-50 border-emerald-100 text-emerald-700' },
+      { id: 'lunch', label: 'Almoço', icon: Utensils, color: 'bg-primary/10 border-primary/20 text-primary' },
       { id: 'afternoon_snack', label: 'Lanche da Tarde', icon: Coffee, color: 'bg-orange-50 border-orange-100 text-orange-700' },
       { id: 'dinner', label: 'Jantar', icon: Moon, color: 'bg-indigo-50 border-indigo-100 text-indigo-700' },
-      { id: 'supper', label: 'Ceia', icon: CloudMoon, color: 'bg-slate-50 border-slate-100 text-slate-700' },
+      { id: 'supper', label: 'Ceia', icon: CloudMoon, color: 'bg-muted/30 border-border text-muted-foreground' },
     ];
 
     // Header background
@@ -552,20 +552,20 @@ export const PatientAccess = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   if (!patient) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <Card className="w-full max-w-md text-center p-8 rounded-2xl border-none shadow-xl">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-slate-900 mb-2">Acesso Inválido</h1>
-          <p className="text-slate-500 mb-6">Este link de acesso não é mais válido ou o paciente não foi encontrado.</p>
-          <Button onClick={() => navigate('/')} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-12 rounded-xl">
+          <h1 className="text-2xl font-bold text-foreground mb-2">Acesso Inválido</h1>
+          <p className="text-muted-foreground mb-6">Este link de acesso não é mais válido ou o paciente não foi encontrado.</p>
+          <Button onClick={() => navigate('/')} className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl">
             Voltar para o Início
           </Button>
         </Card>
@@ -575,19 +575,19 @@ export const PatientAccess = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+      <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <Card className="w-full max-w-md rounded-2xl border-none shadow-xl overflow-hidden">
-          <div className="bg-emerald-600 p-8 text-center text-white">
-            <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+          <div className="bg-primary p-8 text-center text-white">
+            <div className="w-16 h-16 bg-card/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
               <Lock className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold">Acesso Restrito</h1>
-            <p className="text-emerald-100 mt-2">Olá, {patient.name.split(' ')[0]}!</p>
+            <p className="text-primary-foreground/80 mt-2">Olá, {patient.name.split(' ')[0]}!</p>
           </div>
           <CardContent className="p-8">
             <form onSubmit={handleAuth} className="space-y-6">
               <div className="space-y-2 text-center">
-                <Label htmlFor="cpf-suffix" className="text-slate-600">Para sua segurança, informe os 3 últimos dígitos do seu CPF:</Label>
+                <Label htmlFor="cpf-suffix" className="text-muted-foreground">Para sua segurança, informe os 3 últimos dígitos do seu CPF:</Label>
                 <Input 
                   id="cpf-suffix"
                   type="password"
@@ -598,12 +598,12 @@ export const PatientAccess = () => {
                     setCpfSuffix(e.target.value.replace(/\D/g, ''));
                     setAuthError('');
                   }}
-                  className="text-center text-2xl tracking-[1em] h-14 font-bold border-slate-200 focus:ring-emerald-500 focus:border-emerald-500 rounded-xl"
+                  className="text-center text-2xl tracking-[1em] h-14 font-bold border-border focus:ring-primary focus:border-primary rounded-xl"
                   autoFocus
                 />
                 {authError && <p className="text-red-500 text-sm font-medium">{authError}</p>}
               </div>
-              <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-12 rounded-xl transition-all active:scale-95 shadow-lg shadow-emerald-200">
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl transition-all active:scale-95 shadow-lg shadow-primary/10">
                 Acessar Meu Perfil
               </Button>
             </form>
@@ -616,15 +616,15 @@ export const PatientAccess = () => {
   const age = differenceInYears(new Date(), parseISO(patient.birthDate));
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-12">
+    <div className="min-h-screen bg-muted/30 pb-12">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
+      <div className="bg-card border-b border-border sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold">N</div>
-            <span className="font-bold text-slate-900">Nutrir</span>
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">N</div>
+            <span className="font-bold text-foreground">Nutrir</span>
           </div>
-          <div className="text-sm font-medium text-slate-500">
+          <div className="text-sm font-medium text-muted-foreground">
             Olá, {patient.name.split(' ')[0]}
           </div>
         </div>
@@ -633,24 +633,24 @@ export const PatientAccess = () => {
       <div className="max-w-4xl mx-auto px-4 mt-8 space-y-8">
         {loadingData ? (
           <div className="flex flex-col items-center justify-center py-24 space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin text-emerald-600" />
-            <p className="text-slate-500 font-medium">Buscando suas informações...</p>
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-muted-foreground font-medium">Buscando suas informações...</p>
           </div>
         ) : (
           <>
             {/* Perfil */}
-            <Card className="rounded-2xl border-none shadow-sm overflow-hidden bg-white">
-          <div className="h-24 bg-gradient-to-r from-emerald-500 to-teal-600" />
+            <Card className="rounded-2xl border-none shadow-sm overflow-hidden bg-card">
+          <div className="h-24 bg-gradient-to-r from-primary to-primary/80" />
           <CardContent className="px-6 pb-6 -mt-12">
             <div className="flex flex-col md:flex-row md:items-end gap-4 mb-6">
-              <div className="w-24 h-24 rounded-2xl bg-white p-1 shadow-lg">
-                <div className="w-full h-full rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-3xl">
+              <div className="w-24 h-24 rounded-2xl bg-card p-1 shadow-lg">
+                <div className="w-full h-full rounded-xl bg-primary/15 text-primary flex items-center justify-center font-bold text-3xl">
                   {patient.name.charAt(0)}
                 </div>
               </div>
               <div className="flex-1">
-                <h1 className="text-2xl font-bold text-slate-900">{patient.name}</h1>
-                <div className="flex flex-wrap gap-3 text-slate-500 text-sm mt-1">
+                <h1 className="text-2xl font-bold text-foreground">{patient.name}</h1>
+                <div className="flex flex-wrap gap-3 text-muted-foreground text-sm mt-1">
                   <span className="flex items-center gap-1"><User className="w-4 h-4" /> {age} anos</span>
                   <span className="flex items-center gap-1"><Activity className="w-4 h-4" /> {patient.objective}</span>
                 </div>
@@ -658,23 +658,23 @@ export const PatientAccess = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Última Consulta</p>
-                <p className="font-bold text-slate-900">
+              <div className="p-4 bg-muted/30 rounded-xl border border-border">
+                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Última Consulta</p>
+                <p className="font-bold text-foreground">
                   {consultations.length > 0 
                     ? format(parseISO(consultations[0].date), "dd 'de' MMMM", { locale: ptBR })
                     : 'Nenhuma registrada'}
                 </p>
               </div>
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Peso Atual</p>
-                <p className="font-bold text-slate-900">
+              <div className="p-4 bg-muted/30 rounded-xl border border-border">
+                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Peso Atual</p>
+                <p className="font-bold text-foreground">
                   {consultations.length > 0 ? `${consultations[0].weight} kg` : '--'}
                 </p>
               </div>
-              <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
-                <p className="text-xs text-slate-500 uppercase font-bold tracking-wider mb-1">Status</p>
-                <div className="flex items-center gap-1.5 text-emerald-600 font-bold">
+              <div className="p-4 bg-muted/30 rounded-xl border border-border">
+                <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider mb-1">Status</p>
+                <div className="flex items-center gap-1.5 text-primary font-bold">
                   <CheckCircle2 className="w-4 h-4" /> Ativo
                 </div>
               </div>
@@ -685,8 +685,8 @@ export const PatientAccess = () => {
         {/* Planos Alimentares */}
         <section className="space-y-4">
           <div className="flex items-center gap-2 px-2">
-            <Apple className="w-5 h-5 text-emerald-600" />
-            <h2 className="text-xl font-bold text-slate-900">Meus Planos Alimentares</h2>
+            <Apple className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-bold text-foreground">Meus Planos Alimentares</h2>
           </div>
           
           {mealPlans.length > 0 ? (
@@ -699,7 +699,7 @@ export const PatientAccess = () => {
                 >
                   <CardContent className="p-6 flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-colors">
+                      <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                         {downloadingPlanId === plan.id ? (
                           <Loader2 className="w-6 h-6 animate-spin" />
                         ) : (
@@ -707,11 +707,11 @@ export const PatientAccess = () => {
                         )}
                       </div>
                       <div>
-                        <h3 className="font-bold text-slate-900">{plan.name}</h3>
-                        <p className="text-sm text-slate-500">Criado em {format(parseISO(plan.createdAt), 'dd/MM/yyyy')}</p>
+                        <h3 className="font-bold text-foreground">{plan.name}</h3>
+                        <p className="text-sm text-muted-foreground">Criado em {format(parseISO(plan.createdAt), 'dd/MM/yyyy')}</p>
                       </div>
                     </div>
-                    <Button variant="ghost" className="text-emerald-600 font-bold gap-2">
+                    <Button variant="ghost" className="text-primary font-bold gap-2">
                       <Download className="w-4 h-4" /> Baixar Plano
                     </Button>
                   </CardContent>
@@ -719,8 +719,8 @@ export const PatientAccess = () => {
               ))}
             </div>
           ) : (
-            <div className="bg-white p-8 rounded-2xl border border-dashed border-slate-300 text-center">
-              <p className="text-slate-500">Nenhum plano alimentar disponível ainda.</p>
+            <div className="bg-card p-8 rounded-2xl border border-dashed border-border text-center">
+              <p className="text-muted-foreground">Nenhum plano alimentar disponível ainda.</p>
             </div>
           )}
         </section>
@@ -729,12 +729,12 @@ export const PatientAccess = () => {
         <section className="space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2">
             <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-600" />
-              <h2 className="text-xl font-bold text-slate-900">Minha Evolução</h2>
+              <TrendingUp className="w-5 h-5 text-primary" />
+              <h2 className="text-xl font-bold text-foreground">Minha Evolução</h2>
             </div>
             
             <Select value={evolutionMetric} onValueChange={(val: any) => setEvolutionMetric(val)}>
-              <SelectTrigger className="w-full sm:w-[220px] bg-white border-slate-200 rounded-xl h-10 shadow-sm font-medium focus:ring-emerald-500/20">
+              <SelectTrigger className="w-full sm:w-[220px] bg-card border-border rounded-xl h-10 shadow-sm font-medium focus:ring-primary/20">
                 <SelectValue placeholder="Selecione a métrica">
                   {evolutionMetric === 'weight' ? 'Peso (kg)' : 
                    evolutionMetric === 'fatPercentage' ? 'Gordura Corporal (%)' : 
@@ -742,7 +742,7 @@ export const PatientAccess = () => {
                    evolutionMetric === 'measurements' ? 'Circunferências (cm)' : undefined}
                 </SelectValue>
               </SelectTrigger>
-              <SelectContent className="rounded-xl border-slate-200 shadow-xl">
+              <SelectContent className="rounded-xl border-border shadow-xl">
                 <SelectItem value="weight">Peso (kg)</SelectItem>
                 <SelectItem value="fatPercentage">Gordura Corporal (%)</SelectItem>
                 <SelectItem value="imc">Índice de Massa Corporal (IMC)</SelectItem>
@@ -751,17 +751,17 @@ export const PatientAccess = () => {
             </Select>
           </div>
           
-          <Card className="rounded-2xl border-none shadow-sm p-6 bg-white overflow-hidden">
+          <Card className="rounded-2xl border-none shadow-sm p-6 bg-card overflow-hidden">
             {consultations.length > 0 ? (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
                       {evolutionMetric === 'weight' ? 'Variação de Peso' : 
                        evolutionMetric === 'fatPercentage' ? 'Variação de Gordura' : 
                        evolutionMetric === 'imc' ? 'IMC Atual' : 'Consistência de Medidas'}
                     </p>
-                    <p className="text-3xl font-bold text-slate-900">
+                    <p className="text-3xl font-bold text-foreground">
                       {evolutionMetric === 'weight' ? (
                         `${(consultations[0].weight - (consultations[consultations.length - 1].weight || consultations[0].weight)).toFixed(1)} kg`
                       ) : evolutionMetric === 'fatPercentage' ? (
@@ -774,8 +774,8 @@ export const PatientAccess = () => {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Última Consulta</p>
-                    <p className="text-sm font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100 italic">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Última Consulta</p>
+                    <p className="text-sm font-bold text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20 italic">
                       {format(parseISO(consultations[0].date), 'dd/MM/yyyy')}
                     </p>
                   </div>
@@ -808,15 +808,15 @@ export const PatientAccess = () => {
                           content={({ active, payload }) => {
                             if (active && payload && payload.length) {
                               return (
-                                <div className="bg-white p-4 rounded-xl shadow-2xl border border-slate-100 min-w-[160px]">
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                <div className="bg-card p-4 rounded-xl shadow-2xl border border-border min-w-[160px]">
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                     {payload[0].payload.fullDate}
                                   </p>
                                   <div className="space-y-1.5">
                                     {payload.map((p, idx) => (
                                       <div key={idx} className="flex items-center justify-between gap-4">
-                                        <span className="text-xs text-slate-500 font-medium">{p.name}:</span>
-                                        <span className="text-xs font-bold text-slate-900">{p.value} cm</span>
+                                        <span className="text-xs text-muted-foreground font-medium">{p.name}:</span>
+                                        <span className="text-xs font-bold text-foreground">{p.value} cm</span>
                                       </div>
                                     ))}
                                   </div>
@@ -867,13 +867,13 @@ export const PatientAccess = () => {
                             if (active && payload && payload.length) {
                               const data = payload[0].payload;
                               return (
-                                <div className="bg-white p-4 rounded-xl shadow-2xl border border-slate-100 min-w-[140px]">
-                                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                                <div className="bg-card p-4 rounded-xl shadow-2xl border border-border min-w-[140px]">
+                                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                     {data.fullDate}
                                   </p>
                                   <div className="flex items-center justify-between gap-4">
-                                    <span className="text-sm text-slate-500 font-medium whitespace-nowrap">{data.metricName}:</span>
-                                    <span className="text-base font-bold text-emerald-600">
+                                    <span className="text-sm text-muted-foreground font-medium whitespace-nowrap">{data.metricName}:</span>
+                                    <span className="text-base font-bold text-primary">
                                       {payload[0].value} {data.unit}
                                     </span>
                                   </div>
@@ -899,11 +899,11 @@ export const PatientAccess = () => {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-12 bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">
-                <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                  <TrendingUp className="w-8 h-8 text-slate-300" />
+              <div className="text-center py-12 bg-muted/30 rounded-2xl border-2 border-dashed border-border">
+                <div className="w-16 h-16 bg-card rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                  <TrendingUp className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <p className="text-slate-500 font-medium">Sua evolução aparecerá aqui após as próximas consultas!</p>
+                <p className="text-muted-foreground font-medium">Sua evolução aparecerá aqui após as próximas consultas!</p>
               </div>
             )}
           </Card>

@@ -1,0 +1,14 @@
+---
+description: Diretrizes de testes com Vitest para regras de negocio e API
+globs: src/tests/**/*.test.ts
+alwaysApply: false
+---
+
+# Testes Vitest
+
+- Mantenha testes proximos do comportamento de negocio, com foco em `services`, `controllers` e `middlewares`.
+- Prefira helpers de setup (ex.: `baseInput`) para reduzir repeticao e destacar o cenario testado.
+- Cubra casos felizes, validacoes de entrada e cenarios de erro (incluindo limites clinicos/importantes).
+- Ao alterar calculos ou regras de dominio, atualize ou adicione testes que capturem regressao funcional.
+- Use asserts explicitas e legiveis (`toBe`, `toBeCloseTo`, `toContain`) evitando testes opacos.
+- Nao remover cobertura existente sem justificar; mantenha `npm run test` como verificacao minima apos mudancas.

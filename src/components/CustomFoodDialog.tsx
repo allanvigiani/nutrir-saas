@@ -188,7 +188,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] rounded-2xl border-none shadow-2xl">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold text-slate-900">
+          <DialogTitle className="text-xl font-bold text-foreground">
             {food ? 'Editar Alimento' : 'Cadastrar Novo Alimento'}
           </DialogTitle>
           <DialogDescription>
@@ -204,7 +204,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                 id="name" 
                 {...register('name')} 
                 placeholder="Ex: Pão de Queijo Caseiro"
-                className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                className="bg-muted/30 border-none rounded-xl h-8 text-sm"
               />
               {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
             </div>
@@ -217,7 +217,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   type="number" 
                   step="0.1"
                   {...register('baseQuantity', { valueAsNumber: true })} 
-                  className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
                 {errors.baseQuantity && <p className="text-xs text-red-500">{errors.baseQuantity.message}</p>}
               </div>
@@ -227,7 +227,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   defaultValue="g" 
                   onValueChange={(v) => setValue('baseUnit', v)}
                 >
-                  <SelectTrigger className="bg-slate-50 border-none rounded-xl h-8 text-sm">
+                  <SelectTrigger className="bg-muted/30 border-none rounded-xl h-8 text-sm">
                     <SelectValue placeholder="Selecione">
                       {watch('baseUnit') === 'g' ? 'Gramas (g)' : 
                        watch('baseUnit') === 'ml' ? 'Mililitros (ml)' : 
@@ -251,7 +251,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   type="number" 
                   step="0.1"
                   {...register('kcal', { valueAsNumber: true })} 
-                  className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
                 {errors.kcal && <p className="text-xs text-red-500">{errors.kcal.message}</p>}
               </div>
@@ -262,7 +262,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   type="number" 
                   step="0.1"
                   {...register('protein', { valueAsNumber: true })} 
-                  className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
                 {errors.protein && <p className="text-xs text-red-500">{errors.protein.message}</p>}
               </div>
@@ -273,7 +273,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   type="number" 
                   step="0.1"
                   {...register('carbs', { valueAsNumber: true })} 
-                  className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
                 {errors.carbs && <p className="text-xs text-red-500">{errors.carbs.message}</p>}
               </div>
@@ -284,17 +284,17 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   type="number" 
                   step="0.1"
                   {...register('fat', { valueAsNumber: true })} 
-                  className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
                 {errors.fat && <p className="text-xs text-red-500">{errors.fat.message}</p>}
               </div>
             </div>
           </div>
 
-          <div className="space-y-4 pt-4 border-t border-slate-100">
+          <div className="space-y-4 pt-4 border-t border-border">
             <div className="flex items-center justify-between">
-              <Label className="text-sm font-bold text-emerald-700">Medida Caseira (Opcional)</Label>
-              <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider">Ex: 1 unidade = 50g</span>
+              <Label className="text-sm font-bold text-primary">Medida Caseira (Opcional)</Label>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Ex: 1 unidade = 50g</span>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -303,7 +303,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   id="servingName" 
                   {...register('servingName')} 
                   placeholder="Ex: unidade, fatia, colher"
-                  className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
               </div>
               <div className="space-y-2">
@@ -313,7 +313,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   type="number" 
                   step="0.1"
                   {...register('servingWeight', { valueAsNumber: true })} 
-                  className="bg-slate-50 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
               </div>
             </div>
@@ -324,13 +324,13 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
               type="button" 
               variant="outline" 
               onClick={() => onOpenChange(false)}
-              className="rounded-xl h-8 px-4 border-slate-200 text-slate-600 text-sm hover:bg-slate-50 transition-all active:scale-95"
+              className="rounded-xl h-8 px-4 border-border text-muted-foreground text-sm hover:bg-muted/30 transition-all active:scale-95"
             >
               Cancelar
             </Button>
             <Button 
               type="submit" 
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
+              className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Salvando...' : 'Salvar Alimento'}

@@ -70,31 +70,31 @@ export const SubscriptionSuccess = () => {
 
   if (isProcessing) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
         <div className="text-center space-y-4">
-          <Loader2 className="w-12 h-12 text-emerald-600 animate-spin mx-auto" />
-          <p className="text-slate-600 font-medium">Processando sua assinatura...</p>
+          <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
+          <p className="text-muted-foreground font-medium">Processando sua assinatura...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
       <Card className="max-w-md w-full border-none shadow-xl">
         <CardHeader className="text-center pb-2">
-          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-20 h-20 bg-primary/15 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-12 h-12" />
           </div>
-          <CardTitle className="text-2xl font-bold text-slate-900">Pagamento Confirmado!</CardTitle>
+          <CardTitle className="text-2xl font-bold text-foreground">Pagamento Confirmado!</CardTitle>
         </CardHeader>
         <CardContent className="text-center space-y-6">
-          <p className="text-slate-500">
+          <p className="text-muted-foreground">
             Sua assinatura de R$ 39,90/mês foi ativada com sucesso. Agora você tem acesso ilimitado a todos os recursos do sistema.
           </p>
           <Button 
             onClick={() => navigate('/')}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white gap-2 rounded-xl h-12 font-bold transition-all active:scale-95"
+            className="w-full bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl h-12 font-bold transition-all active:scale-95"
           >
             Ir para o Dashboard <ArrowRight className="w-4 h-4" />
           </Button>

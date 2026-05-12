@@ -1,0 +1,14 @@
+---
+description: Convencoes de UI React, Tailwind e Firebase no frontend
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Frontend React + Tailwind
+
+- Priorize componentes existentes de `src/components/ui` antes de criar componentes base novos.
+- Use `cn` de `src/lib/utils.ts` para compor classes condicionais com Tailwind.
+- Para icones, use `lucide-react`, mantendo consistencia visual com o restante do app.
+- Em listeners realtime do Firestore (`onSnapshot`), sempre retornar cleanup (`unsubscribe`) no `useEffect`.
+- Para formularios, manter padrao com React Hook Form + Zod quando houver validacao de entrada.
+- Em features pagas, nao renderize acesso direto sem camada de bloqueio/upsell do plano premium.

@@ -1,3 +1,5 @@
+import { logger } from "../logger.ts";
+
 export type AsaasClient = {
   request: (endpoint: string, options?: any) => Promise<any>;
 };
@@ -17,10 +19,17 @@ export function createAsaasClient({ asaasApiUrl, asaasApiKey }: CreateAsaasClien
       const apiPath = endpoint.replace(/^\//, "");
       const url = `${baseUrl}/${apiPath}`;
 
-      console.log(`[Asaas Request] ${options.method || "GET"} ${url}`);
+      logger.debug(`[Asaas API] Request: ${options.method || "GET"} ${apiPath}`, { 
+        endpoint: apiPath,
+        method: options.method || "GET"
+      });
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15_000);
 
       const response = await fetch(url, {
         ...options,
+        signal: controller.signal,
         headers: {
           access_token: asaasApiKey || "",
           "Content-Type": "application/json",
@@ -28,8 +37,10 @@ export function createAsaasClient({ asaasApiUrl, asaasApiKey }: CreateAsaasClien
         },
       });
 
+      clearTimeout(timeoutId);
+
       const text = await response.text();
-      console.log(`[Asaas Response] Status: ${response.status}`);
+      logger.debug(`[Asaas API] Response: ${response.status} for ${apiPath}`, { status: response.status });
 
       let data: any;
       try {
@@ -39,7 +50,11 @@ export function createAsaasClient({ asaasApiUrl, asaasApiKey }: CreateAsaasClien
       }
 
       if (!response.ok) {
-        console.error(`[Asaas Error] Status: ${response.status}`, JSON.stringify(data, null, 2));
+        logger.error(`[Asaas API] Erro na resposta: ${response.status}`, { 
+          status: response.status, 
+          endpoint: apiPath,
+          data 
+        });
 
         let errorMsg = "Erro na API do Asaas";
         if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
@@ -55,7 +70,7 @@ export function createAsaasClient({ asaasApiUrl, asaasApiKey }: CreateAsaasClien
 
       return data;
     } catch (error: any) {
-      console.error(`Erro em asaasFetch (${endpoint}):`, error.message);
+      logger.error(`[Asaas API] Falha na requisição: ${endpoint}`, error);
       throw error;
     }
   }

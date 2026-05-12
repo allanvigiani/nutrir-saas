@@ -22,6 +22,8 @@ export interface Nutritionist {
   lastLogin?: string;
   googleCalendarConnected?: boolean;
   googleCalendarTokens?: any;
+  welcomeEmailSentAt?: string;
+  hasSeenTutorial?: boolean;
 }
 
 export interface Patient {
@@ -73,11 +75,13 @@ export interface MealPlan {
   id: string;
   patient_id: string;
   consultation_id?: string;
+  calculation_id?: string;
   nutritionist_id: string;
   name: string;
   generalInstructions?: string;
   waterIntake?: string;
   mealObservations?: Record<string, string>;
+  customMeals?: { id: string; label: string; time?: string; icon?: string }[];
   access_token?: string;
   status: 'active' | 'archived';
   createdAt: string;
@@ -88,7 +92,7 @@ export interface MealPlanItem {
   id: string;
   meal_plan_id: string;
   nutritionist_id: string;
-  meal: 'breakfast' | 'morning_snack' | 'lunch' | 'afternoon_snack' | 'dinner' | 'supper';
+  meal: string;
   food: string;
   quantity: string;
   unit: string;
@@ -169,4 +173,15 @@ export interface Payment {
   description?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface NutritionCalculation {
+  id: string;
+  patient_id: string;
+  consultation_id: string;
+  nutritionist_id: string;
+  name: string;
+  input: any; // We'll keep it flexible or use NutritionCalculationInput if imported
+  result: any; // We'll keep it flexible or use NutritionCalculationOutput if imported
+  createdAt: string;
 }
