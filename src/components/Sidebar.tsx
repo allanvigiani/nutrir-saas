@@ -11,10 +11,13 @@ import {
   ChevronLeft,
   ChevronRight,
   Leaf,
-  BookOpen
+  BookOpen,
+  ArrowRightLeft,
+  Lock
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { remoteLogger } from '../lib/remote-logger';
@@ -44,6 +47,32 @@ const SidebarItem = ({
   </Link>
 );
 
+const SidebarItemLocked = ({
+  icon: Icon,
+  label,
+  collapsed,
+}: { icon: React.ElementType; label: string; collapsed: boolean }) => (
+  <TooltipProvider delay={200}>
+    <Tooltip>
+      <TooltipTrigger
+        className={cn(
+          "flex w-full items-center gap-3 px-3 py-2.5 rounded-lg cursor-not-allowed opacity-50 select-none",
+          "text-muted-foreground"
+        )}
+      >
+        <Icon className={cn("w-4.5 h-4.5 shrink-0", collapsed && "w-5 h-5")} />
+        {!collapsed && (
+          <span className="font-medium text-sm flex-1 text-left">{label}</span>
+        )}
+        {!collapsed && <Lock className="w-3 h-3 shrink-0" />}
+      </TooltipTrigger>
+      <TooltipContent side="right">
+        Em Breve
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
+
 export const Sidebar = () => {
   const [collapsed, setCollapsed] = React.useState(false);
   const location = useLocation();
@@ -70,6 +99,10 @@ export const Sidebar = () => {
       { icon: Settings, label: 'Configurações', to: '/settings' },
     );
   }
+
+  const lockedNavItems = nutritionist ? [
+    { icon: ArrowRightLeft, label: 'Migração' },
+  ] : [];
 
   const userName = nutritionist?.name || user?.displayName || 'Usuário';
   const userEmail = nutritionist?.email || user?.email || '';
@@ -129,6 +162,14 @@ export const Sidebar = () => {
             to={item.to}
             collapsed={collapsed}
             active={location.pathname === item.to}
+          />
+        ))}
+        {lockedNavItems.map((item) => (
+          <SidebarItemLocked
+            key={item.label}
+            icon={item.icon}
+            label={item.label}
+            collapsed={collapsed}
           />
         ))}
       </nav>
