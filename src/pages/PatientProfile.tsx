@@ -163,6 +163,8 @@ import { toast } from 'sonner';
 import {
   LineChart,
   Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -170,7 +172,8 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  Legend
+  Legend,
+  ReferenceLine,
 } from 'recharts';
 import {
   Dialog,
@@ -2618,166 +2621,452 @@ export const PatientProfile = () => {
         <TabsContent value="evolution" className="mt-6">
           <PremiumFeature>
             <div className="grid grid-cols-1 gap-6">
-              <Card>
-                <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-lg">Acompanhamento de Evolução</CardTitle>
-                    <CardDescription>Visualize o progresso do paciente ao longo do tempo.</CardDescription>
+
+              {/* Resumo Geral do Acompanhamento */}
+              {consultations.length > 0 && (() => {
+                const sorted = [...consultations].sort((a, b) =>
+                  new Date(a.date).getTime() - new Date(b.date).getTime()
+                );
+                const first = sorted[0];
+                const latest = sorted[sorted.length - 1];
+                const isMultiple = sorted.length > 1;
+
+                const days = Math.floor(
+                  (new Date(latest.date).getTime() - new Date(first.date).getTime()) / (1000 * 60 * 60 * 24)
+                );
+                const months = Math.floor(days / 30);
+                const durationLabel = !isMultiple
+                  ? '1 consulta'
+                  : months >= 1
+                  ? `${months} ${months === 1 ? 'mês' : 'meses'} de acompanhamento`
+                  : `${days} dias de acompanhamento`;
+
+                const totalDelta = (a?: number, b?: number, unit = '') => {
+                  if (a == null || b == null || !isMultiple) return null;
+                  const diff = +(b - a).toFixed(1);
+                  if (diff === 0) return { label: 'sem variação', neutral: true };
+                  return { label: `${diff > 0 ? '+' : ''}${diff}${unit}`, positive: diff > 0 };
+                };
+
+                const stats = [
+                  { label: 'Peso', d: totalDelta(first.weight, latest.weight, ' kg') },
+                  { label: 'IMC', d: totalDelta(first.imc, latest.imc) },
+                  ...(first.fatPercentage != null && latest.fatPercentage != null
+                    ? [{ label: 'Gordura', d: totalDelta(first.fatPercentage, latest.fatPercentage, '%') }]
+                    : []),
+                  ...(first.waist != null && latest.waist != null
+                    ? [{ label: 'Cintura', d: totalDelta(first.waist, latest.waist, ' cm') }]
+                    : []),
+                ];
+
+                return (
+                  <Card className="bg-muted/30 border-0 shadow-none">
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                          <p className="font-semibold text-sm">{durationLabel}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {sorted.length} consulta{sorted.length !== 1 ? 's' : ''} registrada{sorted.length !== 1 ? 's' : ''}
+                            {isMultiple && (
+                              <> · {formatDateSafely(first.date, 'dd/MM/yyyy')} → {formatDateSafely(latest.date, 'dd/MM/yyyy')}</>
+                            )}
+                          </p>
+                        </div>
+                        {isMultiple && stats.length > 0 && (
+                          <div className="flex flex-wrap gap-3">
+                            {stats.map((s) => s.d && (
+                              <div key={s.label} className="text-center">
+                                <p className="text-xs text-muted-foreground">{s.label}</p>
+                                <p className={cn(
+                                  'text-sm font-bold',
+                                  s.d.neutral ? 'text-muted-foreground' : 'text-foreground'
+                                )}>
+                                  {s.d.label}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">total</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {/* KPI Cards (6 métricas) */}
+              {consultations.length > 0 && (() => {
+                const sorted = [...consultations].sort((a, b) =>
+                  new Date(a.date).getTime() - new Date(b.date).getTime()
+                );
+                const latest = sorted[sorted.length - 1];
+                const prev = sorted.length > 1 ? sorted[sorted.length - 2] : null;
+
+                const imcInfo = (imc: number) => {
+                  if (imc < 18.5) return { label: 'Abaixo do peso', cls: 'text-blue-600 bg-blue-50 dark:bg-blue-950/50' };
+                  if (imc < 25) return { label: 'Normal', cls: 'text-green-600 bg-green-50 dark:bg-green-950/50' };
+                  if (imc < 30) return { label: 'Sobrepeso', cls: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/50' };
+                  return { label: 'Obesidade', cls: 'text-red-600 bg-red-50 dark:bg-red-950/50' };
+                };
+
+                const fmtDelta = (curr?: number, prevVal?: number, unit = '') => {
+                  if (curr == null || prevVal == null) return null;
+                  const diff = curr - prevVal;
+                  if (diff === 0) return null;
+                  const sign = diff > 0 ? '+' : '';
+                  return `${sign}${diff.toFixed(1)}${unit} desde última`;
+                };
+
+                const imc = imcInfo(latest.imc);
+                const h = latest.height;
+                const idealMin = h ? (18.5 * h * h).toFixed(1) : null;
+                const idealMax = h ? (24.9 * h * h).toFixed(1) : null;
+
+                const cards = [
+                  {
+                    label: 'Peso atual',
+                    value: `${latest.weight} kg`,
+                    sub: idealMin && idealMax ? `Peso ideal: ${idealMin}–${idealMax} kg` : null,
+                    delta: fmtDelta(latest.weight, prev?.weight, ' kg'),
+                    color: 'text-emerald-600',
+                    bg: 'bg-emerald-50 dark:bg-emerald-950/30',
+                  },
+                  {
+                    label: 'IMC',
+                    value: latest.imc.toFixed(1),
+                    badge: imc,
+                    sub: h ? `Altura: ${(h * 100).toFixed(0)} cm` : null,
+                    delta: fmtDelta(latest.imc, prev?.imc),
+                    color: 'text-blue-600',
+                    bg: 'bg-blue-50 dark:bg-blue-950/30',
+                  },
+                  {
+                    label: 'Gordura corporal',
+                    value: latest.fatPercentage != null ? `${latest.fatPercentage}%` : '—',
+                    delta: fmtDelta(latest.fatPercentage, prev?.fatPercentage, '%'),
+                    color: 'text-amber-600',
+                    bg: 'bg-amber-50 dark:bg-amber-950/30',
+                  },
+                  {
+                    label: 'Cintura',
+                    value: latest.waist != null ? `${latest.waist} cm` : '—',
+                    delta: fmtDelta(latest.waist, prev?.waist, ' cm'),
+                    color: 'text-violet-600',
+                    bg: 'bg-violet-50 dark:bg-violet-950/30',
+                  },
+                  {
+                    label: 'Quadril',
+                    value: latest.hip != null ? `${latest.hip} cm` : '—',
+                    delta: fmtDelta(latest.hip, prev?.hip, ' cm'),
+                    color: 'text-pink-600',
+                    bg: 'bg-pink-50 dark:bg-pink-950/30',
+                  },
+                  {
+                    label: 'Braço',
+                    value: latest.arm != null ? `${latest.arm} cm` : '—',
+                    delta: fmtDelta(latest.arm, prev?.arm, ' cm'),
+                    color: 'text-cyan-600',
+                    bg: 'bg-cyan-50 dark:bg-cyan-950/30',
+                  },
+                ];
+
+                return (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {cards.map((card) => (
+                      <div key={card.label} className={cn('rounded-xl p-4', card.bg)}>
+                        <p className="text-xs font-medium text-muted-foreground mb-1">{card.label}</p>
+                        <p className={cn('text-2xl font-bold leading-tight', card.color)}>{card.value}</p>
+                        {card.badge && (
+                          <span className={cn('inline-block text-xs font-medium px-2 py-0.5 rounded-full mt-1.5', card.badge.cls)}>
+                            {card.badge.label}
+                          </span>
+                        )}
+                        {card.sub && !card.badge && (
+                          <p className="text-xs text-muted-foreground mt-1">{card.sub}</p>
+                        )}
+                        {card.delta && (
+                          <p className="text-xs text-muted-foreground mt-1.5 leading-snug">{card.delta}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Select value={evolutionMetric} onValueChange={(val: any) => setEvolutionMetric(val)}>
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue>
-                          {evolutionMetric === 'weight' ? 'Peso (kg)' :
-                            evolutionMetric === 'fatPercentage' ? 'Gordura Corporal (%)' :
-                              evolutionMetric === 'imc' ? 'IMC' :
-                                evolutionMetric === 'measurements' ? 'Medidas (cm)' : undefined}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="weight">Peso (kg)</SelectItem>
-                        <SelectItem value="fatPercentage">Gordura Corporal (%)</SelectItem>
-                        <SelectItem value="imc">IMC</SelectItem>
-                        <SelectItem value="measurements">Medidas (cm)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                );
+              })()}
+
+              {/* Chart Card */}
+              <Card>
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-lg">Evolução ao Longo do Tempo</CardTitle>
+                    <CardDescription>
+                      {consultations.length} consulta{consultations.length !== 1 ? 's' : ''} registrada{consultations.length !== 1 ? 's' : ''}.
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(
+                      [
+                        ['weight', 'Peso'],
+                        ['imc', 'IMC'],
+                        ['fatPercentage', 'Composição'],
+                        ['measurements', 'Medidas'],
+                      ] as const
+                    ).map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => setEvolutionMetric(val)}
+                        className={cn(
+                          'px-3 py-1.5 text-xs font-medium rounded-full transition-all border',
+                          evolutionMetric === val
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                            : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[400px] w-full min-w-0">
+                  <div className="h-[380px] w-full">
                     {consultations.length > 0 && activeTab === 'evolution' ? (
                       <ResponsiveContainer width="100%" height="100%" debounce={100}>
-                        <LineChart data={[...consultations].reverse()}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <AreaChart
+                          data={[...consultations].sort(
+                            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+                          )}
+                          margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                        >
+                          <defs>
+                            <linearGradient id="evGradWeight" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.18} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="evGradFat" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.18} />
+                              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="evGradIMC" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.18} />
+                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="evGradWaist" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.12} />
+                              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.4} />
                           <XAxis
                             dataKey="date"
                             tickFormatter={(date) => formatDateSafely(date, 'dd/MM')}
-                            stroke="#94a3b8"
-                            fontSize={12}
+                            fontSize={11}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
                           />
-                          <YAxis stroke="#94a3b8" fontSize={12} />
+                          <YAxis
+                            fontSize={11}
+                            tickLine={false}
+                            axisLine={false}
+                            width={38}
+                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                          />
                           <Tooltip
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            contentStyle={{
+                              borderRadius: '10px',
+                              border: '1px solid hsl(var(--border))',
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                              fontSize: '13px',
+                            }}
                             labelFormatter={(date) => formatDateSafely(date, 'dd/MM/yyyy')}
                           />
-                          <Legend verticalAlign="top" height={36} />
+                          <Legend verticalAlign="top" height={32} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '12px' }} />
 
                           {evolutionMetric === 'weight' && (
-                            <Line
+                            <Area
                               name="Peso (kg)"
                               type="monotone"
                               dataKey="weight"
                               stroke="#10b981"
-                              strokeWidth={3}
+                              strokeWidth={2.5}
+                              fill="url(#evGradWeight)"
                               dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
                               activeDot={{ r: 6, strokeWidth: 0 }}
                             />
                           )}
 
                           {evolutionMetric === 'fatPercentage' && (
-                            <Line
+                            <Area
                               name="Gordura (%)"
                               type="monotone"
                               dataKey="fatPercentage"
                               stroke="#f59e0b"
-                              strokeWidth={3}
+                              strokeWidth={2.5}
+                              fill="url(#evGradFat)"
                               dot={{ r: 4, fill: '#f59e0b', strokeWidth: 2, stroke: '#fff' }}
                               activeDot={{ r: 6, strokeWidth: 0 }}
                             />
                           )}
 
                           {evolutionMetric === 'imc' && (
-                            <Line
-                              name="IMC"
-                              type="monotone"
-                              dataKey="imc"
-                              stroke="#3b82f6"
-                              strokeWidth={3}
-                              dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-                              activeDot={{ r: 6, strokeWidth: 0 }}
-                            />
+                            <>
+                              <ReferenceLine y={18.5} stroke="#94a3b8" strokeDasharray="4 3" label={{ value: 'Baixo peso  ', position: 'insideTopRight', fontSize: 10, fill: '#94a3b8' }} />
+                              <ReferenceLine y={25} stroke="#f59e0b" strokeDasharray="4 3" label={{ value: 'Sobrepeso  ', position: 'insideTopRight', fontSize: 10, fill: '#f59e0b' }} />
+                              <ReferenceLine y={30} stroke="#ef4444" strokeDasharray="4 3" label={{ value: 'Obesidade  ', position: 'insideTopRight', fontSize: 10, fill: '#ef4444' }} />
+                              <Area
+                                name="IMC"
+                                type="monotone"
+                                dataKey="imc"
+                                stroke="#3b82f6"
+                                strokeWidth={2.5}
+                                fill="url(#evGradIMC)"
+                                dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                                activeDot={{ r: 6, strokeWidth: 0 }}
+                              />
+                            </>
                           )}
 
                           {evolutionMetric === 'measurements' && (
                             <>
-                              <Line
-                                name="Cintura (cm)"
-                                type="monotone"
-                                dataKey="waist"
-                                stroke="#6366f1"
-                                strokeWidth={2}
-                                dot={{ r: 3, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }}
-                              />
-                              <Line
-                                name="Quadril (cm)"
-                                type="monotone"
-                                dataKey="hip"
-                                stroke="#ec4899"
-                                strokeWidth={2}
-                                dot={{ r: 3, fill: '#ec4899', strokeWidth: 2, stroke: '#fff' }}
-                              />
-                              <Line
-                                name="Abdômen (cm)"
-                                type="monotone"
-                                dataKey="abdomen"
-                                stroke="#8b5cf6"
-                                strokeWidth={2}
-                                dot={{ r: 3, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
-                              />
-                              <Line
-                                name="Braço (cm)"
-                                type="monotone"
-                                dataKey="arm"
-                                stroke="#06b6d4"
-                                strokeWidth={2}
-                                dot={{ r: 3, fill: '#06b6d4', strokeWidth: 2, stroke: '#fff' }}
-                              />
+                              <Area name="Cintura (cm)" type="monotone" dataKey="waist" stroke="#6366f1" strokeWidth={2} fill="url(#evGradWaist)" dot={{ r: 3, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} />
+                              <Area name="Quadril (cm)" type="monotone" dataKey="hip" stroke="#ec4899" strokeWidth={2} fill="none" dot={{ r: 3, fill: '#ec4899', strokeWidth: 2, stroke: '#fff' }} />
+                              <Area name="Abdômen (cm)" type="monotone" dataKey="abdomen" stroke="#8b5cf6" strokeWidth={2} fill="none" dot={{ r: 3, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }} />
+                              <Area name="Braço (cm)" type="monotone" dataKey="arm" stroke="#06b6d4" strokeWidth={2} fill="none" dot={{ r: 3, fill: '#06b6d4', strokeWidth: 2, stroke: '#fff' }} />
                             </>
                           )}
-                        </LineChart>
+                        </AreaChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="h-full flex items-center justify-center text-muted-foreground">
-                        Dados insuficientes para gerar o gráfico.
+                      <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                        <TrendingUp className="w-10 h-10 opacity-20" />
+                        <div className="text-center">
+                          <p className="font-medium text-sm">Sem dados de evolução ainda</p>
+                          <p className="text-xs mt-1 max-w-[260px]">
+                            Registre consultas com medidas para visualizar o progresso do paciente aqui.
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Tabela Comparativa</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-muted-foreground uppercase bg-muted/30">
-                        <tr>
-                          <th className="px-4 py-3">Data</th>
-                          <th className="px-4 py-3">Peso</th>
-                          <th className="px-4 py-3">IMC</th>
-                          <th className="px-4 py-3">% Gordura</th>
-                          <th className="px-4 py-3">Cintura</th>
-                          <th className="px-4 py-3">Abdômen</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {consultations.map((c) => (
-                          <tr key={c.id} className="hover:bg-muted/30">
-                            <td className="px-4 py-3 font-medium">{formatDateSafely(c.date, 'dd/MM/yyyy')}</td>
-                            <td className="px-4 py-3">{c.weight}kg</td>
-                            <td className="px-4 py-3">{c.imc.toFixed(1)}</td>
-                            <td className="px-4 py-3">{c.fatPercentage || '-'}%</td>
-                            <td className="px-4 py-3">{c.waist || '-'}cm</td>
-                            <td className="px-4 py-3">{c.abdomen || '-'}cm</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Tabela Completa */}
+              {consultations.length > 0 && (() => {
+                const imcLabel = (imc: number) => {
+                  if (imc < 18.5) return { text: 'Abaixo', cls: 'text-blue-600' };
+                  if (imc < 25) return { text: 'Normal', cls: 'text-green-600' };
+                  if (imc < 30) return { text: 'Sobrepeso', cls: 'text-yellow-600' };
+                  if (imc < 35) return { text: 'Obesidade I', cls: 'text-orange-600' };
+                  if (imc < 40) return { text: 'Obesidade II', cls: 'text-red-500' };
+                  return { text: 'Obesidade III', cls: 'text-red-700' };
+                };
+
+                const deltaTag = (curr?: number, prevVal?: number, unit = '') => {
+                  if (curr == null || prevVal == null) return null;
+                  const diff = +(curr - prevVal).toFixed(1);
+                  if (diff === 0) return null;
+                  return (
+                    <span className="ml-1 text-[11px] text-muted-foreground whitespace-nowrap">
+                      {diff > 0 ? '↑' : '↓'}{Math.abs(diff)}{unit}
+                    </span>
+                  );
+                };
+
+                const rows = [...consultations].sort(
+                  (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+                );
+
+                const cols = [
+                  'Data', 'Altura', 'Peso', 'IMC', 'Classif.', '% Gordura',
+                  'Cintura', 'Quadril', 'Abdômen', 'Braço',
+                ];
+
+                return (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Histórico Completo de Medidas</CardTitle>
+                      <CardDescription>
+                        Todas as consultas com variação em relação à consulta anterior. {rows.length} registro{rows.length !== 1 ? 's' : ''}.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="px-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm min-w-[760px]">
+                          <thead>
+                            <tr className="border-b border-border bg-muted/30">
+                              {cols.map((h) => (
+                                <th
+                                  key={h}
+                                  className={cn(
+                                    'py-2.5 px-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap',
+                                    h === 'Data' || h === 'Classif.' ? 'text-left' : 'text-right'
+                                  )}
+                                >
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((c, idx, arr) => {
+                              const prev = arr[idx + 1];
+                              const cl = imcLabel(c.imc);
+                              return (
+                                <tr
+                                  key={c.id}
+                                  className={cn(
+                                    'border-b border-border/40 transition-colors hover:bg-muted/30',
+                                    idx === 0 && 'bg-muted/20'
+                                  )}
+                                >
+                                  <td className="px-3 py-2.5">
+                                    <div className="font-medium whitespace-nowrap">{formatDateSafely(c.date, 'dd/MM/yyyy')}</div>
+                                    {idx === 0 && <span className="text-[11px] text-primary font-medium">Mais recente</span>}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                    {c.height ? `${(c.height * 100).toFixed(0)} cm` : '—'}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                    <span className="font-medium">{c.weight} kg</span>
+                                    {deltaTag(c.weight, prev?.weight, ' kg')}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                    <span className="font-medium">{c.imc.toFixed(1)}</span>
+                                    {deltaTag(c.imc, prev?.imc)}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-left">
+                                    <span className={cn('text-xs font-medium whitespace-nowrap', cl.cls)}>{cl.text}</span>
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                    {c.fatPercentage != null ? `${c.fatPercentage}%` : '—'}
+                                    {deltaTag(c.fatPercentage, prev?.fatPercentage, '%')}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                    {c.waist != null ? `${c.waist} cm` : '—'}
+                                    {deltaTag(c.waist, prev?.waist, ' cm')}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                    {c.hip != null ? `${c.hip} cm` : '—'}
+                                    {deltaTag(c.hip, prev?.hip, ' cm')}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                    {c.abdomen != null ? `${c.abdomen} cm` : '—'}
+                                    {deltaTag(c.abdomen, prev?.abdomen, ' cm')}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                    {c.arm != null ? `${c.arm} cm` : '—'}
+                                    {deltaTag(c.arm, prev?.arm, ' cm')}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
             </div>
           </PremiumFeature>
         </TabsContent>
