@@ -270,8 +270,6 @@ export const PatientProfile = () => {
   const [activeMealItemIndex, setActiveMealItemIndex] = useState<number | null>(null);
   const [isLabExamModalOpen, setIsLabExamModalOpen] = useState(false);
   const [isEditPatientModalOpen, setIsEditPatientModalOpen] = useState(false);
-  const [editCpf, setEditCpf] = useState('');
-  const [editPhone, setEditPhone] = useState('');
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -943,12 +941,7 @@ export const PatientProfile = () => {
     }
   };
 
-  useEffect(() => {
-    if (isEditPatientModalOpen && patient) {
-      setEditCpf(maskCPF(patient.cpf));
-      setEditPhone(maskPhone(patient.phone));
-    }
-  }, [isEditPatientModalOpen, patient]);
+  // editPhone e editCpf removidos — inputs usam defaultValue + masking direto no DOM
 
   const onEditPatientSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -1343,7 +1336,7 @@ export const PatientProfile = () => {
             >
               <Plus className="w-4 h-4" /> Nova Consulta
             </DialogTrigger>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl">
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl">
               <DialogHeader>
                 <DialogTitle>{selectedConsultation ? 'Editar Consulta' : 'Registrar Nova Consulta'}</DialogTitle>
                 <DialogDescription>Preencha os dados antropométricos e clínicos do atendimento.</DialogDescription>
@@ -1352,15 +1345,15 @@ export const PatientProfile = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="date">Data da Consulta</Label>
-                    <Input id="date" type="date" {...regConsultation('date')} className="h-8 text-sm" />
+                    <Input id="date" type="date" {...regConsultation('date')} className="bg-muted/30 rounded-lg" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="weight">Peso (kg)</Label>
-                    <Input id="weight" type="number" step="0.1" {...regConsultation('weight')} className="h-8 text-sm" />
+                    <Input id="weight" type="number" step="0.1" {...regConsultation('weight')} className="bg-muted/30 rounded-lg" />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="height">Altura (cm)</Label>
-                    <Input id="height" type="number" {...regConsultation('height')} className="h-8 text-sm" />
+                    <Input id="height" type="number" {...regConsultation('height')} className="bg-muted/30 rounded-lg" />
                   </div>
                 </div>
 
@@ -1369,23 +1362,23 @@ export const PatientProfile = () => {
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="fatPercentage">% Gordura</Label>
-                      <Input id="fatPercentage" type="number" step="0.1" {...regConsultation('fatPercentage')} className="h-8 text-sm" />
+                      <Input id="fatPercentage" type="number" step="0.1" {...regConsultation('fatPercentage')} className="bg-muted/30 rounded-lg" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="waist">Cintura</Label>
-                      <Input id="waist" type="number" step="0.1" {...regConsultation('waist')} className="h-8 text-sm" />
+                      <Input id="waist" type="number" step="0.1" {...regConsultation('waist')} className="bg-muted/30 rounded-lg" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="hip">Quadril</Label>
-                      <Input id="hip" type="number" step="0.1" {...regConsultation('hip')} className="h-8 text-sm" />
+                      <Input id="hip" type="number" step="0.1" {...regConsultation('hip')} className="bg-muted/30 rounded-lg" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="abdomen">Abdômen</Label>
-                      <Input id="abdomen" type="number" step="0.1" {...regConsultation('abdomen')} className="h-8 text-sm" />
+                      <Input id="abdomen" type="number" step="0.1" {...regConsultation('abdomen')} className="bg-muted/30 rounded-lg" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="arm">Braço</Label>
-                      <Input id="arm" type="number" step="0.1" {...regConsultation('arm')} className="h-8 text-sm" />
+                      <Input id="arm" type="number" step="0.1" {...regConsultation('arm')} className="bg-muted/30 rounded-lg" />
                     </div>
                   </div>
                 </div>
@@ -2135,7 +2128,7 @@ export const PatientProfile = () => {
         </Dialog>
 
         <Dialog open={isDeleteMealPlanConfirmOpen} onOpenChange={setIsDeleteMealPlanConfirmOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Excluir Plano Alimentar</DialogTitle>
               <DialogDescription>
@@ -2150,7 +2143,7 @@ export const PatientProfile = () => {
         </Dialog>
 
         <Dialog open={isDeleteLabExamConfirmOpen} onOpenChange={setIsDeleteLabExamConfirmOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Excluir Exame Laboratorial</DialogTitle>
               <DialogDescription>
@@ -2165,7 +2158,7 @@ export const PatientProfile = () => {
         </Dialog>
 
         <Dialog open={isDeleteConsultationConfirmOpen} onOpenChange={setIsDeleteConsultationConfirmOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Excluir Consulta</DialogTitle>
               <DialogDescription>
@@ -2318,7 +2311,7 @@ export const PatientProfile = () => {
                     <Plus className="w-4 h-4" /> Registrar Exame
                   </DialogTrigger>
                 </PremiumFeature>
-                <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl border-none shadow-2xl">
+                <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl shadow-2xl">
                   <DialogHeader className="p-6 pb-0">
                     <DialogTitle>{selectedExam ? 'Editar Exame' : 'Novo Exame'}</DialogTitle>
                     <DialogDescription>Insira os dados do exame laboratorial e seus marcadores.</DialogDescription>
@@ -3074,7 +3067,7 @@ export const PatientProfile = () => {
 
       {/* Modals */}
       <Dialog open={isCalculatorModalOpen} onOpenChange={setIsCalculatorModalOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden flex flex-col bg-muted/30">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden flex flex-col bg-muted/30 rounded-2xl shadow-2xl">
           <div className="bg-card px-6 py-4 border-b flex justify-between items-center shadow-sm z-10 shrink-0">
             <div>
               <h2 className="text-xl font-black text-foreground">Cálculo Nutricional</h2>
@@ -3106,7 +3099,7 @@ export const PatientProfile = () => {
 
       {/* Edit Patient Modal */}
       <Dialog open={isEditPatientModalOpen} onOpenChange={setIsEditPatientModalOpen}>
-        <DialogContent className="sm:max-w-3xl rounded-2xl border-none shadow-2xl">
+        <DialogContent className="sm:max-w-2xl rounded-2xl shadow-2xl">
           <DialogHeader>
             <DialogTitle>Editar Perfil do Paciente</DialogTitle>
             <DialogDescription>Atualize as informações cadastrais do paciente.</DialogDescription>
@@ -3115,21 +3108,21 @@ export const PatientProfile = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome Completo</Label>
-                <Input id="name" name="name" defaultValue={patient.name} required className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
+                <Input id="name" name="name" defaultValue={patient.name} required className="bg-muted/30 rounded-lg" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
-                <Input id="email" name="email" type="email" defaultValue={patient.email} required className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
+                <Input id="email" name="email" type="email" defaultValue={patient.email} required className="bg-muted/30 rounded-lg" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefone</Label>
                 <Input
                   id="phone"
                   name="phone"
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(maskPhone(e.target.value))}
+                  defaultValue={maskPhone(patient.phone)}
+                  onChange={(e) => { e.target.value = maskPhone(e.target.value); }}
                   required
-                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 rounded-lg"
                 />
               </div>
               <div className="space-y-2">
@@ -3137,20 +3130,20 @@ export const PatientProfile = () => {
                 <Input
                   id="cpf"
                   name="cpf"
-                  value={editCpf}
-                  onChange={(e) => setEditCpf(maskCPF(e.target.value))}
+                  defaultValue={maskCPF(patient.cpf)}
+                  onChange={(e) => { e.target.value = maskCPF(e.target.value); }}
                   required
-                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 rounded-lg"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="birthDate">Data de Nascimento</Label>
-                <Input id="birthDate" name="birthDate" type="date" defaultValue={patient.birthDate} required className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
+                <Input id="birthDate" name="birthDate" type="date" defaultValue={patient.birthDate} required className="bg-muted/30 rounded-lg" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="gender">Gênero</Label>
                 <Select name="gender" value={gender} onValueChange={(v: any) => setGender(v)}>
-                  <SelectTrigger className="bg-muted/30 border-none rounded-xl h-8 text-sm">
+                  <SelectTrigger className="bg-muted/30 rounded-lg">
                     <SelectValue placeholder="Selecione o gênero">
                       {gender === 'male' ? 'Masculino' :
                         gender === 'female' ? 'Feminino' :
@@ -3167,20 +3160,20 @@ export const PatientProfile = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Endereço</Label>
-              <Input id="address" name="address" defaultValue={patient.address} className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
+              <Input id="address" name="address" defaultValue={patient.address} className="bg-muted/30 rounded-lg" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="diseases">Doenças</Label>
-                <Textarea id="diseases" name="diseases" defaultValue={patient.diseases} placeholder="Ex: Diabetes, Hipertensão..." className="bg-muted/30 border-none rounded-xl text-sm" />
+                <Textarea id="diseases" name="diseases" defaultValue={patient.diseases} placeholder="Ex: Diabetes, Hipertensão..." className="bg-muted/30 rounded-lg" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="medications">Medicamentos</Label>
-                <Textarea id="medications" name="medications" defaultValue={patient.medications} placeholder="Ex: Metformina, Losartana..." className="bg-muted/30 border-none rounded-xl text-sm" />
+                <Textarea id="medications" name="medications" defaultValue={patient.medications} placeholder="Ex: Metformina, Losartana..." className="bg-muted/30 rounded-lg" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="allergies">Alergias</Label>
-                <Textarea id="allergies" name="allergies" defaultValue={patient.allergies} placeholder="Ex: Lactose, Glúten, Amendoim..." className="bg-muted/30 border-none rounded-xl text-sm" />
+                <Textarea id="allergies" name="allergies" defaultValue={patient.allergies} placeholder="Ex: Lactose, Glúten, Amendoim..." className="bg-muted/30 rounded-lg" />
               </div>
             </div>
             <DialogFooter className="mt-6 gap-2 sm:gap-0">

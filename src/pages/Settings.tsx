@@ -582,62 +582,62 @@ export const Settings = () => {
                           <Input 
                             id="cpf" 
                             {...register('cpf')} 
-                            className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
+                            className="bg-muted/30 rounded-lg" 
                             onChange={(e) => {
                               const masked = maskCPF(e.target.value);
                               setValue('cpf', masked);
                             }}
                           />
-                          {errors.cpf && <p className="text-sm text-red-500">{errors.cpf.message}</p>}
+                          {errors.cpf && <p className="text-xs text-destructive mt-1">{errors.cpf.message}</p>}
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="cnpj">CNPJ</Label>
                           <Input 
                             id="cnpj" 
                             {...register('cnpj')} 
-                            className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
+                            className="bg-muted/30 rounded-lg" 
                             onChange={(e) => {
                               const masked = maskCNPJ(e.target.value);
                               setValue('cnpj', masked);
                             }}
                           />
-                          {errors.cnpj && <p className="text-sm text-red-500">{errors.cnpj.message}</p>}
+                          {errors.cnpj && <p className="text-xs text-destructive mt-1">{errors.cnpj.message}</p>}
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="name">Nome Completo</Label>
-                        <Input id="name" {...register('name')} className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
-                        {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+                        <Input id="name" {...register('name')} className="bg-muted/30 rounded-lg" />
+                        {errors.name && <p className="text-xs text-destructive mt-1">{errors.name.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="crn">CRN</Label>
-                        <Input id="crn" {...register('crn')} className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
-                        {errors.crn && <p className="text-sm text-red-500">{errors.crn.message}</p>}
+                        <Input id="crn" {...register('crn')} className="bg-muted/30 rounded-lg" />
+                        {errors.crn && <p className="text-xs text-destructive mt-1">{errors.crn.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">E-mail (Não editável)</Label>
-                        <Input id="email" value={nutritionist?.email || ''} disabled className="bg-muted border-none rounded-xl h-8 text-sm" />
+                        <Input id="email" value={nutritionist?.email || ''} disabled className="bg-muted/50 rounded-lg" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="phone">Telefone</Label>
                         <Input 
                           id="phone" 
                           {...register('phone')} 
-                          className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
+                          className="bg-muted/30 rounded-lg" 
                           onChange={(e) => {
                             const masked = maskPhone(e.target.value);
                             setValue('phone', masked);
                           }}
                         />
-                        {errors.phone && <p className="text-sm text-red-500">{errors.phone.message}</p>}
+                        {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone.message}</p>}
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="specialties">Especialidades (Separadas por vírgula)</Label>
-                      <Input id="specialties" placeholder="Ex: Nutrição Esportiva, Clínica, Funcional" {...register('specialties')} className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
+                      <Input id="specialties" placeholder="Ex: Nutrição Esportiva, Clínica, Funcional" {...register('specialties')} className="bg-muted/30 rounded-lg" />
                     </div>
                   </CardContent>
                   <CardFooter className="border-t border-border pt-6">
@@ -692,7 +692,7 @@ export const Settings = () => {
                   placeholder="Pesquisar em seus alimentos..." 
                   value={foodSearch}
                   onChange={(e) => setFoodSearch(e.target.value)}
-                  className="pl-10 bg-muted/30 border-none rounded-xl h-8 text-sm"
+                  className="pl-10 bg-muted/30 rounded-lg"
                 />
               </div>
             </CardHeader>
@@ -785,7 +785,7 @@ export const Settings = () => {
           />
 
           <Dialog open={!!foodToDelete} onOpenChange={(open) => !open && setFoodToDelete(null)}>
-            <DialogContent className="sm:max-w-[400px]">
+            <DialogContent className="sm:max-w-sm rounded-2xl">
               <DialogHeader>
                 <DialogTitle>Excluir Alimento</DialogTitle>
                 <DialogDescription>
@@ -816,7 +816,7 @@ export const Settings = () => {
                       type="password" 
                       value={newPassword}
                       onChange={(e) => setNewPassword(e.target.value)}
-                      className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
+                      className="bg-muted/30 rounded-lg" 
                     />
                   </div>
                   <div className="space-y-2">
@@ -826,7 +826,7 @@ export const Settings = () => {
                       type="password" 
                       value={confirmNewPassword}
                       onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
+                      className="bg-muted/30 rounded-lg" 
                     />
                   </div>
                 </div>
@@ -982,7 +982,7 @@ export const Settings = () => {
                       </Button>
                       
                       <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
-                        <DialogContent className="sm:max-w-[400px]">
+                        <DialogContent className="sm:max-w-sm rounded-2xl">
                           <DialogHeader>
                             <DialogTitle>
                               {showCancelConfirm ? 'Confirmar Cancelamento' : 'Gerenciar Assinatura'}

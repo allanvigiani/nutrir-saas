@@ -250,7 +250,7 @@ export const Register = () => {
             <div className="space-y-1.5">
               <Label htmlFor="name" className="text-sm font-medium">Nome Completo</Label>
               <Input id="name" placeholder="Seu nome completo" className="h-11 rounded-xl" {...register('name')} />
-              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+              {errors.name && <p className="text-xs text-destructive mt-1">{errors.name.message}</p>}
             </div>
 
             {/* CPF / CNPJ */}
@@ -264,7 +264,7 @@ export const Register = () => {
                   {...register('cpf')}
                   onChange={(e) => setValue('cpf', maskCPF(e.target.value))}
                 />
-                {errors.cpf && <p className="text-xs text-destructive">{errors.cpf.message}</p>}
+                {errors.cpf && <p className="text-xs text-destructive mt-1">{errors.cpf.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cnpj" className="text-sm font-medium">CNPJ</Label>
@@ -275,7 +275,7 @@ export const Register = () => {
                   {...register('cnpj')}
                   onChange={(e) => setValue('cnpj', maskCNPJ(e.target.value))}
                 />
-                {errors.cnpj && <p className="text-xs text-destructive">{errors.cnpj.message}</p>}
+                {errors.cnpj && <p className="text-xs text-destructive mt-1">{errors.cnpj.message}</p>}
               </div>
             </div>
 
@@ -284,7 +284,7 @@ export const Register = () => {
               <div className="space-y-1.5">
                 <Label htmlFor="crn" className="text-sm font-medium">CRN</Label>
                 <Input id="crn" placeholder="Ex: 12345" className="h-11 rounded-xl" {...register('crn')} />
-                {errors.crn && <p className="text-xs text-destructive">{errors.crn.message}</p>}
+                {errors.crn && <p className="text-xs text-destructive mt-1">{errors.crn.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="phone" className="text-sm font-medium">Telefone</Label>
@@ -295,7 +295,7 @@ export const Register = () => {
                   {...register('phone')}
                   onChange={(e) => setValue('phone', maskPhone(e.target.value))}
                 />
-                {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
+                {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone.message}</p>}
               </div>
             </div>
 
@@ -303,7 +303,7 @@ export const Register = () => {
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-sm font-medium">E-mail</Label>
               <Input id="email" type="email" placeholder="exemplo@email.com" className="h-11 rounded-xl" {...register('email')} />
-              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+              {errors.email && <p className="text-xs text-destructive mt-1">{errors.email.message}</p>}
             </div>
 
             {/* Senha / Confirmar */}
@@ -326,7 +326,7 @@ export const Register = () => {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+                {errors.password && <p className="text-xs text-destructive mt-1">{errors.password.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirmar</Label>
@@ -337,7 +337,7 @@ export const Register = () => {
                   className="h-11 rounded-xl"
                   {...register('confirmPassword')}
                 />
-                {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
+                {errors.confirmPassword && <p className="text-xs text-destructive mt-1">{errors.confirmPassword.message}</p>}
               </div>
             </div>
 

@@ -172,9 +172,7 @@ export const Financial = () => {
     }
   });
 
-  const methodValue = watch('method');
-  const statusValue = watch('status');
-  const patientIdValue = watch('patient_id');
+  const { method: methodValue, status: statusValue, patient_id: patientIdValue } = watch();
 
   useEffect(() => {
     if (!user) return;
@@ -722,7 +720,7 @@ export const Financial = () => {
 
       {/* Status Update Modal */}
       <Dialog open={isStatusModalOpen} onOpenChange={setIsStatusModalOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl border-none shadow-2xl p-4">
+        <DialogContent className="sm:max-w-sm rounded-2xl shadow-2xl p-4">
           <DialogHeader className="mb-4">
             <DialogTitle className="text-xl font-bold">Atualizar Status</DialogTitle>
             <DialogDescription className="text-sm">
@@ -771,7 +769,7 @@ export const Financial = () => {
       </Dialog>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[600px] rounded-3xl p-0 overflow-hidden border-none shadow-2xl">
+        <DialogContent className="sm:max-w-lg rounded-2xl p-0 overflow-hidden shadow-2xl">
           <DialogHeader className="p-4 bg-muted/30 border-b border-border">
             <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
               <DollarSign className="w-5 h-5 text-primary" />
@@ -783,9 +781,9 @@ export const Financial = () => {
           <form onSubmit={handleSubmit(handleCreatePayment)} className="p-4 space-y-4">
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="patient_id" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Paciente</Label>
+                <Label htmlFor="patient_id" className="text-sm font-medium">Paciente</Label>
                 <Select value={patientIdValue} onValueChange={(v) => setValue('patient_id', v)}>
-                  <SelectTrigger className="h-10 rounded-xl border-border focus:ring-primary">
+                  <SelectTrigger className="bg-muted/30 rounded-lg">
                     <SelectValue placeholder="Selecione o paciente">
                       {patients.find(p => p.id === patientIdValue)?.name}
                     </SelectValue>
@@ -796,16 +794,16 @@ export const Financial = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.patient_id && <p className="text-xs text-red-500">{errors.patient_id.message}</p>}
+                {errors.patient_id && <p className="text-xs text-destructive mt-1">{errors.patient_id.message}</p>}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="amount" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Valor (R$)</Label>
+                  <Label htmlFor="amount" className="text-sm font-medium">Valor (R$)</Label>
                   <Input 
                     id="amount"
                     placeholder="0,00" 
-                    className="h-10 rounded-xl border-border focus:ring-primary"
+                    className="bg-muted/30 rounded-lg"
                     {...register('amount')}
                     onChange={(e) => {
                       const value = e.target.value;
@@ -813,25 +811,25 @@ export const Financial = () => {
                       register('amount').onChange(e);
                     }}
                   />
-                  {errors.amount && <p className="text-xs text-red-500">{errors.amount.message}</p>}
+                  {errors.amount && <p className="text-xs text-destructive mt-1">{errors.amount.message}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="date" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Data</Label>
+                  <Label htmlFor="date" className="text-sm font-medium">Data</Label>
                   <Input 
                     id="date"
                     type="date" 
-                    className="h-10 rounded-xl border-border focus:ring-primary"
+                    className="bg-muted/30 rounded-lg"
                     {...register('date')}
                   />
-                  {errors.date && <p className="text-xs text-red-500">{errors.date.message}</p>}
+                  {errors.date && <p className="text-xs text-destructive mt-1">{errors.date.message}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="method" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Método</Label>
+                  <Label htmlFor="method" className="text-sm font-medium">Método</Label>
                   <Select value={methodValue} onValueChange={(v: any) => setValue('method', v)}>
-                    <SelectTrigger className="h-10 rounded-xl border-border focus:ring-primary">
+                    <SelectTrigger className="bg-muted/30 rounded-lg">
                       <SelectValue>
                         {methodValue === 'pix' ? 'PIX' : 
                          methodValue === 'credit_card' ? 'Cartão de Crédito' : 
@@ -850,9 +848,9 @@ export const Financial = () => {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="status" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Status</Label>
+                  <Label htmlFor="status" className="text-sm font-medium">Status</Label>
                   <Select value={statusValue} onValueChange={(v: any) => setValue('status', v)}>
-                    <SelectTrigger className="h-10 rounded-xl border-border focus:ring-primary">
+                    <SelectTrigger className="bg-muted/30 rounded-lg">
                       <SelectValue>
                         {statusValue === 'paid' ? 'Pago' : 
                          statusValue === 'pending' ? 'Pendente' : 
@@ -869,11 +867,11 @@ export const Financial = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description" className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Descrição (Opcional)</Label>
+                <Label htmlFor="description" className="text-sm font-medium">Descrição (Opcional)</Label>
                 <Input 
                   id="description"
                   placeholder="Ex: Consulta de rotina, Pacote 5 sessões..." 
-                  className="h-10 rounded-xl border-border focus:ring-primary"
+                  className="bg-muted/30 rounded-lg"
                   {...register('description')}
                 />
               </div>

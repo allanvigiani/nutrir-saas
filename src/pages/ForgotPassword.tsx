@@ -100,19 +100,19 @@ export const ForgotPassword = () => {
             </div>
 
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-muted-foreground font-medium">Seu E-mail</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="email">Seu E-mail</Label>
                 <div className="relative">
-                  <Input 
-                    id="email" 
-                    type="email" 
-                    placeholder="exemplo@email.com" 
-                    className="h-12 rounded-xl border-border focus:ring-primary focus:border-primary pl-11"
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="exemplo@email.com"
+                    className="h-11 rounded-xl pl-11"
                     {...form.register('email')}
                   />
-                  <Mail className="w-5 h-5 text-muted-foreground absolute left-4 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2" />
                 </div>
-                {form.formState.errors.email && <p className="text-sm text-red-500 mt-1">{form.formState.errors.email.message}</p>}
+                {form.formState.errors.email && <p className="text-xs text-destructive mt-1">{form.formState.errors.email.message}</p>}
               </div>
 
               <Button 

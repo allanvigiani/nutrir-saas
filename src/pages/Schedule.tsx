@@ -389,7 +389,7 @@ export const Schedule = () => {
             >
               <Plus className="w-4 h-4" /> Novo Agendamento
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[700px]">
+            <DialogContent className="sm:max-w-xl rounded-2xl">
               <DialogHeader>
                 <DialogTitle>{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
                 <DialogDescription>
@@ -397,10 +397,10 @@ export const Schedule = () => {
                 </DialogDescription>
               </DialogHeader>
               <div key={editingAppointment?.id || 'new'} className="space-y-4 py-4">
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label>Paciente</Label>
                   <Select value={selectedPatientId} onValueChange={setSelectedPatientId} disabled={!!editingAppointment}>
-                    <SelectTrigger className="rounded-xl border-border h-11 bg-card w-full">
+                    <SelectTrigger className="bg-muted/30 rounded-lg w-full">
                       <SelectValue placeholder="Selecione o paciente">
                         {selectedPatientId ? (
                           <div className="flex items-center">
@@ -436,9 +436,9 @@ export const Schedule = () => {
                         {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : 'Selecione no calendário'}
                       </div>
                     ) : (
-                      <Input 
-                        type="date" 
-                        className="rounded-xl border-border"
+                      <Input
+                        type="date"
+                        className="bg-muted/30 rounded-lg"
                         value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
                         onChange={(e) => {
                           const newDate = parseISO(e.target.value);
@@ -453,10 +453,11 @@ export const Schedule = () => {
                   </div>
                   <div className="space-y-2">
                     <Label>Horário</Label>
-                    <Input 
-                      type="time" 
-                      value={selectedTime} 
-                      onChange={(e) => setSelectedTime(e.target.value)} 
+                    <Input
+                      type="time"
+                      className="bg-muted/30 rounded-lg"
+                      value={selectedTime}
+                      onChange={(e) => setSelectedTime(e.target.value)}
                     />
                   </div>
                 </div>
@@ -546,7 +547,7 @@ export const Schedule = () => {
           </Dialog>
 
           <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-            <DialogContent className="sm:max-w-[380px] p-6">
+            <DialogContent className="sm:max-w-sm p-6 rounded-2xl">
               <DialogHeader className="space-y-3">
                 <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-2">
                   <Trash2 className="w-6 h-6 text-red-600" />
