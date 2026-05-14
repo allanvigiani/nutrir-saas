@@ -181,20 +181,29 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Peso (kg)</Label>
-                <Input type="number" step="0.1" value={peso} onChange={e => setPeso(e.target.value)} />
+              <div className="space-y-1.5">
+                <Label>Peso</Label>
+                <div className="relative">
+                  <Input type="number" step="0.1" value={peso} onChange={e => setPeso(e.target.value)} className="pr-10" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">kg</span>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Altura (m)</Label>
-                <Input type="number" step="0.01" value={altura} onChange={e => setAltura(e.target.value)} />
+              <div className="space-y-1.5">
+                <Label>Altura</Label>
+                <div className="relative">
+                  <Input type="number" step="0.01" value={altura} onChange={e => setAltura(e.target.value)} className="pr-8" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">m</span>
+                </div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label>Idade</Label>
-                <Input type="number" value={idade} onChange={e => setIdade(e.target.value)} />
+                <div className="relative">
+                  <Input type="number" value={idade} onChange={e => setIdade(e.target.value)} className="pr-12" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">anos</span>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Sexo Biológico</Label>
@@ -254,14 +263,18 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
             </div>
             
             {(objetivo === 'emagrecimento' || objetivo === 'hipertrofia') && (
-              <div className="space-y-2">
-                <Label>Ajuste Calórico Específico (opcional, kcal)</Label>
-                <Input 
-                  type="number" 
-                  placeholder={objetivo === 'emagrecimento' ? "-400" : "+400"} 
-                  value={ajusteObjetivoValor} 
-                  onChange={e => setAjusteObjetivoValor(e.target.value)} 
-                />
+              <div className="space-y-1.5">
+                <Label>Ajuste Calórico Específico (opcional)</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    placeholder={objetivo === 'emagrecimento' ? "-400" : "+400"}
+                    value={ajusteObjetivoValor}
+                    onChange={e => setAjusteObjetivoValor(e.target.value)}
+                    className="pr-12"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">kcal</span>
+                </div>
               </div>
             )}
 
@@ -338,20 +351,27 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                     </span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground uppercase">Proteína</Label>
-                      <Input className={cn("h-8 text-xs", isPercentError && "border-red-300 focus-visible:ring-red-200")} type="number" placeholder="Auto" value={percentualPtn} onChange={e => setPercentualPtn(e.target.value)} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground uppercase">Carboidrato</Label>
-                      <Input className={cn("h-8 text-xs", isPercentError && "border-red-300 focus-visible:ring-red-200")} type="number" placeholder="Auto" value={percentualCho} onChange={e => setPercentualCho(e.target.value)} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground uppercase">Gorduras</Label>
-                      <Input className={cn("h-8 text-xs", isPercentError && "border-red-300 focus-visible:ring-red-200")} type="number" placeholder="Auto" value={percentualLip} onChange={e => setPercentualLip(e.target.value)} />
-                    </div>
+                    {[
+                      { label: 'Proteína', value: percentualPtn, set: setPercentualPtn },
+                      { label: 'Carboidrato', value: percentualCho, set: setPercentualCho },
+                      { label: 'Gorduras', value: percentualLip, set: setPercentualLip },
+                    ].map(({ label, value, set }) => (
+                      <div key={label} className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground uppercase">{label}</Label>
+                        <div className="relative">
+                          <Input
+                            className={cn("h-8 text-xs pr-6", isPercentError && "border-red-300 focus-visible:ring-red-200")}
+                            type="number"
+                            placeholder="Auto"
+                            value={value}
+                            onChange={e => set(e.target.value)}
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-muted-foreground pointer-events-none select-none">%</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  {isPercentError && <p className="text-[10px] text-red-500 mt-1">A soma não pode ultrapassar 100%.</p>}
+                  {isPercentError && <p className="text-[10px] text-destructive mt-1">A soma não pode ultrapassar 100%.</p>}
                 </div>
               </div>
             </div>

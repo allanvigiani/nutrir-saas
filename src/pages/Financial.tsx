@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -418,6 +418,32 @@ export const Financial = () => {
     .filter(p => p.status === 'pending')
     .reduce((acc, p) => acc + p.amount, 0);
 
+  const totalBillable = filteredPayments
+    .filter(p => p.status !== 'cancelled')
+    .reduce((acc, p) => acc + p.amount, 0);
+
+  const collectionRate = totalBillable > 0 ? Math.round((totalReceived / totalBillable) * 100) : 0;
+
+  const methodBreakdown = useMemo(() => {
+    const paid = filteredPayments.filter(p => p.status === 'paid');
+    const acc: Record<string, number> = {};
+    paid.forEach(p => { acc[p.method] = (acc[p.method] || 0) + p.amount; });
+    return Object.entries(acc)
+      .map(([method, total]) => ({ method, total }))
+      .sort((a, b) => b.total - a.total);
+  }, [filteredPayments]);
+
+  const methodMeta: Record<string, { label: string; color: string }> = {
+    pix: { label: 'PIX', color: 'bg-emerald-500' },
+    credit_card: { label: 'Cartão Crédito', color: 'bg-blue-500' },
+    debit_card: { label: 'Cartão Débito', color: 'bg-violet-500' },
+    cash: { label: 'Dinheiro', color: 'bg-amber-500' },
+    bank_transfer: { label: 'Transferência', color: 'bg-cyan-500' },
+  };
+
+  const fmtCurrency = (val: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -436,53 +462,84 @@ export const Financial = () => {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-none shadow-sm">
-          <CardContent className="py-4 px-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary border border-primary/20">
-                <CheckCircle2 className="w-6 h-6" />
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          {
+            label: 'Total Recebido',
+            value: fmtCurrency(totalReceived),
+            icon: CheckCircle2,
+            iconBg: 'bg-emerald-50 dark:bg-emerald-950/40',
+            iconColor: 'text-emerald-600 dark:text-emerald-400',
+          },
+          {
+            label: 'Total Pendente',
+            value: fmtCurrency(totalPending),
+            icon: Clock,
+            iconBg: 'bg-amber-50 dark:bg-amber-950/40',
+            iconColor: 'text-amber-600 dark:text-amber-400',
+          },
+          {
+            label: 'Lançamentos',
+            value: String(filteredPayments.length),
+            icon: FileText,
+            iconBg: 'bg-blue-50 dark:bg-blue-950/40',
+            iconColor: 'text-blue-600 dark:text-blue-400',
+          },
+          {
+            label: 'Taxa de Recebimento',
+            value: `${collectionRate}%`,
+            icon: Activity,
+            iconBg: collectionRate >= 80 ? 'bg-emerald-50 dark:bg-emerald-950/40' : 'bg-muted/40',
+            iconColor: collectionRate >= 80 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground',
+          },
+        ].map((card) => (
+          <Card key={card.label} className="border-border/60 shadow-sm">
+            <CardContent className="p-4">
+              <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center mb-3', card.iconBg)}>
+                <card.icon className={cn('w-4 h-4', card.iconColor)} />
               </div>
-              <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Total Recebido</p>
-                <p className="text-xl font-bold text-foreground">
-                  R$ {totalReceived.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none shadow-sm">
-          <CardContent className="py-4 px-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100">
-                <Clock className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Total Pendente</p>
-                <p className="text-xl font-bold text-foreground">
-                  R$ {totalPending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none shadow-sm">
-          <CardContent className="py-4 px-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-muted/30 flex items-center justify-center text-muted-foreground border border-border">
-                <FileText className="w-6 h-6" />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Lançamentos</p>
-                <p className="text-xl font-bold text-foreground">{filteredPayments.length}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              <p className="text-xs font-medium text-muted-foreground mb-0.5">{card.label}</p>
+              <p className="text-xl font-bold text-foreground tabular-nums">{card.value}</p>
+            </CardContent>
+          </Card>
+        ))}
       </div>
+
+      {/* Payment method breakdown */}
+      {methodBreakdown.length > 0 && (
+        <Card className="border-border/60 shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-sm font-semibold mb-4">Recebimentos por Método</p>
+            <div className="space-y-3">
+              {methodBreakdown.map(({ method, total }) => {
+                const meta = methodMeta[method] ?? { label: method, color: 'bg-muted-foreground' };
+                const pct = totalReceived > 0 ? Math.round((total / totalReceived) * 100) : 0;
+                return (
+                  <div key={method} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <span className={cn('w-2 h-2 rounded-full shrink-0', meta.color)} />
+                        <span className="font-medium text-foreground">{meta.label}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        <span>{pct}%</span>
+                        <span className="font-semibold text-foreground tabular-nums">{fmtCurrency(total)}</span>
+                      </div>
+                    </div>
+                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={cn('h-full rounded-full transition-all duration-500', meta.color)}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card className="border-none shadow-sm">
         <CardHeader className="border-b border-border pb-6">
@@ -769,126 +826,122 @@ export const Financial = () => {
       </Dialog>
 
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-lg rounded-2xl p-0 overflow-hidden shadow-2xl">
-          <DialogHeader className="p-4 bg-muted/30 border-b border-border">
-            <DialogTitle className="text-xl font-bold text-foreground flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-primary" />
-              Novo Pagamento
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-sm">Registre uma nova entrada financeira no sistema.</DialogDescription>
+        <DialogContent className="sm:max-w-xl rounded-2xl shadow-2xl">
+          <DialogHeader>
+            <DialogTitle>Novo Pagamento</DialogTitle>
+            <DialogDescription>Registre uma nova entrada financeira no sistema.</DialogDescription>
           </DialogHeader>
-          
-          <form onSubmit={handleSubmit(handleCreatePayment)} className="p-4 space-y-4">
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="patient_id" className="text-sm font-medium">Paciente</Label>
-                <Select value={patientIdValue} onValueChange={(v) => setValue('patient_id', v)}>
-                  <SelectTrigger className="bg-muted/30 rounded-lg">
-                    <SelectValue placeholder="Selecione o paciente">
-                      {patients.find(p => p.id === patientIdValue)?.name}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {patients.map(p => (
-                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.patient_id && <p className="text-xs text-destructive mt-1">{errors.patient_id.message}</p>}
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="amount" className="text-sm font-medium">Valor (R$)</Label>
-                  <Input 
+          <form onSubmit={handleSubmit(handleCreatePayment)} className="space-y-4 py-2">
+
+            <div className="space-y-1.5">
+              <Label htmlFor="patient_id">Paciente</Label>
+              <Select value={patientIdValue} onValueChange={(v) => setValue('patient_id', v)}>
+                <SelectTrigger className="bg-muted/30 rounded-lg h-9 w-full">
+                  <SelectValue placeholder="Selecione o paciente">
+                    {patients.find(p => p.id === patientIdValue)?.name}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {patients.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.patient_id && <p className="text-xs text-destructive mt-1">{errors.patient_id.message}</p>}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="amount">Valor</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground pointer-events-none">R$</span>
+                  <Input
                     id="amount"
-                    placeholder="0,00" 
-                    className="bg-muted/30 rounded-lg"
+                    placeholder="0,00"
+                    className="bg-muted/30 rounded-lg pl-8"
                     {...register('amount')}
                     onChange={(e) => {
-                      const value = e.target.value;
-                      e.target.value = maskCurrency(value);
+                      e.target.value = maskCurrency(e.target.value);
                       register('amount').onChange(e);
                     }}
                   />
-                  {errors.amount && <p className="text-xs text-destructive mt-1">{errors.amount.message}</p>}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="date" className="text-sm font-medium">Data</Label>
-                  <Input 
-                    id="date"
-                    type="date" 
-                    className="bg-muted/30 rounded-lg"
-                    {...register('date')}
-                  />
-                  {errors.date && <p className="text-xs text-destructive mt-1">{errors.date.message}</p>}
-                </div>
+                {errors.amount && <p className="text-xs text-destructive mt-1">{errors.amount.message}</p>}
               </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <Label htmlFor="method" className="text-sm font-medium">Método</Label>
-                  <Select value={methodValue} onValueChange={(v: any) => setValue('method', v)}>
-                    <SelectTrigger className="bg-muted/30 rounded-lg">
-                      <SelectValue>
-                        {methodValue === 'pix' ? 'PIX' : 
-                         methodValue === 'credit_card' ? 'Cartão de Crédito' : 
-                         methodValue === 'debit_card' ? 'Cartão de Débito' : 
-                         methodValue === 'cash' ? 'Dinheiro' : 
-                         methodValue === 'bank_transfer' ? 'Transferência' : undefined}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pix">PIX</SelectItem>
-                      <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
-                      <SelectItem value="debit_card">Cartão de Débito</SelectItem>
-                      <SelectItem value="cash">Dinheiro</SelectItem>
-                      <SelectItem value="bank_transfer">Transferência</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="status" className="text-sm font-medium">Status</Label>
-                  <Select value={statusValue} onValueChange={(v: any) => setValue('status', v)}>
-                    <SelectTrigger className="bg-muted/30 rounded-lg">
-                      <SelectValue>
-                        {statusValue === 'paid' ? 'Pago' : 
-                         statusValue === 'pending' ? 'Pendente' : 
-                         statusValue === 'cancelled' ? 'Cancelado' : undefined}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="paid">Pago</SelectItem>
-                      <SelectItem value="pending">Pendente</SelectItem>
-                      <SelectItem value="cancelled">Cancelado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="description" className="text-sm font-medium">Descrição (Opcional)</Label>
-                <Input 
-                  id="description"
-                  placeholder="Ex: Consulta de rotina, Pacote 5 sessões..." 
+              <div className="space-y-1.5">
+                <Label htmlFor="date">Data</Label>
+                <Input
+                  id="date"
+                  type="date"
                   className="bg-muted/30 rounded-lg"
-                  {...register('description')}
+                  {...register('date')}
                 />
+                {errors.date && <p className="text-xs text-destructive mt-1">{errors.date.message}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="method">Método</Label>
+                <Select value={methodValue} onValueChange={(v: any) => setValue('method', v)}>
+                  <SelectTrigger className="bg-muted/30 rounded-lg h-9 w-full">
+                    <SelectValue>
+                      {methodValue === 'pix' ? 'PIX' :
+                       methodValue === 'credit_card' ? 'Cartão de Crédito' :
+                       methodValue === 'debit_card' ? 'Cartão de Débito' :
+                       methodValue === 'cash' ? 'Dinheiro' :
+                       methodValue === 'bank_transfer' ? 'Transferência' : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pix">PIX</SelectItem>
+                    <SelectItem value="credit_card">Cartão de Crédito</SelectItem>
+                    <SelectItem value="debit_card">Cartão de Débito</SelectItem>
+                    <SelectItem value="cash">Dinheiro</SelectItem>
+                    <SelectItem value="bank_transfer">Transferência</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="status">Status</Label>
+                <Select value={statusValue} onValueChange={(v: any) => setValue('status', v)}>
+                  <SelectTrigger className="bg-muted/30 rounded-lg h-9 w-full">
+                    <SelectValue>
+                      {statusValue === 'paid' ? 'Pago' :
+                       statusValue === 'pending' ? 'Pendente' :
+                       statusValue === 'cancelled' ? 'Cancelado' : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="paid">Pago</SelectItem>
+                    <SelectItem value="pending">Pendente</SelectItem>
+                    <SelectItem value="cancelled">Cancelado</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t border-border">
-              <Button 
-                type="button" 
-                variant="outline" 
-                className="rounded-xl h-8 px-4 border-border text-muted-foreground text-sm hover:bg-muted/30 transition-all active:scale-95"
+            <div className="space-y-1.5">
+              <Label htmlFor="description">Descrição (Opcional)</Label>
+              <Input
+                id="description"
+                placeholder="Ex: Consulta de rotina, Pacote 5 sessões..."
+                className="bg-muted/30 rounded-lg"
+                {...register('description')}
+              />
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl h-9 px-4 text-sm"
                 onClick={() => setIsModalOpen(false)}
               >
                 Cancelar
               </Button>
-              <Button 
-                type="submit" 
-                className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" 
+              <Button
+                type="submit"
+                className="bg-primary hover:bg-primary/90 text-white rounded-xl h-9 px-5 font-semibold text-sm shadow-sm active:scale-95 disabled:opacity-50"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? 'Salvando...' : 'Registrar Pagamento'}

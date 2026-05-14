@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -57,6 +57,7 @@ import { PremiumFeature } from '../components/PremiumFeature';
 import { PremiumBanner } from '../components/PremiumBanner';
 import { maskCPF, maskPhone } from '../lib/masks';
 import { generateSecureToken } from '../lib/utils';
+import { Skeleton } from '../components/ui/skeleton';
 
 enum OperationType {
   CREATE = 'create',
@@ -136,6 +137,7 @@ export const Patients = () => {
   const { user, nutritionist, isAuthReady } = useAuth();
   const isPremium = nutritionist?.plan === 'premium';
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
@@ -221,6 +223,12 @@ export const Patients = () => {
       if (unsubscribe) unsubscribe();
     };
   }, [user, isAuthReady]);
+
+  // Debounce da busca (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchTerm(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
   const togglePatientStatus = async (patient: Patient) => {
     if (!user) return;
@@ -574,8 +582,8 @@ export const Patients = () => {
           <Input 
             placeholder="Buscar por nome ou CPF..." 
             className="pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -593,106 +601,127 @@ export const Patients = () => {
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Skeleton className="w-12 h-12 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-36 rounded" />
+                    <Skeleton className="h-3 w-24 rounded" />
+                  </div>
+                </div>
+                <div className="space-y-2.5 mb-5">
+                  <Skeleton className="h-3 w-full rounded" />
+                  <Skeleton className="h-3 w-3/4 rounded" />
+                  <Skeleton className="h-3 w-1/2 rounded" />
+                </div>
+                <Skeleton className="h-8 w-full rounded-lg" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       ) : filteredPatients.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredPatients.map((patient) => (
-            <Card key={patient.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4 gap-4">
+          {filteredPatients.map((patient) => {
+            const avatarColors = [
+              'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+              'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+              'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300',
+              'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+              'bg-pink-100 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300',
+              'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300',
+              'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300',
+            ];
+            const avatarColor = avatarColors[patient.name.charCodeAt(0) % avatarColors.length];
+            const initials = patient.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase();
+
+            return (
+            <Card key={patient.id} className="hover:shadow-md transition-all duration-200 hover:border-border group">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-4 gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-lg shrink-0">
-                      {patient.name.charAt(0)}
+                    <div className={cn('w-11 h-11 rounded-full flex items-center justify-center font-bold text-base shrink-0', avatarColor)}>
+                      {initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-foreground truncate" title={patient.name}>{patient.name}</h3>
-                      <p className="text-xs text-muted-foreground">{patient.cpf}</p>
+                      <h3 className="font-semibold text-foreground truncate text-sm" title={patient.name}>{patient.name}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">{patient.cpf || '—'}</p>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <div className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
-                      patient.status === 'active' 
-                        ? "bg-primary/10 text-primary border-primary/30" 
-                        : "bg-muted/30 text-muted-foreground border-border"
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={cn(
+                      'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide',
+                      patient.status === 'active'
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                        : 'bg-muted text-muted-foreground'
                     )}>
                       {patient.status === 'active' ? 'Ativo' : 'Inativo'}
-                    </div>
-                    <Button 
-                      variant="ghost" 
+                    </span>
+                    <Button
+                      variant="ghost"
                       size="icon"
                       className={cn(
-                        "h-8 w-8 rounded-full",
-                        patient.status === 'active' ? "text-muted-foreground hover:text-red-500 hover:bg-red-50" : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                        'h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity',
+                        patient.status === 'active'
+                          ? 'text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30'
+                          : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
                       )}
                       onClick={() => togglePatientStatus(patient)}
-                      title={patient.status === 'active' ? 'Desativar Paciente' : 'Ativar Paciente'}
+                      title={patient.status === 'active' ? 'Desativar' : 'Ativar'}
                     >
-                      {patient.status === 'active' ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                      {patient.status === 'active' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
                     </Button>
                   </div>
                 </div>
-                
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Mail className="w-4 h-4" />
+
+                <div className="space-y-1.5 mb-4 pl-0.5">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Mail className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{patient.email}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="w-4 h-4" />
-                    <span>{patient.phone}</span>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Phone className="w-3.5 h-3.5 shrink-0" />
+                    <span>{patient.phone || '—'}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CalendarIcon className="w-4 h-4" />
-                    <span>Nasc: {format(parseISO(patient.birthDate), 'dd/MM/yyyy')}</span>
-                  </div>
+                  {patient.objective && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Activity className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{patient.objective}</span>
+                    </div>
+                  )}
+                  {!patient.objective && patient.birthDate && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
+                      <span>Nasc: {format(parseISO(patient.birthDate), 'dd/MM/yyyy')}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2">
-                  <Button 
-                    nativeButton={false} 
-                    render={<Link to={`/patients/${patient.id}`} />} 
-                    className="flex-1 bg-muted text-foreground hover:bg-accent h-8 text-sm font-medium" 
+                  <Button
+                    nativeButton={false}
+                    render={<Link to={`/patients/${patient.id}`} />}
+                    className="flex-1 h-8 text-sm font-medium rounded-lg"
                     variant="secondary"
                   >
                     Ver Prontuário
                   </Button>
-                  {/* 
-                  {!patient.access_token ? (
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 h-8 text-[10px] font-bold border-primary/30 text-primary hover:bg-primary/10"
-                      onClick={() => generateAccessToken(patient)}
-                      disabled={isGeneratingToken === patient.id || patient.status === 'inactive'}
-                    >
-                      {isGeneratingToken === patient.id ? 'GERANDO...' : 'GERAR ACESSO'}
-                    </Button>
-                  ) : (
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 h-8 text-[10px] font-bold border-primary/30 text-primary hover:bg-primary/10"
-                      onClick={() => shareAccessLink(patient)}
-                      disabled={patient.status === 'inactive'}
-                    >
-                      ENVIAR WHATSAPP
-                    </Button>
-                  )}
-                  */}
-                  <Button 
-                    variant="outline" 
-                    className="h-8 w-8 p-0" 
+                  <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0 rounded-lg"
                     onClick={() => openEditModal(patient)}
                     disabled={patient.status === 'inactive'}
                     title="Editar Paciente"
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          ))}
+          );
+          })}
         </div>
       ) : (
         <div className="text-center py-12 bg-card rounded-xl border border-dashed border-border">

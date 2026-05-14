@@ -1343,42 +1343,63 @@ export const PatientProfile = () => {
               </DialogHeader>
               <form key={isConsultationModalOpen ? 'open' : 'closed'} onSubmit={handleConsultationSubmit(onConsultationSubmit)} className="space-y-6 py-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <Label htmlFor="date">Data da Consulta</Label>
                     <Input id="date" type="date" {...regConsultation('date')} className="bg-muted/30 rounded-lg" />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="weight">Peso (kg)</Label>
-                    <Input id="weight" type="number" step="0.1" {...regConsultation('weight')} className="bg-muted/30 rounded-lg" />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="weight">Peso</Label>
+                    <div className="relative">
+                      <Input id="weight" type="number" step="0.1" {...regConsultation('weight')} className="bg-muted/30 rounded-lg pr-10" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">kg</span>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="height">Altura (cm)</Label>
-                    <Input id="height" type="number" {...regConsultation('height')} className="bg-muted/30 rounded-lg" />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="height">Altura</Label>
+                    <div className="relative">
+                      <Input id="height" type="number" step="0.1" {...regConsultation('height')} className="bg-muted/30 rounded-lg pr-10" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">cm</span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="border-t pt-4">
-                  <h3 className="font-semibold mb-4">Medidas e Circunferências (cm)</h3>
+                  <h3 className="font-semibold mb-4">Medidas e Circunferências</h3>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="fatPercentage">% Gordura</Label>
-                      <Input id="fatPercentage" type="number" step="0.1" {...regConsultation('fatPercentage')} className="bg-muted/30 rounded-lg" />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="fatPercentage">Gordura Corp.</Label>
+                      <div className="relative">
+                        <Input id="fatPercentage" type="number" step="0.1" {...regConsultation('fatPercentage')} className="bg-muted/30 rounded-lg pr-7" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">%</span>
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <Label htmlFor="waist">Cintura</Label>
-                      <Input id="waist" type="number" step="0.1" {...regConsultation('waist')} className="bg-muted/30 rounded-lg" />
+                      <div className="relative">
+                        <Input id="waist" type="number" step="0.1" {...regConsultation('waist')} className="bg-muted/30 rounded-lg pr-10" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">cm</span>
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <Label htmlFor="hip">Quadril</Label>
-                      <Input id="hip" type="number" step="0.1" {...regConsultation('hip')} className="bg-muted/30 rounded-lg" />
+                      <div className="relative">
+                        <Input id="hip" type="number" step="0.1" {...regConsultation('hip')} className="bg-muted/30 rounded-lg pr-10" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">cm</span>
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <Label htmlFor="abdomen">Abdômen</Label>
-                      <Input id="abdomen" type="number" step="0.1" {...regConsultation('abdomen')} className="bg-muted/30 rounded-lg" />
+                      <div className="relative">
+                        <Input id="abdomen" type="number" step="0.1" {...regConsultation('abdomen')} className="bg-muted/30 rounded-lg pr-10" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">cm</span>
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <Label htmlFor="arm">Braço</Label>
-                      <Input id="arm" type="number" step="0.1" {...regConsultation('arm')} className="bg-muted/30 rounded-lg" />
+                      <div className="relative">
+                        <Input id="arm" type="number" step="0.1" {...regConsultation('arm')} className="bg-muted/30 rounded-lg pr-10" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">cm</span>
+                      </div>
                     </div>
                   </div>
                 </div>
