@@ -1,5 +1,6 @@
 import { logger } from "../logger.ts";
 import { createAsaasClient } from "../integrations/asaas.client.ts";
+import { prisma } from "../lib/prisma.ts";
 
 interface AccountServiceDeps {
   admin: any;
@@ -89,10 +90,12 @@ export function createAccountService({
   }
 
   async function cancelAsaasSubscription(uid: string, idToken: string): Promise<void> {
-    const doc = await fsGet(`nutritionists/${uid}`, idToken);
-    const fields = doc?.fields;
-    const subscriptionId = fields?.subscriptionId?.stringValue;
-    const plan = fields?.plan?.stringValue;
+    const nutritionist = await prisma.nutritionist.findUnique({
+      where: { id: uid },
+      include: { subscription: true },
+    });
+    const subscriptionId = nutritionist?.subscription?.asaasSubscriptionId;
+    const plan = nutritionist?.plan;
 
     if (!subscriptionId || plan !== 'premium') return;
 

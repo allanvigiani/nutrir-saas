@@ -1,4 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Hoist mock fns so they are available in the vi.mock factory (which gets hoisted to top)
+const { mockSubscriptionUpsert, mockNutritionistFindUnique, mockNutritionistUpdate } = vi.hoisted(() => ({
+  mockSubscriptionUpsert: vi.fn().mockResolvedValue({}),
+  mockNutritionistFindUnique: vi.fn().mockResolvedValue(null),
+  mockNutritionistUpdate: vi.fn().mockResolvedValue({}),
+}));
+
+vi.mock('../../server/lib/prisma.ts', () => ({
+  prisma: {
+    subscription: { upsert: mockSubscriptionUpsert, findUnique: vi.fn() },
+    nutritionist: {
+      findUnique: mockNutritionistFindUnique,
+      update: mockNutritionistUpdate,
+    },
+  },
+}));
+
 import { createAsaasService } from '../../server/services/asaas.service.ts';
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
@@ -10,82 +28,70 @@ function makeAsaasClient(overrides: Record<string, any> = {}) {
   };
 }
 
-function makeFirestoreHelpers(overrides: Record<string, any> = {}) {
-  return {
-    getDocWithFallback: vi.fn().mockResolvedValue({ exists: false }),
-    updateDocWithFallback: vi.fn().mockResolvedValue(undefined),
-    queryWithFallback: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
-    ...overrides,
-  };
-}
-
 // ─── handleWebhookEvent ──────────────────────────────────────────────────────
 
 describe('AsaasService.handleWebhookEvent', () => {
   let asaasClient: ReturnType<typeof makeAsaasClient>;
-  let firestoreHelpers: ReturnType<typeof makeFirestoreHelpers>;
   let service: ReturnType<typeof createAsaasService>;
 
   beforeEach(() => {
     asaasClient = makeAsaasClient();
-    firestoreHelpers = makeFirestoreHelpers();
-    service = createAsaasService({ asaasClient, ...firestoreHelpers });
+    service = createAsaasService({ asaasClient });
     vi.clearAllMocks();
+    mockSubscriptionUpsert.mockResolvedValue({});
+    mockNutritionistFindUnique.mockResolvedValue(null);
+    mockNutritionistUpdate.mockResolvedValue({});
   });
 
   it('retorna { ok: true, noUserId: true } quando externalReference está ausente', async () => {
     const result = await service.handleWebhookEvent({ event: 'PAYMENT_CREATED', payment: {} });
     expect(result).toEqual({ ok: true, noUserId: true });
-    expect(firestoreHelpers.updateDocWithFallback).not.toHaveBeenCalled();
+    expect(mockSubscriptionUpsert).not.toHaveBeenCalled();
   });
 
-  it('PAYMENT_CREATED → atualiza subscriptionStatus para "pending"', async () => {
+  it('PAYMENT_CREATED → atualiza asaasStatus para "pending"', async () => {
     await service.handleWebhookEvent({
       event: 'PAYMENT_CREATED',
       payment: { externalReference: 'user123' },
     });
-    expect(firestoreHelpers.updateDocWithFallback).toHaveBeenCalledWith(
-      'nutritionists',
-      'user123',
-      expect.objectContaining({ subscriptionStatus: 'pending' }),
+    expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { nutritionistId: 'user123' } }),
     );
   });
 
   it('PAYMENT_RECEIVED → atualiza plano para "premium" e status para "active"', async () => {
-    firestoreHelpers.getDocWithFallback.mockResolvedValue({ exists: false });
     await service.handleWebhookEvent({
       event: 'PAYMENT_RECEIVED',
       payment: { externalReference: 'user123', dueDate: '2026-05-01' },
     });
-    expect(firestoreHelpers.updateDocWithFallback).toHaveBeenCalledWith(
-      'nutritionists',
-      'user123',
-      expect.objectContaining({ plan: 'premium', subscriptionStatus: 'active' }),
+    expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ plan: 'premium', asaasStatus: 'active' }),
+      }),
     );
   });
 
   it('PAYMENT_CONFIRMED → comporta-se igual ao PAYMENT_RECEIVED', async () => {
-    firestoreHelpers.getDocWithFallback.mockResolvedValue({ exists: false });
     await service.handleWebhookEvent({
       event: 'PAYMENT_CONFIRMED',
       payment: { externalReference: 'user123' },
     });
-    expect(firestoreHelpers.updateDocWithFallback).toHaveBeenCalledWith(
-      'nutritionists',
-      'user123',
-      expect.objectContaining({ plan: 'premium', subscriptionStatus: 'active' }),
+    expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ plan: 'premium', asaasStatus: 'active' }),
+      }),
     );
   });
 
-  it('PAYMENT_OVERDUE → atualiza subscriptionStatus para "overdue"', async () => {
+  it('PAYMENT_OVERDUE → atualiza asaasStatus para "overdue"', async () => {
     await service.handleWebhookEvent({
       event: 'PAYMENT_OVERDUE',
       payment: { externalReference: 'user123' },
     });
-    expect(firestoreHelpers.updateDocWithFallback).toHaveBeenCalledWith(
-      'nutritionists',
-      'user123',
-      expect.objectContaining({ subscriptionStatus: 'overdue' }),
+    expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ asaasStatus: 'overdue' }),
+      }),
     );
   });
 
@@ -94,23 +100,23 @@ describe('AsaasService.handleWebhookEvent', () => {
       event: 'PAYMENT_REFUNDED',
       payment: { externalReference: 'user123' },
     });
-    expect(firestoreHelpers.updateDocWithFallback).toHaveBeenCalledWith(
-      'nutritionists',
-      'user123',
-      expect.objectContaining({ plan: 'free', hadRefundBefore: true }),
+    expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ plan: 'free', hadRefundBefore: true }),
+      }),
     );
   });
 
-  it('SUBSCRIPTION_CREATED → salva subscriptionId', async () => {
+  it('SUBSCRIPTION_CREATED → salva asaasSubscriptionId', async () => {
     await service.handleWebhookEvent({
       event: 'SUBSCRIPTION_CREATED',
       payment: { externalReference: 'user123' },
       subscription: { id: 'sub_abc', externalReference: 'user123' },
     });
-    expect(firestoreHelpers.updateDocWithFallback).toHaveBeenCalledWith(
-      'nutritionists',
-      'user123',
-      expect.objectContaining({ subscriptionId: 'sub_abc', subscriptionStatus: 'active' }),
+    expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ asaasSubscriptionId: 'sub_abc', asaasStatus: 'active' }),
+      }),
     );
   });
 
@@ -120,10 +126,10 @@ describe('AsaasService.handleWebhookEvent', () => {
       payment: { externalReference: 'user123' },
       subscription: { externalReference: 'user123' },
     });
-    expect(firestoreHelpers.updateDocWithFallback).toHaveBeenCalledWith(
-      'nutritionists',
-      'user123',
-      expect.objectContaining({ subscriptionStatus: 'cancelled', cancelAtPeriodEnd: true }),
+    expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ asaasStatus: 'cancelled', cancelAtPeriodEnd: true }),
+      }),
     );
   });
 
@@ -133,10 +139,10 @@ describe('AsaasService.handleWebhookEvent', () => {
       payment: { externalReference: 'user123' },
       subscription: { id: 'sub_abc', status: 'ACTIVE', nextDueDate: '2026-06-01', externalReference: 'user123' },
     });
-    expect(firestoreHelpers.updateDocWithFallback).toHaveBeenCalledWith(
-      'nutritionists',
-      'user123',
-      expect.objectContaining({ plan: 'premium', subscriptionStatus: 'active' }),
+    expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ plan: 'premium', asaasStatus: 'active' }),
+      }),
     );
   });
 
@@ -146,10 +152,10 @@ describe('AsaasService.handleWebhookEvent', () => {
       payment: { externalReference: 'user123' },
       subscription: { id: 'sub_abc', status: 'INACTIVE', nextDueDate: null, externalReference: 'user123' },
     });
-    expect(firestoreHelpers.updateDocWithFallback).toHaveBeenCalledWith(
-      'nutritionists',
-      'user123',
-      expect.objectContaining({ plan: 'free', subscriptionStatus: 'inactive' }),
+    expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ plan: 'free', asaasStatus: 'inactive' }),
+      }),
     );
   });
 
@@ -166,13 +172,11 @@ describe('AsaasService.handleWebhookEvent', () => {
 
 describe('AsaasService.createCheckoutSession', () => {
   let asaasClient: ReturnType<typeof makeAsaasClient>;
-  let firestoreHelpers: ReturnType<typeof makeFirestoreHelpers>;
   let service: ReturnType<typeof createAsaasService>;
 
   beforeEach(() => {
     asaasClient = makeAsaasClient();
-    firestoreHelpers = makeFirestoreHelpers();
-    service = createAsaasService({ asaasClient, ...firestoreHelpers });
+    service = createAsaasService({ asaasClient });
     vi.clearAllMocks();
   });
 
@@ -247,7 +251,7 @@ describe('AsaasService.verifySubscription', () => {
 
   beforeEach(() => {
     asaasClient = makeAsaasClient();
-    service = createAsaasService({ asaasClient, ...makeFirestoreHelpers() });
+    service = createAsaasService({ asaasClient });
     vi.clearAllMocks();
   });
 
@@ -298,14 +302,15 @@ describe('AsaasService.verifySubscription', () => {
 
 describe('AsaasService.cancelSubscription', () => {
   let asaasClient: ReturnType<typeof makeAsaasClient>;
-  let firestoreHelpers: ReturnType<typeof makeFirestoreHelpers>;
   let service: ReturnType<typeof createAsaasService>;
 
   beforeEach(() => {
     asaasClient = makeAsaasClient();
-    firestoreHelpers = makeFirestoreHelpers();
-    service = createAsaasService({ asaasClient, ...firestoreHelpers });
+    service = createAsaasService({ asaasClient });
     vi.clearAllMocks();
+    mockNutritionistFindUnique.mockResolvedValue(null);
+    mockSubscriptionUpsert.mockResolvedValue({});
+    mockNutritionistUpdate.mockResolvedValue({});
   });
 
   it('retorna success=true silenciosamente quando nenhum cliente encontrado', async () => {
@@ -336,10 +341,7 @@ describe('AsaasService.cancelSubscription', () => {
       .mockResolvedValueOnce({}) // POST /refund
       .mockResolvedValueOnce({}); // DELETE /subscription
 
-    firestoreHelpers.queryWithFallback.mockResolvedValue({
-      empty: false,
-      docs: [{ id: 'doc_user1' }],
-    });
+    mockNutritionistFindUnique.mockResolvedValue({ id: 'doc_user1', subscription: null });
 
     const result = await service.cancelSubscription('user@test.com');
     expect(result.refunded).toBe(true);
@@ -360,7 +362,7 @@ describe('AsaasService.cancelSubscription', () => {
     expect(result.success).toBe(true);
   });
 
-  it('atualiza Firestore após cancelamento bem-sucedido', async () => {
+  it('atualiza subscription após cancelamento bem-sucedido', async () => {
     const oldDate = new Date();
     oldDate.setDate(oldDate.getDate() - 10);
 
@@ -369,17 +371,14 @@ describe('AsaasService.cancelSubscription', () => {
       .mockResolvedValueOnce({ data: [{ id: 'sub_1', status: 'ACTIVE', dateCreated: oldDate.toISOString() }] })
       .mockResolvedValueOnce({});
 
-    firestoreHelpers.queryWithFallback.mockResolvedValue({
-      empty: false,
-      docs: [{ id: 'doc_user1' }],
-    });
+    mockNutritionistFindUnique.mockResolvedValue({ id: 'doc_user1', subscription: null });
 
     await service.cancelSubscription('user@test.com');
 
-    expect(firestoreHelpers.updateDocWithFallback).toHaveBeenCalledWith(
-      'nutritionists',
-      'doc_user1',
-      expect.objectContaining({ subscriptionStatus: 'cancelled', cancelAtPeriodEnd: true }),
+    expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ asaasStatus: 'cancelled', cancelAtPeriodEnd: true }),
+      }),
     );
   });
 });

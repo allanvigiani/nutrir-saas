@@ -1,57 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, doc, updateDoc, query, orderBy, addDoc } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { apiRequest } from '../hooks/useApi';
 
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
 
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
 import { Nutritionist } from '../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -101,15 +51,12 @@ export const AdminDashboard = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const q = query(collection(db, 'nutritionists'), orderBy('createdAt', 'desc'));
-        const [nutriSnapshot, patientSnapshot] = await Promise.all([
-          getDocs(q),
-          getDocs(collection(db, 'patients'))
+        const [nutriData, patientCount] = await Promise.all([
+          apiRequest<Nutritionist[]>('/api/admin/nutritionists', 'GET'),
+          apiRequest<{ count: number }>('/api/admin/patients/count', 'GET'),
         ]);
-        
-        const nutriData = nutriSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Nutritionist));
-        setNutritionists(nutriData);
-        setTotalPatients(patientSnapshot.size);
+        setNutritionists(nutriData || []);
+        setTotalPatients(patientCount?.count || 0);
       } catch (error) {
         console.error("Error fetching admin data:", error);
         toast.error("Erro ao carregar dados administrativos.");
@@ -138,28 +85,22 @@ export const AdminDashboard = () => {
   const handlePromoteToAdmin = async (id: string, currentRole: string) => {
     const newRole = currentRole === 'admin' ? 'nutritionist' : 'admin';
     try {
-      await updateDoc(doc(db, 'nutritionists', id), {
-        role: newRole,
-        updatedAt: new Date().toISOString()
-      });
+      await apiRequest(`/api/admin/nutritionists/${id}`, 'PATCH', { role: newRole });
       setNutritionists(prev => prev.map(n => n.id === id ? { ...n, role: newRole as any } : n));
       toast.success(`Usuário ${newRole === 'admin' ? 'promovido a admin' : 'removido de admin'} com sucesso!`);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `nutritionists/${id}`);
+    } catch (error: any) {
+      toast.error('Erro ao atualizar role: ' + error.message);
     }
   };
 
   const handleTogglePlan = async (id: string, currentPlan: string) => {
     const newPlan = currentPlan === 'premium' ? 'free' : 'premium';
     try {
-      await updateDoc(doc(db, 'nutritionists', id), {
-        plan: newPlan,
-        updatedAt: new Date().toISOString()
-      });
+      await apiRequest(`/api/admin/nutritionists/${id}`, 'PATCH', { plan: newPlan });
       setNutritionists(prev => prev.map(n => n.id === id ? { ...n, plan: newPlan as any } : n));
       toast.success(`Plano atualizado para ${newPlan === 'premium' ? 'Assinante' : 'Gratuito'}!`);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `nutritionists/${id}`);
+    } catch (error: any) {
+      toast.error('Erro ao atualizar plano: ' + error.message);
     }
   };
 

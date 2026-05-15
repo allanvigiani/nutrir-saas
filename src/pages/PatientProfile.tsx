@@ -56,23 +56,8 @@ import {
 import { Button, buttonVariants } from '../components/ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { FREE_PLAN_LIMITS } from '../lib/planLimits';
-import {
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  deleteDoc,
-  addDoc,
-  updateDoc,
-  serverTimestamp,
-  onSnapshot,
-  writeBatch
-} from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, auth, storage } from '../lib/firebase';
+import { auth } from '../lib/firebase';
+import { apiRequest } from '../hooks/useApi';
 import { Patient, Consultation, MealPlan, MealPlanItem, LabExam, LabExamMarker, CustomFood, NutritionCalculation } from '../types';
 import { format, differenceInYears, parseISO, subMonths, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -574,19 +559,16 @@ export const PatientProfile = () => {
     const toastId = toast.loading("Preparando e-mail com plano alimentar...");
 
     try {
-      const q = query(
-        collection(db, 'meal_plan_items'),
-        where('meal_plan_id', '==', plan.id),
-        where('nutritionist_id', '==', user.uid)
-      );
-      const querySnapshot = await getDocs(q);
-      const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlanItem));
+      const token = await auth.currentUser?.getIdToken();
+      const itemsRes = await fetch(`/api/meal-plans/${plan.id}/items`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const items: MealPlanItem[] = itemsRes.ok ? await itemsRes.json() : [];
 
       const doc = generateMealPlanPDF(plan, items);
       const pdfBase64 = doc.output('datauristring').split(',')[1];
       const fileName = `Plano_Alimentar_${patient.name.replace(/\s+/g, '_')}.pdf`;
 
-      const token = await user.getIdToken();
       const response = await fetch('/api/send-meal-plan', {
         method: 'POST',
         headers: {
@@ -616,13 +598,11 @@ export const PatientProfile = () => {
     const toastId = toast.loading("Gerando PDF do plano alimentar...");
     setSelectedMealPlan(plan);
     try {
-      const q = query(
-        collection(db, 'meal_plan_items'),
-        where('meal_plan_id', '==', plan.id),
-        where('nutritionist_id', '==', user.uid)
-      );
-      const querySnapshot = await getDocs(q);
-      const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlanItem));
+      const token = await auth.currentUser?.getIdToken();
+      const itemsRes = await fetch(`/api/meal-plans/${plan.id}/items`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const items: MealPlanItem[] = itemsRes.ok ? await itemsRes.json() : [];
 
       handleExportPDF(plan, items);
       void logEvent('exportar_pdf_plano_alimentar');
@@ -683,78 +663,43 @@ export const PatientProfile = () => {
       });
 
       if (selectedConsultation) {
-        // Update existing
-        const updatePath = `consultations/${selectedConsultation.id}`;
-        try {
-          await updateDoc(doc(db, 'consultations', selectedConsultation.id), {
-            ...cleanData,
-            imc,
-            updatedAt: new Date().toISOString(),
-          });
-          toast.success('Consulta atualizada com sucesso!');
-        } catch (error) {
-          handleFirestoreError(error, OperationType.UPDATE, updatePath);
-        }
+        await apiRequest(`/api/consultations/${selectedConsultation.id}`, 'PATCH', {
+          ...cleanData,
+          imc,
+          updatedAt: new Date().toISOString(),
+        });
+        toast.success('Consulta atualizada com sucesso!');
       } else {
-        // Add new
-        const createPath = 'consultations';
-        try {
-          await addDoc(collection(db, 'consultations'), {
-            ...cleanData,
-            imc,
-            patient_id: id,
-            nutritionist_id: user.uid,
-            access_token: patient.access_token || null,
-            status: 'realized',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-          void logEvent('nova_consulta');
-          toast.success('Consulta registrada com sucesso!');
-        } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, createPath);
-        }
+        await apiRequest(`/api/patients/${id}/consultations`, 'POST', {
+          ...cleanData,
+          imc,
+          patientId: id,
+          nutritionistId: user.uid,
+          accessToken: patient?.access_token || (patient as any)?.accessToken || null,
+          status: 'realized',
+        });
+        void logEvent('nova_consulta');
+        toast.success('Consulta registrada com sucesso!');
       }
 
       setIsConsultationModalOpen(false);
       setSelectedConsultation(null);
       resetConsultation();
-
-      // Refresh data
-      const consultationsQuery = query(
-        collection(db, 'consultations'),
-        where('patient_id', '==', id),
-        where('nutritionist_id', '==', user.uid),
-        orderBy('date', 'desc')
-      );
-      const consultationsSnap = await getDocs(consultationsQuery);
-      setConsultations(consultationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Consultation)).sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
+      await refetchPatientData();
     } catch (error) {
       console.error("Error saving consultation:", error);
-      // Error is already handled by handleFirestoreError inside the try blocks if it's a permission error
-      if (!(error instanceof Error && error.message.includes('operationType'))) {
-        toast.error('Erro ao salvar consulta.');
-      }
+      toast.error('Erro ao salvar consulta.');
     }
   };
 
   const onDeleteConsultation = async () => {
     if (!consultationToDelete) return;
     try {
-      await deleteDoc(doc(db, 'consultations', consultationToDelete));
+      await apiRequest(`/api/consultations/${consultationToDelete}`, 'DELETE');
       toast.success('Consulta excluída com sucesso!');
       setIsDeleteConsultationConfirmOpen(false);
       setConsultationToDelete(null);
-
-      // Refresh data
-      const consultationsQuery = query(
-        collection(db, 'consultations'),
-        where('patient_id', '==', id),
-        where('nutritionist_id', '==', user.uid),
-        orderBy('date', 'desc')
-      );
-      const consultationsSnap = await getDocs(consultationsQuery);
-      setConsultations(consultationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Consultation)).sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
+      await refetchPatientData();
     } catch (error) {
       console.error("Error deleting consultation:", error);
       toast.error('Erro ao excluir consulta.');
@@ -766,19 +711,16 @@ export const PatientProfile = () => {
     if (!user) return;
     setSelectedMealPlan(plan);
     try {
-      const q = query(
-        collection(db, 'meal_plan_items'),
-        where('meal_plan_id', '==', plan.id),
-        where('nutritionist_id', '==', user.uid)
-      );
-      const querySnapshot = await getDocs(q);
-      const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlanItem));
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/meal-plans/${plan.id}/items`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const items: MealPlanItem[] = res.ok ? await res.json() : [];
       setSelectedMealPlanItems(items);
       setIsViewMealPlanModalOpen(true);
     } catch (error) {
       console.error("Error fetching meal plan items:", error);
       toast.error("Erro ao carregar itens do plano alimentar.");
-      handleFirestoreError(error, OperationType.GET, `meal_plan_items`);
     }
   };
 
@@ -795,27 +737,14 @@ export const PatientProfile = () => {
   const confirmDeleteMealPlan = async () => {
     if (!user || !mealPlanToDelete) return;
     try {
-      // Delete items first
-      const itemsQuery = query(
-        collection(db, 'meal_plan_items'),
-        where('meal_plan_id', '==', mealPlanToDelete),
-        where('nutritionist_id', '==', user.uid)
-      );
-      const itemsSnap = await getDocs(itemsQuery);
-      for (const itemDoc of itemsSnap.docs) {
-        await deleteDoc(doc(db, 'meal_plan_items', itemDoc.id));
-      }
-      // Delete plan
-      await deleteDoc(doc(db, 'meal_plans', mealPlanToDelete));
+      await apiRequest(`/api/meal-plans/${mealPlanToDelete}`, 'DELETE');
       toast.success('Plano alimentar excluído!');
-      // Refresh meal plans
       setMealPlans(mealPlans.filter(p => p.id !== mealPlanToDelete));
       setIsDeleteMealPlanConfirmOpen(false);
       setMealPlanToDelete(null);
     } catch (error) {
       console.error("Error deleting meal plan:", error);
       toast.error('Erro ao excluir plano alimentar.');
-      handleFirestoreError(error, OperationType.DELETE, `meal_plans/${mealPlanToDelete}`);
     }
   };
 
@@ -859,45 +788,31 @@ export const PatientProfile = () => {
     const formData = new FormData(e.currentTarget);
 
     try {
-      const examData = {
+      const examPayload = {
         date: formData.get('date') as string,
         title: formData.get('title') as string,
         observations: formData.get('observations') as string,
         markers: examMarkers,
-
-        patient_id: id,
-        nutritionist_id: user.uid,
-        access_token: patient.access_token || null,
-        createdAt: selectedExam ? selectedExam.createdAt : new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        patientId: id,
+        nutritionistId: user.uid,
+        accessToken: patient?.access_token || (patient as any)?.accessToken || null,
       };
 
       if (selectedExam) {
-        await updateDoc(doc(db, 'lab_exams', selectedExam.id), examData);
+        await apiRequest(`/api/lab-exams/${selectedExam.id}`, 'PATCH', examPayload);
         toast.success('Exame atualizado com sucesso!');
       } else {
-        await addDoc(collection(db, 'lab_exams'), examData);
+        await apiRequest(`/api/patients/${id}/lab-exams`, 'POST', examPayload);
         toast.success('Exame registrado com sucesso!');
       }
 
       setIsLabExamModalOpen(false);
       setExamMarkers([]);
       setSelectedExam(null);
-
-
-      // Refresh exams
-      const examsQuery = query(
-        collection(db, 'lab_exams'),
-        where('patient_id', '==', id),
-        where('nutritionist_id', '==', user.uid),
-        orderBy('date', 'desc')
-      );
-      const examsSnap = await getDocs(examsQuery);
-      setExams(examsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as LabExam)));
+      await refetchPatientData();
     } catch (error) {
       console.error("Error saving exam:", error);
       toast.error('Erro ao salvar exame.');
-      handleFirestoreError(error, OperationType.WRITE, 'lab_exams');
     }
   };
 
@@ -911,7 +826,7 @@ export const PatientProfile = () => {
     if (!user || !labExamToDelete) return;
 
     try {
-      await deleteDoc(doc(db, 'lab_exams', labExamToDelete));
+      await apiRequest(`/api/lab-exams/${labExamToDelete}`, 'DELETE');
       toast.success('Exame excluído com sucesso!');
       setExams(exams.filter(e => e.id !== labExamToDelete));
       setIsDeleteLabExamConfirmOpen(false);
@@ -919,24 +834,21 @@ export const PatientProfile = () => {
     } catch (error) {
       console.error("Error deleting exam:", error);
       toast.error('Erro ao excluir exame.');
-      handleFirestoreError(error, OperationType.DELETE, `lab_exams/${labExamToDelete}`);
     }
   };
 
   const handleSaveCalculation = async (input: any, result: any, name: string) => {
     if (!selectedConsultationForCalc || !user || !id) return;
     try {
-      const newCalc = {
-        patient_id: id,
-        consultation_id: selectedConsultationForCalc.id,
-        nutritionist_id: user.uid,
+      const created = await apiRequest<NutritionCalculation>(`/api/patients/${id}/calculations`, 'POST', {
+        patientId: id,
+        consultationId: selectedConsultationForCalc.id,
+        nutritionistId: user.uid,
         name,
         input,
         result,
-        createdAt: new Date().toISOString()
-      };
-      const docRef = await addDoc(collection(db, 'nutrition_calculations'), newCalc);
-      setCalculations(prev => [{ id: docRef.id, ...newCalc } as NutritionCalculation, ...prev]);
+      });
+      setCalculations(prev => [created, ...prev]);
       setIsCalculatorModalOpen(false);
     } catch (error) {
       console.error(error);
@@ -985,38 +897,7 @@ export const PatientProfile = () => {
     };
 
     try {
-      // Duplicate check: CPF and Email must be unique for the same nutritionist
-      const patientsRef = collection(db, 'patients');
-
-      // Check CPF
-      const cpfQuery = query(
-        patientsRef,
-        where('nutritionist_id', '==', user.uid),
-        where('cpf', '==', cpf)
-      );
-      const cpfSnapshot = await getDocs(cpfQuery);
-      const duplicateCpf = cpfSnapshot.docs.find(doc => doc.id !== id);
-
-      if (duplicateCpf) {
-        toast.error('Já existe um paciente cadastrado com este CPF.');
-        return;
-      }
-
-      // Check Email
-      const emailQuery = query(
-        patientsRef,
-        where('nutritionist_id', '==', user.uid),
-        where('email', '==', email)
-      );
-      const emailSnapshot = await getDocs(emailQuery);
-      const duplicateEmail = emailSnapshot.docs.find(doc => doc.id !== id);
-
-      if (duplicateEmail) {
-        toast.error('Já existe um paciente cadastrado com este E-mail.');
-        return;
-      }
-
-      await updateDoc(doc(db, 'patients', id), data);
+      await apiRequest(`/api/patients/${id}`, 'PATCH', data);
       toast.success('Dados do paciente atualizados com sucesso!');
       setIsEditPatientModalOpen(false);
       setPatient({ ...patient, ...data });
@@ -1026,178 +907,117 @@ export const PatientProfile = () => {
     }
   };
 
+  const refetchPatientData = async () => {
+    if (!id || !user) return;
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const headers = { Authorization: `Bearer ${token}` };
+      const [consultationsRes, mealPlansRes, examsRes, calculationsRes] = await Promise.all([
+        fetch(`/api/patients/${id}/consultations`, { headers }),
+        fetch(`/api/patients/${id}/meal-plans`, { headers }),
+        fetch(`/api/patients/${id}/lab-exams`, { headers }),
+        fetch(`/api/patients/${id}/calculations`, { headers }),
+      ]);
+      if (consultationsRes.ok) setConsultations((await consultationsRes.json()).sort((a: Consultation, b: Consultation) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
+      if (mealPlansRes.ok) setMealPlans((await mealPlansRes.json()).sort((a: MealPlan, b: MealPlan) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      if (examsRes.ok) setExams(await examsRes.json());
+      if (calculationsRes.ok) setCalculations(await calculationsRes.json());
+    } catch (err) {
+      console.error('Error refetching patient data:', err);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthReady || !id || !user) return;
 
-    const fetchPatientData = () => {
+    const loadPatientData = async () => {
       setLoading(true);
-      const docRef = doc(db, 'patients', id);
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const headers = { Authorization: `Bearer ${token}` };
 
-      const unsubscribe = onSnapshot(docRef, async (docSnap) => {
-        if (docSnap.exists()) {
-          const data = { id: docSnap.id, ...docSnap.data() } as Patient;
-          setPatient(data);
-          setGender(data.gender);
+        const [patientRes, consultationsRes, mealPlansRes, examsRes, calculationsRes] = await Promise.all([
+          fetch(`/api/patients/${id}`, { headers }),
+          fetch(`/api/patients/${id}/consultations`, { headers }),
+          fetch(`/api/patients/${id}/meal-plans`, { headers }),
+          fetch(`/api/patients/${id}/lab-exams`, { headers }),
+          fetch(`/api/patients/${id}/calculations`, { headers }),
+        ]);
 
-          try {
-            // Fetch consultations
-            const consultationsQuery = query(
-              collection(db, 'consultations'),
-              where('patient_id', '==', id),
-              where('nutritionist_id', '==', user.uid)
-            );
-            const consultationsSnap = await getDocs(consultationsQuery);
-            let fetchedConsultations = consultationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Consultation));
-
-            // Fetch meal plans
-            const mealPlansQuery = query(
-              collection(db, 'meal_plans'),
-              where('patient_id', '==', id),
-              where('nutritionist_id', '==', user.uid)
-            );
-            const mealPlansSnap = await getDocs(mealPlansQuery);
-            const fetchedPlans = mealPlansSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlan));
-            setMealPlans(fetchedPlans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-
-            // Fetch exams
-            const examsQuery = query(
-              collection(db, 'lab_exams'),
-              where('patient_id', '==', id),
-              where('nutritionist_id', '==', user.uid)
-            );
-            const examsSnap = await getDocs(examsQuery);
-            let fetchedExams = examsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as LabExam));
-
-            // Fetch calculations
-            try {
-              const calculationsQuery = query(
-                collection(db, 'nutrition_calculations'),
-                where('patient_id', '==', id),
-                where('nutritionist_id', '==', user.uid)
-              );
-              const calculationsSnap = await getDocs(calculationsQuery);
-              const fetchedCalculations = calculationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as NutritionCalculation));
-              setCalculations(fetchedCalculations.sort((a, b) => {
-                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                return dateB - dateA;
-              }));
-            } catch (calcError) {
-              console.error("Erro ao buscar cálculos:", calcError);
-              // We don't toast here to avoid spamming if it's just a missing index, 
-              // the main catch block will handle the loading state.
-            }
-
-            // Apply premium restrictions: history limit for free plan
-            if (nutritionist?.plan === 'free') {
-              const historyMonths = FREE_PLAN_LIMITS.historyMonths;
-              const historyLimitDate = subMonths(new Date(), historyMonths);
-
-              const originalConsultationsCount = fetchedConsultations.length;
-              const originalExamsCount = fetchedExams.length;
-
-              fetchedConsultations = fetchedConsultations.filter(c => {
-                return isAfter(new Date(c.date), historyLimitDate);
-              });
-
-              fetchedExams = fetchedExams.filter(e => {
-                return isAfter(new Date(e.date), historyLimitDate);
-              });
-
-              if (fetchedConsultations.length < originalConsultationsCount || fetchedExams.length < originalExamsCount) {
-                setHasHiddenHistory(true);
-              }
-            }
-
-            setConsultations(fetchedConsultations.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
-            setExams(fetchedExams.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
-          } catch (error) {
-            console.error("Error fetching related patient data:", error);
-            setLoading(false);
-            toast.error("Alguns dados (consultas/planos) podem não ter sido carregados.");
-            handleFirestoreError(error, OperationType.GET, 'related_data');
-          }
-        } else {
-          toast.error("Paciente não encontrado.");
+        if (!patientRes.ok) {
+          toast.error('Paciente não encontrado.');
           navigate('/patients');
+          return;
         }
-        setLoading(false);
-      }, (error) => {
-        console.error("Error fetching patient data:", error);
-        toast.error("Erro ao carregar dados do paciente.");
-        setLoading(false);
-        handleFirestoreError(error, OperationType.GET, `patients/${id}`);
-      });
 
-      return unsubscribe;
+        const patientData: Patient = await patientRes.json();
+        setPatient(patientData);
+        setGender(patientData.gender);
+
+        let fetchedConsultations: Consultation[] = consultationsRes.ok ? await consultationsRes.json() : [];
+        let fetchedExams: LabExam[] = examsRes.ok ? await examsRes.json() : [];
+        const fetchedPlans: MealPlan[] = mealPlansRes.ok ? await mealPlansRes.json() : [];
+        const fetchedCalculations: NutritionCalculation[] = calculationsRes.ok ? await calculationsRes.json() : [];
+
+        setMealPlans(fetchedPlans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        setCalculations(fetchedCalculations.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
+        }));
+
+        // Apply premium restrictions: history limit for free plan
+        if (nutritionist?.plan === 'free') {
+          const historyMonths = FREE_PLAN_LIMITS.historyMonths;
+          const historyLimitDate = subMonths(new Date(), historyMonths);
+
+          const originalConsultationsCount = fetchedConsultations.length;
+          const originalExamsCount = fetchedExams.length;
+
+          fetchedConsultations = fetchedConsultations.filter(c => isAfter(new Date(c.date), historyLimitDate));
+          fetchedExams = fetchedExams.filter(e => isAfter(new Date(e.date), historyLimitDate));
+
+          if (fetchedConsultations.length < originalConsultationsCount || fetchedExams.length < originalExamsCount) {
+            setHasHiddenHistory(true);
+          }
+        }
+
+        setConsultations(fetchedConsultations.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
+        setExams(fetchedExams.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
+      } catch (error) {
+        console.error('Error fetching patient data:', error);
+        toast.error('Erro ao carregar dados do paciente.');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const unsubscribe = fetchPatientData();
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [id, user, navigate, isAuthReady]);
+    loadPatientData();
+  }, [id, user, navigate, isAuthReady, nutritionist?.plan]);
 
   const generateAccessToken = async () => {
     if (!patient || !id) return;
-
     setIsGeneratingToken(true);
-    const toastId = toast.loading('Gerando link de acesso e atualizando registros...');
-
+    const toastId = toast.loading('Gerando link de acesso...');
     try {
       const token = generateSecureToken();
-
-      // 1. Atualizar o paciente
-      await updateDoc(doc(db, 'patients', id), {
-        access_token: token,
-        updatedAt: new Date().toISOString()
+      await apiRequest(`/api/patients/${id}`, 'PATCH', {
+        accessToken: token,
+        updatedAt: new Date().toISOString(),
       });
-
-      // 2. Propagar o token para registros existentes (Consultas, Planos, Exames, Agendamentos)
-      const collectionsToUpdate = ['consultations', 'meal_plans', 'lab_exams', 'appointments'];
-      let totalUpdated = 0;
-
-      for (const colName of collectionsToUpdate) {
-        const q = query(collection(db, colName), where('patient_id', '==', id));
-        const snapshot = await getDocs(q);
-
-        if (!snapshot.empty) {
-          const batch = writeBatch(db);
-          snapshot.docs.forEach((docSnap) => {
-            batch.update(doc(db, colName, docSnap.id), { access_token: token });
-            totalUpdated++;
-          });
-          await batch.commit();
-
-          // Se for plano alimentar, atualizar também os itens
-          if (colName === 'meal_plans') {
-            for (const planDoc of snapshot.docs) {
-              const itemsQ = query(collection(db, 'meal_plan_items'), where('meal_plan_id', '==', planDoc.id));
-              const itemsSnap = await getDocs(itemsQ);
-              if (!itemsSnap.empty) {
-                const itemsBatch = writeBatch(db);
-                itemsSnap.docs.forEach((itemDoc) => {
-                  itemsBatch.update(doc(db, 'meal_plan_items', itemDoc.id), { access_token: token });
-                  totalUpdated++;
-                });
-                await itemsBatch.commit();
-              }
-            }
-          }
-        }
-      }
-
-      toast.success(`Link gerado e ${totalUpdated} registros atualizados!`, { id: toastId });
+      setPatient(prev => prev ? { ...prev, access_token: token } : prev);
+      toast.success('Link de acesso gerado com sucesso!', { id: toastId });
     } catch (error) {
-      console.error("Error generating access token:", error);
-      toast.error('Erro ao gerar link de acesso ou atualizar registros.', { id: toastId });
+      console.error('Error generating access token:', error);
+      toast.error('Erro ao gerar link de acesso.', { id: toastId });
     } finally {
       setIsGeneratingToken(false);
     }
   };
 
   const shareAccessLink = () => {
-    if (!patient?.access_token) return;
+    const accessToken = patient?.access_token || (patient as any)?.accessToken;
+    if (!accessToken) return;
     const whatsappBaseUrl = import.meta.env.VITE_WHATSAPP_BASE_URL || '';
     if (!whatsappBaseUrl) {
       toast.error('VITE_WHATSAPP_BASE_URL não configurada.');
@@ -1205,7 +1025,7 @@ export const PatientProfile = () => {
     }
 
     const baseUrl = window.location.origin;
-    const accessUrl = `${baseUrl}/patient-access/${id}?token=${patient.access_token}`;
+    const accessUrl = `${baseUrl}/patient-access/${id}?token=${accessToken}`;
 
     const message = `Olá ${patient.name}! Aqui está seu link exclusivo para acessar seu plano alimentar e evolução no Nutrir: ${accessUrl}\n\nPara sua segurança, ao acessar, digite os 3 últimos dígitos do seu CPF.`;
 

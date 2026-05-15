@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -45,8 +45,7 @@ import {
 import { Label } from '../components/ui/label';
 import { useAuth } from '../contexts/AuthContext';
 import { FREE_PLAN_LIMITS } from '../lib/planLimits';
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, orderBy, serverTimestamp, onSnapshot, writeBatch } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { auth } from '../lib/firebase';
 
 import { Patient } from '../types';
 import { format, parseISO } from 'date-fns';
@@ -193,37 +192,26 @@ export const Patients = () => {
     setIsModalOpen(true);
   };
 
-  const fetchPatients = () => {
-    if (!user || !isAuthReady) return;
+  const refetchPatients = useCallback(async () => {
+    if (!user) return;
     setLoading(true);
-    
-    const q = query(
-      collection(db, 'patients'),
-      where('nutritionist_id', '==', user.uid),
-      orderBy('name', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const patientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Patient));
-      setPatients(patientsData);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/patients', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setPatients(await res.json());
+      else toast.error('Erro ao carregar pacientes.');
+    } catch (err) {
+      console.error('Error loading patients:', err);
+      toast.error('Erro ao carregar pacientes.');
+    } finally {
       setLoading(false);
-    }, (error) => {
-      console.error("Error fetching patients:", error);
-      toast.error("Erro ao carregar pacientes.");
-      setLoading(false);
-      handleFirestoreError(error, OperationType.GET, 'patients');
-    });
-
-    return unsubscribe;
-  };
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!isAuthReady || !user) return;
-    const unsubscribe = fetchPatients();
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [user, isAuthReady]);
+    refetchPatients();
+  }, [refetchPatients, isAuthReady]);
 
   // Debounce da busca (300ms)
   useEffect(() => {
@@ -247,15 +235,17 @@ export const Patients = () => {
     }
 
     try {
-      await updateDoc(doc(db, 'patients', patient.id), {
-        status: newStatus,
-        updatedAt: new Date().toISOString()
+      const token = await auth.currentUser?.getIdToken();
+      await fetch(`/api/patients/${patient.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ status: newStatus }),
       });
       toast.success(`Paciente ${newStatus === 'active' ? 'ativado' : 'desativado'} com sucesso!`);
+      await refetchPatients();
     } catch (error) {
       console.error("Error toggling patient status:", error);
       toast.error("Erro ao alterar status do paciente.");
-      handleFirestoreError(error, OperationType.UPDATE, 'patients');
     }
   };
 
@@ -273,67 +263,40 @@ export const Patients = () => {
     }
 
     try {
-      // Duplicate check: CPF and Email must be unique for the same nutritionist
-      const patientsRef = collection(db, 'patients');
-      
-      // Check CPF
-      const cpfQuery = query(
-        patientsRef, 
-        where('nutritionist_id', '==', user.uid),
-        where('cpf', '==', data.cpf)
-      );
-      const cpfSnapshot = await getDocs(cpfQuery);
-      const duplicateCpf = cpfSnapshot.docs.find(doc => doc.id !== editingPatient?.id);
-      
-      if (duplicateCpf) {
+      // Verificação de duplicidade local
+      const cpfExists = patients.some(p => p.cpf === data.cpf && p.id !== editingPatient?.id);
+      if (cpfExists) {
         toast.error('Já existe um paciente cadastrado com este CPF.');
         return;
       }
 
-      // Check Email
-      const emailQuery = query(
-        patientsRef, 
-        where('nutritionist_id', '==', user.uid),
-        where('email', '==', data.email)
-      );
-      const emailSnapshot = await getDocs(emailQuery);
-      const duplicateEmail = emailSnapshot.docs.find(doc => doc.id !== editingPatient?.id);
-
-      if (duplicateEmail) {
+      const emailExists = patients.some(p => p.email === data.email && p.id !== editingPatient?.id);
+      if (emailExists) {
         toast.error('Já existe um paciente cadastrado com este E-mail.');
         return;
       }
 
+      const token = await auth.currentUser?.getIdToken();
       if (editingPatient) {
-        try {
-          await updateDoc(doc(db, 'patients', editingPatient.id), {
-            ...data,
-            updatedAt: new Date().toISOString(),
-          });
-          toast.success('Paciente atualizado com sucesso!');
-        } catch (error) {
-          handleFirestoreError(error, OperationType.UPDATE, `patients/${editingPatient.id}`);
-        }
+        await fetch(`/api/patients/${editingPatient.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(data),
+        });
+        toast.success('Paciente atualizado com sucesso!');
       } else {
-        try {
-          const docRef = await addDoc(collection(db, 'patients'), {
-            ...data,
-            nutritionist_id: user.uid,
-            status: 'active',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-          
-          void logEvent('novo_paciente');
-          toast.success('Paciente cadastrado com sucesso!');
-        } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, 'patients');
-        }
+        await fetch('/api/patients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(data),
+        });
+        void logEvent('novo_paciente');
+        toast.success('Paciente cadastrado com sucesso!');
       }
       setIsModalOpen(false);
       setEditingPatient(null);
       reset();
-      fetchPatients();
+      await refetchPatients();
     } catch (error) {
       console.error("Error saving patient:", error);
       toast.error('Erro ao salvar paciente.');
@@ -348,47 +311,15 @@ export const Patients = () => {
       const token = generateSecureToken();
       
       // 1. Atualizar o paciente
-      await updateDoc(doc(db, 'patients', patient.id), {
-        access_token: token,
-        updatedAt: new Date().toISOString()
+      const authToken = await auth.currentUser?.getIdToken();
+      await fetch(`/api/patients/${patient.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ access_token: token }),
       });
 
-      // 2. Propagar o token para registros existentes (Consultas, Planos, Exames, Agendamentos)
-      const collectionsToUpdate = ['consultations', 'meal_plans', 'lab_exams', 'appointments'];
-      let totalUpdated = 0;
-      
-      for (const colName of collectionsToUpdate) {
-        const q = query(collection(db, colName), where('patient_id', '==', patient.id));
-        const snapshot = await getDocs(q);
-        
-        if (!snapshot.empty) {
-          const batch = writeBatch(db);
-          snapshot.docs.forEach((docSnap) => {
-            batch.update(doc(db, colName, docSnap.id), { access_token: token });
-            totalUpdated++;
-          });
-          await batch.commit();
-
-          // Se for plano alimentar, atualizar também os itens
-          if (colName === 'meal_plans') {
-            for (const planDoc of snapshot.docs) {
-              const itemsQ = query(collection(db, 'meal_plan_items'), where('meal_plan_id', '==', planDoc.id));
-              const itemsSnap = await getDocs(itemsQ);
-              if (!itemsSnap.empty) {
-                const itemsBatch = writeBatch(db);
-                itemsSnap.docs.forEach((itemDoc) => {
-                  itemsBatch.update(doc(db, 'meal_plan_items', itemDoc.id), { access_token: token });
-                  totalUpdated++;
-                });
-                await itemsBatch.commit();
-              }
-            }
-          }
-        }
-      }
-
-      toast.success(`Link gerado e ${totalUpdated} registros atualizados!`, { id: toastId });
-      fetchPatients();
+      toast.success('Link de acesso gerado com sucesso!', { id: toastId });
+      await refetchPatients();
     } catch (error) {
       console.error("Error generating access token:", error);
       toast.error('Erro ao gerar link de acesso ou atualizar registros.', { id: toastId });

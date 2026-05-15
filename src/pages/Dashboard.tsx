@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   Users,
   Calendar,
@@ -16,12 +16,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../co
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { useAuth } from '../contexts/AuthContext';
-import {
-  collection, query, where, limit, orderBy, onSnapshot,
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
-import { Patient, Appointment } from '../types';
-import { format, parseISO, startOfDay, subDays } from 'date-fns';
+import { useApi } from '../hooks/useApi';
+import { format, parseISO, subDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
@@ -34,22 +30,39 @@ import {
 } from 'recharts';
 import { Skeleton } from '../components/ui/skeleton';
 
+interface DashboardStats {
+  activePatients: number;
+  recentPatients: Array<{ id: string; name: string; createdAt: string; status: string }>;
+  todayAppointments: Array<{
+    id: string;
+    date: string;
+    status: string;
+    nutritionistId: string;
+    patient: { name: string };
+    patientId: string;
+    meetLink?: string;
+  }>;
+  monthConsultations: number;
+  consultationDates: string[];
+  monthRevenue: number;
+  activeMealPlans: number;
+}
+
 export const Dashboard = () => {
   const { user, nutritionist, isAuthReady } = useAuth();
   const isPremium = nutritionist?.plan === 'premium';
 
-  const [stats, setStats] = useState({
-    activePatients: 0,
-    monthConsultations: 0,
-    todayAppointments: 0,
-    monthRevenue: 0,
-    activeMealPlans: 0,
+  const { data: stats, loading } = useApi<DashboardStats>('/api/dashboard/stats', {
+    immediate: isAuthReady && !!user,
   });
-  const [recentPatients, setRecentPatients] = useState<Patient[]>([]);
-  const [todayAppointments, setTodayAppointments] = useState<Appointment[]>([]);
-  const [patientsMap, setPatientsMap] = useState<Record<string, string>>({});
-  const [monthConsultationDates, setMonthConsultationDates] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  const activePatients = stats?.activePatients ?? 0;
+  const recentPatients = stats?.recentPatients ?? [];
+  const todayAppointments = stats?.todayAppointments ?? [];
+  const monthConsultations = stats?.monthConsultations ?? 0;
+  const monthRevenue = stats?.monthRevenue ?? 0;
+  const activeMealPlans = stats?.activeMealPlans ?? 0;
+  const consultationDates = stats?.consultationDates ?? [];
 
   const getGreeting = () => {
     const h = new Date().getHours();
@@ -86,8 +99,10 @@ export const Dashboard = () => {
     return Array.from({ length: 7 }, (_, i) => {
       const d = subDays(new Date(), 6 - i);
       const key = format(d, 'yyyy-MM-dd');
-      // date field stored as "YYYY-MM-DD" from <input type="date">
-      const count = monthConsultationDates.filter(date => date.startsWith(key)).length;
+      // consultationDates are ISO strings — format to yyyy-MM-dd for comparison
+      const count = consultationDates.filter(date => {
+        try { return format(parseISO(date), 'yyyy-MM-dd') === key; } catch { return false; }
+      }).length;
       const isToday = i === 6;
       return {
         day: format(d, 'dd/MM'),
@@ -95,103 +110,12 @@ export const Dashboard = () => {
         isToday,
       };
     });
-  }, [monthConsultationDates]);
-
-  useEffect(() => {
-    if (!isAuthReady || !user) return;
-
-    const today = startOfDay(new Date());
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const sevenDaysAgo = subDays(today, 6);
-    const monthStart = format(new Date(today.getFullYear(), today.getMonth(), 1), 'yyyy-MM-dd');
-    const monthEnd = format(new Date(today.getFullYear(), today.getMonth() + 1, 0), 'yyyy-MM-dd');
-
-    const uid = user.uid;
-
-    // Active patients
-    const unsubPatients = onSnapshot(
-      query(collection(db, 'patients'), where('nutritionist_id', '==', uid), where('status', '==', 'active')),
-      (snap) => {
-        setStats(p => ({ ...p, activePatients: snap.size }));
-        const map: Record<string, string> = {};
-        snap.docs.forEach(d => { map[d.id] = (d.data() as Patient).name; });
-        setPatientsMap(prev => ({ ...prev, ...map }));
-      }
-    );
-
-    // Recent active patients
-    const unsubRecent = onSnapshot(
-      query(collection(db, 'patients'), where('nutritionist_id', '==', uid), where('status', '==', 'active'), orderBy('createdAt', 'desc'), limit(5)),
-      (snap) => setRecentPatients(snap.docs.map(d => ({ id: d.id, ...d.data() } as Patient)))
-    );
-
-    // Today's appointments — uses composite index (date range)
-    const unsubAppts = onSnapshot(
-      query(
-        collection(db, 'appointments'),
-        where('nutritionist_id', '==', uid),
-        where('date', '>=', today.toISOString()),
-        where('date', '<', tomorrow.toISOString()),
-        orderBy('date', 'asc')
-      ),
-      (snap) => {
-        setTodayAppointments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Appointment)));
-        setStats(p => ({ ...p, todayAppointments: snap.size }));
-      }
-    );
-
-    // All consultations — single equality filter (no composite index needed)
-    // Filter month/week client-side to avoid index requirements
-    const unsubConsult = onSnapshot(
-      query(collection(db, 'consultations'), where('nutritionist_id', '==', uid)),
-      (snap) => {
-        const allDates = snap.docs.map(d => (d.data().date ?? '') as string);
-        // Month count: dates that start with YYYY-MM (current month)
-        const currentMonth = monthStart.substring(0, 7); // "2025-05"
-        const monthDates = allDates.filter(d => d.startsWith(currentMonth));
-        setStats(p => ({ ...p, monthConsultations: monthDates.length }));
-        // Keep only last 7 days for chart (avoid large arrays in state)
-        const sevenDaysAgoStr = format(sevenDaysAgo, 'yyyy-MM-dd');
-        setMonthConsultationDates(allDates.filter(d => d >= sevenDaysAgoStr));
-        setLoading(false);
-      }
-    );
-
-    // Paid payments — single equality filter on status, filter month client-side
-    const unsubPayments = onSnapshot(
-      query(collection(db, 'payments'), where('nutritionist_id', '==', uid), where('status', '==', 'paid')),
-      (snap) => {
-        const total = snap.docs
-          .filter(d => {
-            const date = (d.data().date ?? '') as string;
-            return date >= monthStart && date <= monthEnd;
-          })
-          .reduce((acc, d) => acc + Number(d.data().amount ?? 0), 0);
-        setStats(p => ({ ...p, monthRevenue: total }));
-      }
-    );
-
-    // Active meal plans
-    const unsubPlans = onSnapshot(
-      query(collection(db, 'meal_plans'), where('nutritionist_id', '==', uid), where('status', '==', 'active')),
-      (snap) => setStats(p => ({ ...p, activeMealPlans: snap.size }))
-    );
-
-    return () => {
-      unsubPatients();
-      unsubRecent();
-      unsubAppts();
-      unsubConsult();
-      unsubPayments();
-      unsubPlans();
-    };
-  }, [user, isAuthReady]);
+  }, [consultationDates]);
 
   const kpis = [
     {
       title: 'Pacientes Ativos',
-      value: stats.activePatients,
+      value: activePatients,
       icon: Users,
       iconBg: 'bg-emerald-50 dark:bg-emerald-950/40',
       iconColor: 'text-emerald-600 dark:text-emerald-400',
@@ -199,7 +123,7 @@ export const Dashboard = () => {
     },
     {
       title: 'Consultas do Mês',
-      value: stats.monthConsultations,
+      value: monthConsultations,
       icon: TrendingUp,
       iconBg: 'bg-blue-50 dark:bg-blue-950/40',
       iconColor: 'text-blue-600 dark:text-blue-400',
@@ -207,7 +131,7 @@ export const Dashboard = () => {
     },
     {
       title: 'Agenda de Hoje',
-      value: stats.todayAppointments,
+      value: todayAppointments.length,
       icon: Calendar,
       iconBg: 'bg-amber-50 dark:bg-amber-950/40',
       iconColor: 'text-amber-600 dark:text-amber-400',
@@ -215,7 +139,7 @@ export const Dashboard = () => {
     },
     {
       title: 'Receita do Mês',
-      value: formatCurrency(stats.monthRevenue),
+      value: formatCurrency(monthRevenue),
       icon: DollarSign,
       iconBg: 'bg-violet-50 dark:bg-violet-950/40',
       iconColor: 'text-violet-600 dark:text-violet-400',
@@ -223,7 +147,7 @@ export const Dashboard = () => {
     },
     {
       title: 'Planos Ativos',
-      value: stats.activeMealPlans,
+      value: activeMealPlans,
       icon: FileText,
       iconBg: 'bg-cyan-50 dark:bg-cyan-950/40',
       iconColor: 'text-cyan-600 dark:text-cyan-400',
@@ -264,7 +188,7 @@ export const Dashboard = () => {
             {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}
           </p>
         </div>
-        <PremiumFeature active={stats.activePatients >= FREE_PLAN_LIMITS.maxPatients}>
+        <PremiumFeature active={activePatients >= FREE_PLAN_LIMITS.maxPatients}>
           <Button
             nativeButton={false}
             className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-9 px-4 gap-2 font-semibold text-sm transition-all shadow-sm shadow-primary/20 active:scale-95 shrink-0"
@@ -319,7 +243,7 @@ export const Dashboard = () => {
           <Zap className="w-4 h-4 text-amber-600 shrink-0" />
           <span className="text-amber-800 dark:text-amber-200">
             Consultas em {format(new Date(), 'MMMM', { locale: ptBR })}:{' '}
-            <strong>{stats.monthConsultations}/{FREE_PLAN_LIMITS.maxConsultationsPerMonth}</strong> usadas
+            <strong>{monthConsultations}/{FREE_PLAN_LIMITS.maxConsultationsPerMonth}</strong> usadas
           </span>
           <span className="ml-auto text-xs text-amber-600 dark:text-amber-400 shrink-0">Plano Gratuito</span>
         </div>
@@ -417,21 +341,21 @@ export const Dashboard = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm text-foreground truncate">
-                          {patientsMap[app.patient_id] || 'Paciente'}
+                          {app.patient?.name || 'Paciente'}
                         </p>
                         <span className={cn('inline-block text-[10px] font-semibold px-1.5 py-0.5 rounded-full mt-0.5', statusColor(app.status))}>
                           {translateStatus(app.status)}
                         </span>
                       </div>
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {(app as any).meetLink && (
-                          <a href={(app as any).meetLink} target="_blank" rel="noopener noreferrer" title="Google Meet">
+                        {app.meetLink && (
+                          <a href={app.meetLink} target="_blank" rel="noopener noreferrer" title="Google Meet">
                             <Button variant="ghost" size="icon" className="w-7 h-7 text-blue-500 hover:text-blue-600 hover:bg-blue-50">
                               <Video className="w-3.5 h-3.5" />
                             </Button>
                           </a>
                         )}
-                        <Button nativeButton={false} variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hover:text-foreground" render={<Link to={`/patients/${app.patient_id}`} />}>
+                        <Button nativeButton={false} variant="ghost" size="icon" className="w-7 h-7 text-muted-foreground hover:text-foreground" render={<Link to={`/patients/${app.patientId}`} />}>
                           <ChevronRight className="w-3.5 h-3.5" />
                         </Button>
                       </div>

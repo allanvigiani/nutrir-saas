@@ -1,58 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
 import { useAuth } from './AuthContext';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
 
 interface GlobalSettings {
   free: {
@@ -94,43 +41,40 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!isAuthReady || !user) {
-      if (isAuthReady && !user) setLoading(false);
-      return;
-    }
-
-    const unsub = onSnapshot(doc(db, 'settings', 'global'), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setSettings({
-          free: {
-            ...defaultSettings.free,
-            ...data.free,
-          },
-        });
-      } else {
-        // If it doesn't exist, we use defaults but don't create it here 
-        // to avoid permission issues if not admin.
-        // Admins will create it when they first save.
-        setSettings(defaultSettings);
-      }
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching global settings:", error);
-      setLoading(false);
-    });
-
-    return () => unsub();
-  }, [isAuthReady, user]);
+    if (!isAuthReady) return;
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then(data => {
+        setSettings({ ...defaultSettings, ...data });
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Error fetching global settings:', err);
+        setLoading(false);
+      });
+  }, [isAuthReady]);
 
   const updateSettings = async (newSettings: GlobalSettings) => {
+    if (!user) throw new Error('Usuário não autenticado');
     try {
-      await setDoc(doc(db, 'settings', 'global'), {
-        ...newSettings,
-        updatedAt: new Date().toISOString()
+      const token = await user.getIdToken();
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          ...newSettings,
+          updatedAt: new Date().toISOString(),
+        }),
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      setSettings(data);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'settings/global');
+      console.error('Error updating settings:', error);
+      throw error;
     }
   };
 

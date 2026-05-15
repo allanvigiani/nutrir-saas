@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { apiRequest } from '../hooks/useApi';
 import { useAuth } from './AuthContext';
 
 type TutorialContextValue = {
@@ -34,9 +33,8 @@ export function TutorialProvider({ children }: { children: React.ReactNode }) {
       wasLoggedOutRef.current = false;
       if (nutritionist.hasSeenTutorial !== true) {
         setIsOpen(true);
-        updateDoc(doc(db, 'nutritionists', nutritionist.id), {
+        apiRequest('/api/me', 'PATCH', {
           hasSeenTutorial: true,
-          updatedAt: new Date().toISOString(),
         }).catch((err) =>
           console.error('[TutorialContext] Erro ao salvar hasSeenTutorial', err),
         );

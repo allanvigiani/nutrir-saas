@@ -4,10 +4,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React from 'react';
 
-vi.mock('../../lib/firebase', () => ({ db: {} }));
-vi.mock('firebase/firestore', () => ({
-  doc: vi.fn().mockReturnValue({ id: 'mock-doc-ref' }),
-  updateDoc: vi.fn().mockResolvedValue(undefined),
+// Mock apiRequest used by TutorialContext
+const mockApiRequest = vi.fn().mockResolvedValue(undefined);
+vi.mock('../../hooks/useApi', () => ({
+  apiRequest: (...args: any[]) => mockApiRequest(...args),
+  useApi: vi.fn(),
 }));
 
 const mockNutritionist = { id: 'user-123', name: 'Test', hasSeenTutorial: undefined as boolean | undefined };
@@ -21,10 +22,7 @@ vi.mock('../../contexts/AuthContext', () => ({
   }),
 }));
 
-import { updateDoc } from 'firebase/firestore';
 import { TutorialProvider, useTutorial } from '../../contexts/TutorialContext';
-
-const mockUpdateDoc = vi.mocked(updateDoc);
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return <TutorialProvider>{children}</TutorialProvider>;
@@ -33,7 +31,7 @@ function wrapper({ children }: { children: React.ReactNode }) {
 describe('TutorialContext — API manual', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUpdateDoc.mockResolvedValue(undefined);
+    mockApiRequest.mockResolvedValue(undefined);
     mockNutritionist.hasSeenTutorial = true; // evita auto-trigger nos testes manuais
     mockIsAuthReady = true;
   });
@@ -51,10 +49,10 @@ describe('TutorialContext — API manual', () => {
     expect(result.current.isOpen).toBe(false);
   });
 
-  it('closeTutorial não chama updateDoc (flag já foi salva no auto-trigger)', () => {
+  it('closeTutorial não chama apiRequest (flag já foi salva no auto-trigger)', () => {
     const { result } = renderHook(() => useTutorial(), { wrapper });
     act(() => result.current.closeTutorial());
-    expect(mockUpdateDoc).not.toHaveBeenCalled();
+    expect(mockApiRequest).not.toHaveBeenCalled();
   });
 
   it('useTutorial lança erro fora do provider', () => {
@@ -67,7 +65,7 @@ describe('TutorialContext — API manual', () => {
 describe('TutorialContext — auto-trigger', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUpdateDoc.mockResolvedValue(undefined);
+    mockApiRequest.mockResolvedValue(undefined);
     mockIsAuthReady = true;
   });
 
@@ -76,8 +74,9 @@ describe('TutorialContext — auto-trigger', () => {
     const { result } = renderHook(() => useTutorial(), { wrapper });
     await act(async () => {});
     expect(result.current.isOpen).toBe(true);
-    expect(mockUpdateDoc).toHaveBeenCalledWith(
-      expect.anything(),
+    expect(mockApiRequest).toHaveBeenCalledWith(
+      '/api/me',
+      'PATCH',
       expect.objectContaining({ hasSeenTutorial: true }),
     );
   });
@@ -87,6 +86,6 @@ describe('TutorialContext — auto-trigger', () => {
     const { result } = renderHook(() => useTutorial(), { wrapper });
     await act(async () => {});
     expect(result.current.isOpen).toBe(false);
-    expect(mockUpdateDoc).not.toHaveBeenCalled();
+    expect(mockApiRequest).not.toHaveBeenCalled();
   });
 });
