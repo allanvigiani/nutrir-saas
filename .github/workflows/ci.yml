@@ -23,8 +23,15 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
       - name: Run Lint
         run: npm run lint
 
       - name: Run Tests
         run: npm test
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
