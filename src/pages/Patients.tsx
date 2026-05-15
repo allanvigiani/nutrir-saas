@@ -53,6 +53,7 @@ import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
 import { PremiumFeature } from '../components/PremiumFeature';
 import { PremiumBanner } from '../components/PremiumBanner';
 import { maskCPF, maskPhone } from '../lib/masks';
@@ -323,6 +324,7 @@ export const Patients = () => {
             updatedAt: new Date().toISOString(),
           });
           
+          void logEvent('novo_paciente');
           toast.success('Paciente cadastrado com sucesso!');
         } catch (error) {
           handleFirestoreError(error, OperationType.CREATE, 'patients');

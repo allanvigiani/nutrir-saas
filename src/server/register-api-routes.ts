@@ -5,6 +5,7 @@ import { registerGoogleRoutes } from "./routes/google.routes.ts";
 import { registerHealthRoutes } from "./routes/health.routes.ts";
 import { registerNutritionRoutes } from "./routes/nutrition.routes.ts";
 import { registerLogRoutes } from "./routes/log.routes.ts";
+import { registerAccountRoutes } from "./routes/account.routes.ts";
 import { logger } from "./logger.ts";
 import {
   createAiLimiter,
@@ -48,6 +49,7 @@ export function registerApiRoutes(deps: RegisterApiRoutesDeps) {
   registerGoogleRoutes(deps);
   registerAsaasRoutes(deps);
   registerNutritionRoutes(deps);
+  registerAccountRoutes(deps);
   registerLogRoutes(deps.app);
 
   logger.info("Rotas da API registradas com sucesso (rate limiting ativo)");

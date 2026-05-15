@@ -66,6 +66,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
 
 const registerSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
@@ -185,6 +186,7 @@ export const Register = () => {
         handleFirestoreError(error, OperationType.WRITE, `nutritionists/${user.uid}`);
       }
 
+      void logEvent('sign_up', { method: 'email' });
       recordSessionStart();
       toast.success('Conta criada com sucesso!');
       navigate('/dashboard');

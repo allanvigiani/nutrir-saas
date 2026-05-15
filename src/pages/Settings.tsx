@@ -48,6 +48,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
@@ -63,7 +64,8 @@ import { remoteLogger } from '../lib/remote-logger';
 import { CustomFood } from '../types';
 import { CustomFoodDialog } from '../components/CustomFoodDialog';
 import { useSubscription } from '../hooks/useSubscription';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
+import { useCookieConsent } from '../contexts/CookieConsentContext';
 
 enum OperationType {
   CREATE = 'create',
@@ -159,6 +161,9 @@ export const Settings = () => {
   const [editingFood, setEditingFood] = useState<CustomFood | null>(null);
   const [foodSearch, setFoodSearch] = useState('');
   const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   
   const defaultTab = searchParams.get('tab') || 'profile';
   
@@ -422,6 +427,34 @@ export const Settings = () => {
       toast.error('Erro ao desconectar Google Agenda.', { id: toastId });
     }
   };
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    const userEmail = user.email || '';
+    if (deleteConfirmEmail !== userEmail) {
+      toast.error('E-mail digitado não confere com o da conta.');
+      return;
+    }
+    setIsDeletingAccount(true);
+    const toastId = toast.loading('Excluindo conta e todos os dados...');
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ confirmation: userEmail }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error || 'Erro ao excluir conta. Tente novamente.');
+      }
+      toast.success('Conta excluída com sucesso.', { id: toastId });
+      await signOut(auth);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao excluir conta.', { id: toastId });
+      setIsDeletingAccount(false);
+    }
+  };
+
   const handleUpdatePassword = async () => {
     if (!user) {
       toast.error('Usuário não autenticado.');
@@ -515,8 +548,14 @@ export const Settings = () => {
           >
             <Award className="w-4 h-4" /> Assinatura e Plano
           </TabsTrigger>
-          <TabsTrigger 
-            value="integrations" 
+          <TabsTrigger
+            value="privacy"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
+          >
+            <Shield className="w-4 h-4" /> Privacidade
+          </TabsTrigger>
+          <TabsTrigger
+            value="integrations"
             className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <RefreshCw className="w-4 h-4" /> Integrações
@@ -801,38 +840,36 @@ export const Settings = () => {
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">
-          <div className="max-w-2xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl">
             <Card className="border-none shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Segurança da Conta</CardTitle>
-                <CardDescription>Altere sua senha de acesso para manter sua conta segura.</CardDescription>
+                <CardTitle className="text-base font-bold">Segurança da Conta</CardTitle>
+                <CardDescription>Altere sua senha de acesso.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword">Nova Senha</Label>
-                    <Input 
-                      id="newPassword" 
-                      type="password" 
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="bg-muted/30 rounded-lg" 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmNewPassword">Confirmar Nova Senha</Label>
-                    <Input 
-                      id="confirmNewPassword" 
-                      type="password" 
-                      value={confirmNewPassword}
-                      onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      className="bg-muted/30 rounded-lg" 
-                    />
-                  </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="newPassword">Nova Senha</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="bg-muted/30 rounded-lg"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmNewPassword">Confirmar Nova Senha</Label>
+                  <Input
+                    id="confirmNewPassword"
+                    type="password"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    className="bg-muted/30 rounded-lg"
+                  />
                 </div>
               </CardContent>
-              <CardFooter className="border-t border-border pt-6">
-                <Button 
+              <CardFooter className="border-t border-border pt-5">
+                <Button
                   className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                   onClick={handleUpdatePassword}
                   disabled={isUpdatingPassword}
@@ -842,8 +879,84 @@ export const Settings = () => {
               </CardFooter>
             </Card>
 
-
+            {/* Zona de Perigo */}
+            <Card className="border border-destructive/30 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base font-bold text-destructive flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" /> Zona de Perigo
+                </CardTitle>
+                <CardDescription>
+                  Ações irreversíveis. Leia com atenção.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Remove permanentemente sua conta e <strong className="text-foreground">todos os dados</strong>:
+                  pacientes, consultas, planos, exames e financeiro.
+                  Conforme LGPD Art. 18.
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="self-start rounded-lg"
+                  onClick={() => { setDeleteConfirmEmail(''); setIsDeleteAccountOpen(true); }}
+                >
+                  Excluir Minha Conta
+                </Button>
+              </CardContent>
+            </Card>
           </div>
+
+            {/* Dialog de confirmação */}
+            <Dialog open={isDeleteAccountOpen} onOpenChange={setIsDeleteAccountOpen}>
+              <DialogContent className="sm:max-w-md rounded-2xl shadow-2xl">
+                <DialogHeader>
+                  <DialogTitle className="text-destructive flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5" /> Excluir Conta Permanentemente
+                  </DialogTitle>
+                  <DialogDescription>
+                    Esta ação é <strong>irreversível</strong>. Todos os dados abaixo serão excluídos imediatamente:
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <ul className="text-sm text-muted-foreground space-y-1.5 bg-muted/30 rounded-lg p-3">
+                    {['Perfil e dados do nutricionista','Todos os pacientes cadastrados','Consultas e dados antropométricos','Planos alimentares','Exames laboratoriais','Agendamentos','Registros financeiros','Alimentos personalizados'].map(item => (
+                      <li key={item} className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="deleteConfirmEmail" className="text-sm">
+                      Digite seu e-mail <strong className="text-foreground">{user?.email}</strong> para confirmar:
+                    </Label>
+                    <Input
+                      id="deleteConfirmEmail"
+                      placeholder={user?.email || 'seu@email.com'}
+                      value={deleteConfirmEmail}
+                      onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                      className="bg-muted/30 rounded-lg"
+                      autoComplete="off"
+                    />
+                  </div>
+                </div>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button variant="outline" className="rounded-xl" onClick={() => setIsDeleteAccountOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="rounded-xl"
+                    disabled={deleteConfirmEmail !== user?.email || isDeletingAccount}
+                    onClick={handleDeleteAccount}
+                  >
+                    {isDeletingAccount ? 'Excluindo...' : 'Excluir Minha Conta'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
         </TabsContent>
 
         <TabsContent value="subscription" className="space-y-6">
@@ -1277,7 +1390,124 @@ export const Settings = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Privacidade & Cookies */}
+        <TabsContent value="privacy" className="space-y-6">
+          <PrivacyTab />
+        </TabsContent>
+
       </Tabs>
     </div>
   );
 };
+
+function PrivacyTab() {
+  const { consent, acceptAll, acceptEssentialOnly, resetConsent } = useCookieConsent();
+
+  const statusLabel = consent === 'all'
+    ? 'Aceito — cookies essenciais e analíticos'
+    : consent === 'essential'
+    ? 'Parcial — somente cookies essenciais'
+    : 'Não definido';
+
+  const statusColor = consent === 'all'
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : consent === 'essential'
+    ? 'text-amber-600 dark:text-amber-400'
+    : 'text-muted-foreground';
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <Card className="border-none shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary" />
+            Cookies e Privacidade
+          </CardTitle>
+          <CardDescription>
+            Gerencie suas preferências de privacidade conforme a LGPD (Art. 18).
+            Você pode alterar ou revogar seu consentimento a qualquer momento.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+
+          {/* Status atual */}
+          <div className="rounded-xl border border-border bg-muted/30 p-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+              Preferência atual
+            </p>
+            <p className={`text-sm font-semibold ${statusColor}`}>{statusLabel}</p>
+          </div>
+
+          {/* Tipos de cookies */}
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 p-3 rounded-lg border border-border">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold">Cookies Essenciais</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Necessários para autenticação, sessão e funcionamento do sistema.
+                  Não podem ser desativados.
+                </p>
+              </div>
+              <span className="ml-auto text-xs font-medium text-emerald-600 dark:text-emerald-400 shrink-0">
+                Sempre ativo
+              </span>
+            </div>
+
+            <div className="flex items-start gap-3 p-3 rounded-lg border border-border">
+              <Activity className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold">Cookies Analíticos</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Registros de uso enviados ao Axiom (eventos como login/logout)
+                  para nos ajudar a identificar erros e melhorar o serviço.
+                </p>
+              </div>
+              <span className={`ml-auto text-xs font-medium shrink-0 ${consent === 'all' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                {consent === 'all' ? 'Ativo' : 'Inativo'}
+              </span>
+            </div>
+          </div>
+
+          {/* Ações */}
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              onClick={acceptEssentialOnly}
+              disabled={consent === 'essential'}
+            >
+              Somente Essenciais
+            </Button>
+            <Button
+              size="sm"
+              className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground"
+              onClick={acceptAll}
+              disabled={consent === 'all'}
+            >
+              Aceitar Todos
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-lg text-muted-foreground ml-auto"
+              onClick={resetConsent}
+            >
+              Redefinir preferências
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Leia nossa{' '}
+            <Link to="/cookies" className="text-primary underline underline-offset-2 hover:text-primary/80">
+              Política de Cookies
+            </Link>{' '}
+            para mais detalhes sobre os dados coletados.
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

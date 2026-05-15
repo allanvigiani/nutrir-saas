@@ -26,10 +26,13 @@ import { ThemeProvider } from './components/theme-provider';
 import { InactivityWarningModal } from './components/InactivityWarningModal';
 import { TutorialProvider } from './contexts/TutorialContext';
 import { TutorialModal } from './components/TutorialModal';
+import { CookieConsentProvider } from './contexts/CookieConsentContext';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
 
 export default function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <CookieConsentProvider>
       <AuthProvider>
         <TutorialProvider>
         <TooltipProvider>
@@ -61,11 +64,13 @@ export default function App() {
 
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
+              <CookieConsentBanner />
               <Toaster position="top-right" />
             </BrowserRouter>
         </TooltipProvider>
         </TutorialProvider>
       </AuthProvider>
+      </CookieConsentProvider>
     </ThemeProvider>
   );
 }

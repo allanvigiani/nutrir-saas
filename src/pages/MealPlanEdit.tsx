@@ -18,6 +18,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Patient, MealPlan, MealPlanItem, NutritionCalculation } from '../types';
 import { MealPlanEditor } from '../components/MealPlanEditor';
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
 import { Loader2 } from 'lucide-react';
 
 export function MealPlanEdit() {
@@ -156,6 +157,7 @@ export function MealPlanEdit() {
       });
 
       await batch.commit();
+      void logEvent(planId && planId !== 'new' ? 'plano_alimentar_atualizado' : 'novo_plano_alimentar');
       toast.success(planId && planId !== 'new' ? "Plano alimentar atualizado!" : "Plano alimentar criado!");
       navigate(`/patients/${patientId}`);
     } catch (error) {

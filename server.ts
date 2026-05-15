@@ -34,9 +34,13 @@ async function startServer() {
   const { google } = await import("googleapis");
   const {
     admin,
+    adminDb,
     getDocWithFallback,
     updateDocWithFallback,
     queryWithFallback,
+    deleteDocWithFallback,
+    deleteBatchWithFallback,
+    createAuthenticatedSession,
   } = createFirestoreHelpers(firebaseConfig);
 
   const app = express();
@@ -84,6 +88,13 @@ async function startServer() {
     app,
     authenticate,
     isSuperAdmin,
+    admin,
+    adminDb,
+    deleteDocWithFallback,
+    deleteBatchWithFallback,
+    createAuthenticatedSession,
+    firestoreProjectId: firebaseConfig.projectId,
+    firestoreDatabaseId: firebaseConfig.firestoreDatabaseId,
     google,
     googleClientId: GOOGLE_CALENDAR_CLIENT_ID,
     googleClientSecret: GOOGLE_CALENDAR_CLIENT_SECRET,

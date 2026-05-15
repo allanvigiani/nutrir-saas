@@ -159,6 +159,7 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   throw new Error(JSON.stringify(errInfo));
 }
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
 
 import {
   LineChart,
@@ -624,6 +625,7 @@ export const PatientProfile = () => {
       const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlanItem));
 
       handleExportPDF(plan, items);
+      void logEvent('exportar_pdf_plano_alimentar');
       toast.success("PDF gerado com sucesso!", { id: toastId });
     } catch (error) {
       console.error("Error generating PDF:", error);
@@ -707,6 +709,7 @@ export const PatientProfile = () => {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           });
+          void logEvent('nova_consulta');
           toast.success('Consulta registrada com sucesso!');
         } catch (error) {
           handleFirestoreError(error, OperationType.CREATE, createPath);

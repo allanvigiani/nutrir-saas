@@ -68,6 +68,7 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
 import { cn } from '../lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -238,6 +239,7 @@ export const Schedule = () => {
           updatedAt: new Date().toISOString(),
         });
         
+        void logEvent('novo_agendamento');
         toast.success('Agendamento realizado com sucesso!');
 
         // Trigger Google Calendar integration if connected

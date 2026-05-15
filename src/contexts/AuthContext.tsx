@@ -106,6 +106,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(firebaseUser);
 
       if (firebaseUser) {
+        // Guard contra chamadas concorrentes ao verify-subscription
+        let isCheckingSubscription = false;
+
         unsubNutritionist = onSnapshot(doc(db, 'nutritionists', firebaseUser.uid), async (docSnap) => {
           if (docSnap.exists()) {
             const data = docSnap.data() as Nutritionist;
@@ -114,39 +117,43 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const lastCheck = (data as any).lastSubscriptionCheck;
             const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
-            if (!lastCheck || lastCheck < oneHourAgo) {
-              firebaseUser.getIdToken().then(token => {
-                fetch('/api/verify-subscription', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                  },
-                  body: JSON.stringify({ email: firebaseUser.email }),
-                })
-                .then(res => res.json())
-                .then(async (asaasData) => {
-                  const planChanged = asaasData.plan && asaasData.plan !== data.plan;
-                  const cancelStatusChanged = asaasData.cancelAtPeriodEnd !== undefined && asaasData.cancelAtPeriodEnd !== data.cancelAtPeriodEnd;
+            if (!isCheckingSubscription && (!lastCheck || lastCheck < oneHourAgo)) {
+              isCheckingSubscription = true;
+              // Marca imediatamente no Firestore para que outros snapshots não disparem nova chamada
+              updateDoc(doc(db, 'nutritionists', firebaseUser.uid), {
+                lastSubscriptionCheck: new Date().toISOString(),
+              }).catch(() => {});
 
-                  if (planChanged || cancelStatusChanged) {
-                    await updateDoc(doc(db, 'nutritionists', firebaseUser.uid), {
-                      plan: asaasData.plan || 'free',
-                      subscriptionId: asaasData.subscriptionId || null,
-                      subscriptionStatus: asaasData.subscriptionStatus || null,
-                      cancelAtPeriodEnd: asaasData.cancelAtPeriodEnd || false,
-                      currentPeriodEnd: asaasData.currentPeriodEnd || null,
-                      lastSubscriptionCheck: new Date().toISOString(),
-                      updatedAt: new Date().toISOString(),
-                    });
-                  } else {
-                    await updateDoc(doc(db, 'nutritionists', firebaseUser.uid), {
-                      lastSubscriptionCheck: new Date().toISOString()
-                    });
-                  }
-                })
-                .catch(err => console.error("Error in proactive subscription check:", err));
-              }).catch(err => console.error("Error getting token for subscription check:", err));
+              try {
+                const token = await firebaseUser.getIdToken();
+                const res = await fetch('/api/verify-subscription', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                  body: JSON.stringify({ email: firebaseUser.email }),
+                });
+                const asaasData = await res.json();
+
+                const planChanged = asaasData.plan && asaasData.plan !== data.plan;
+                const cancelStatusChanged =
+                  asaasData.cancelAtPeriodEnd !== undefined &&
+                  asaasData.cancelAtPeriodEnd !== data.cancelAtPeriodEnd;
+
+                if (planChanged || cancelStatusChanged) {
+                  await updateDoc(doc(db, 'nutritionists', firebaseUser.uid), {
+                    plan: asaasData.plan || 'free',
+                    subscriptionId: asaasData.subscriptionId || null,
+                    subscriptionStatus: asaasData.subscriptionStatus || null,
+                    cancelAtPeriodEnd: asaasData.cancelAtPeriodEnd || false,
+                    currentPeriodEnd: asaasData.currentPeriodEnd || null,
+                    lastSubscriptionCheck: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  });
+                }
+              } catch (err) {
+                console.error('Error in proactive subscription check:', err);
+              } finally {
+                isCheckingSubscription = false;
+              }
             }
           } else {
             setNutritionist(null);

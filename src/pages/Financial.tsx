@@ -68,6 +68,7 @@ import { Patient, Payment } from '../types';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from '../lib/utils';
@@ -232,6 +233,7 @@ export const Financial = () => {
 
       await addDoc(collection(db, 'payments'), paymentData);
       
+      void logEvent('novo_pagamento');
       toast.success('Pagamento registrado com sucesso!');
       setIsModalOpen(false);
       reset();

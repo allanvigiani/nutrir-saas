@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
 import { doc, updateDoc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
@@ -176,6 +177,7 @@ export const useSubscription = () => {
       if (session.url) {
         console.log("Redirecionando para:", session.url);
         // Marca pagamento pendente — ao voltar para a aba, verifica automaticamente
+        void logEvent('inicio_upgrade_premium');
         localStorage.setItem(PENDING_PAYMENT_KEY, 'true');
         const checkoutWindow = window.open(session.url, '_blank');
 

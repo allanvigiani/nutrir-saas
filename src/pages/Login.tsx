@@ -65,6 +65,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
 
 const loginSchema = z.object({
   email: z.string().email('E-mail inválido'),
@@ -100,6 +101,7 @@ export const Login = () => {
       recordSessionStart();
       remoteLogger.info("Login realizado com sucesso (Email/Senha)", { userId: user.uid, email: user.email });
 
+      void logEvent('login', { method: 'email' });
       toast.success('Login realizado com sucesso!');
       navigate('/dashboard');
     } catch (error: any) {
