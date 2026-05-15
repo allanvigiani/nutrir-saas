@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup } from 'firebase/auth';
-import { doc, setDoc, getDocs, query, where, collection, getDoc } from 'firebase/firestore';
+import { getDocs, query, where, collection, getDoc, doc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../lib/firebase';
 import { Eye, EyeOff, ChevronLeft, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
@@ -67,6 +67,9 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
 import { logEvent } from '../lib/firebase';
+import { strongPasswordSchema } from '../lib/passwordSchema';
+import { isStrongPassword } from '../lib/passwordStrength';
+import { PasswordStrengthBar } from '../components/ui/PasswordStrengthBar';
 
 const registerSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
@@ -75,7 +78,7 @@ const registerSchema = z.object({
   cnpj: z.string().optional(),
   email: z.string().email('E-mail inválido'),
   phone: z.string().min(10, 'Telefone inválido'),
-  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
+  password: strongPasswordSchema,
   confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
@@ -92,8 +95,9 @@ export const Register = () => {
   const location = useLocation();
   const { theme, setTheme } = useTheme();
   const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const registerHeroImageUrl = import.meta.env.VITE_LOGIN_HERO_IMAGE_URL || '';
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<RegisterFormValues>({
+  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: location.state?.email || '',
@@ -167,24 +171,30 @@ export const Register = () => {
         displayName: data.name
       });
 
-      try {
-        await setDoc(doc(db, 'nutritionists', user.uid), {
+      const idToken = await user.getIdToken();
+
+      const profileRes = await fetch('/api/auth/register-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
           name: data.name,
           crn: data.crn,
           cpf: data.cpf || null,
           cnpj: data.cnpj || null,
           email: data.email,
           phone: data.phone,
-          role: 'nutritionist',
-          plan: 'free',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-        });
-        remoteLogger.info("Novo usuário cadastrado (Email/Senha)", { userId: user.uid, email: data.email });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, `nutritionists/${user.uid}`);
+        }),
+      });
+
+      if (!profileRes.ok) {
+        const err = await profileRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao salvar perfil.');
       }
+
+      remoteLogger.info("Novo usuário cadastrado (Email/Senha)", { userId: user.uid, email: data.email });
 
       void logEvent('sign_up', { method: 'email' });
       recordSessionStart();
@@ -308,53 +318,63 @@ export const Register = () => {
               {errors.email && <p className="text-xs text-destructive mt-1">{errors.email.message}</p>}
             </div>
 
-            {/* Senha / Confirmar */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    className="h-11 rounded-xl pr-10"
-                    {...register('password')}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {errors.password && <p className="text-xs text-destructive mt-1">{errors.password.message}</p>}
+            {/* Senha */}
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  className="h-11 rounded-xl pr-10"
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirmar</Label>
+              <PasswordStrengthBar password={watch('password') ?? ''} />
+              {errors.password && <p className="text-xs text-destructive mt-1">{errors.password.message}</p>}
+            </div>
+
+            {/* Confirmar Senha */}
+            <div className="space-y-1.5">
+              <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirmar Senha</Label>
+              <div className="relative">
                 <Input
                   id="confirmPassword"
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  className="h-11 rounded-xl"
+                  className="h-11 rounded-xl pr-10"
                   {...register('confirmPassword')}
                 />
-                {errors.confirmPassword && <p className="text-xs text-destructive mt-1">{errors.confirmPassword.message}</p>}
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
+              {errors.confirmPassword && <p className="text-xs text-destructive mt-1">{errors.confirmPassword.message}</p>}
             </div>
 
             {/* Submit */}
             <Button
               type="submit"
               className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl shadow-md shadow-primary/20 transition-all active:scale-[0.98]"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !isStrongPassword(watch('password') ?? '')}
             >
               {isSubmitting ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                   <span>Criando conta...</span>
                 </div>
-              ) : 'Criar conta grátis'}
+              ) : 'Cadastrar'}
             </Button>
 
             <div className="relative">

@@ -59,6 +59,8 @@ import { doc, updateDoc, collection, query, where, onSnapshot, deleteDoc, getDoc
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, auth, storage } from '../lib/firebase';
 import { signOut, updatePassword } from 'firebase/auth';
+import { isStrongPassword } from '../lib/passwordStrength';
+import { PasswordStrengthBar } from '../components/ui/PasswordStrengthBar';
 import { toast } from 'sonner';
 import { remoteLogger } from '../lib/remote-logger';
 import { CustomFood } from '../types';
@@ -471,8 +473,8 @@ export const Settings = () => {
       return;
     }
 
-    if (newPassword.length < 6) {
-      toast.error('A senha deve ter pelo menos 6 caracteres.');
+    if (!isStrongPassword(newPassword)) {
+      toast.error('A senha não atende aos requisitos de segurança.');
       return;
     }
 
@@ -856,6 +858,7 @@ export const Settings = () => {
                     onChange={(e) => setNewPassword(e.target.value)}
                     className="bg-muted/30 rounded-lg"
                   />
+                  <PasswordStrengthBar password={newPassword} />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="confirmNewPassword">Confirmar Nova Senha</Label>
@@ -872,7 +875,7 @@ export const Settings = () => {
                 <Button
                   className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                   onClick={handleUpdatePassword}
-                  disabled={isUpdatingPassword}
+                  disabled={isUpdatingPassword || !isStrongPassword(newPassword) || newPassword !== confirmNewPassword}
                 >
                   <Lock className="w-4 h-4" /> {isUpdatingPassword ? 'Atualizando...' : 'Atualizar Senha'}
                 </Button>

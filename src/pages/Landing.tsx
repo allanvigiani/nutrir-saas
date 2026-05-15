@@ -579,7 +579,7 @@ export function Landing() {
                 variant="outline"
                 className="w-full h-11 font-semibold"
               >
-                {user ? 'Acessar plataforma' : 'Criar conta grátis'}
+                {user ? 'Acessar plataforma' : 'Cadastre-se'} <ChevronRight className="w-4 h-4 ml-1" />
               </Button>
 
               <ul className="space-y-3">
