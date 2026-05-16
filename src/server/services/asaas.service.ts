@@ -30,11 +30,19 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
       // Cartão de crédito: CONFIRMED chega imediatamente ao pagar;
       // RECEIVED chega 32 dias depois (liquidação). Premium liberado em CONFIRMED.
       case "PAYMENT_CONFIRMED":
-      case "PAYMENT_RECEIVED":
+      case "PAYMENT_RECEIVED": {
+        // dueDate é a data de vencimento do pagamento atual — o fim do período é dueDate + 1 mês
+        let nextPeriodEnd: string | null = null;
+        if (payment?.dueDate) {
+          const d = new Date(payment.dueDate);
+          d.setMonth(d.getMonth() + 1);
+          nextPeriodEnd = d.toISOString().split("T")[0];
+        }
         await updateUserData({
           plan: "premium",
           asaasStatus: "active",
-          currentPeriodEnd: payment?.dueDate || null,
+          currentPeriodEnd: nextPeriodEnd,
+          cancelAtPeriodEnd: false,
           lastCheckedAt: new Date(),
         });
         // Email enviado no PAYMENT_CONFIRMED (primeiro evento que libera o acesso).
@@ -61,6 +69,7 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
           }
         }
         break;
+      }
 
       case "PAYMENT_OVERDUE":
         await updateUserData({ asaasStatus: "overdue" });
@@ -234,6 +243,19 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
     if (sub.status === "ACTIVE" && hasPaidPayment) plan = "premium";
     else if ((sub.status === "DELETED" || sub.deleted) && nextDueDate && nextDueDate >= now && hasPaidPayment) plan = "premium";
 
+    // Período cancelado expirou — sincroniza DB para evitar acesso premium residual
+    const isExpiredCancelled = (sub.status === "DELETED" || sub.deleted) && plan === "free";
+    if (isExpiredCancelled) {
+      const userId = customers.data[0].externalReference;
+      if (userId) {
+        subscriptionService.upsert(userId, {
+          plan: "free",
+          asaasStatus: "cancelled",
+          cancelAtPeriodEnd: false,
+        }).catch((err) => logger.error("[verifySubscription] Erro ao sincronizar plano expirado", err));
+      }
+    }
+
     return {
       status: sub.status,
       plan,
@@ -284,9 +306,17 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
 
     if (isEligibleForRefund) {
       try {
-        const paymentsResponse = await asaasClient.request(`/payments?subscription=${activeSub.id}&status=CONFIRMED,RECEIVED`);
-        if (paymentsResponse.data?.length > 0) {
-          for (const payment of paymentsResponse.data) {
+        // Asaas não aceita múltiplos status num único parâmetro — consultas separadas
+        const [confirmedRes, receivedRes] = await Promise.all([
+          asaasClient.request(`/payments?subscription=${activeSub.id}&status=CONFIRMED`),
+          asaasClient.request(`/payments?subscription=${activeSub.id}&status=RECEIVED`),
+        ]);
+        const eligiblePayments = [
+          ...(confirmedRes.data || []),
+          ...(receivedRes.data || []),
+        ];
+        if (eligiblePayments.length > 0) {
+          for (const payment of eligiblePayments) {
             await asaasClient.request(`/payments/${payment.id}/refund`, { method: "POST" });
             refunded = true;
           }
@@ -309,6 +339,10 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
           updateData.asaasSubscriptionId = null;
           updateData.currentPeriodEnd = null;
           updateData.hadRefundBefore = true;
+        } else {
+          // Salva a data de expiração do acesso premium — sem ela não é possível
+          // fazer o downgrade automático após o período pago terminar.
+          updateData.currentPeriodEnd = activeSub.nextDueDate || null;
         }
         await subscriptionService.upsert(userDocId, updateData);
         logger.info(`[Asaas Service] Assinatura cancelada com sucesso`, { email, refunded });
