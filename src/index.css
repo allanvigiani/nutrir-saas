@@ -79,8 +79,8 @@
     --chart-3: oklch(0.72 0.13 80);
     --chart-4: oklch(0.44 0.085 163);
     --chart-5: oklch(0.80 0.055 163);
-    /* Radius — escala orgânica base 14px */
-    --radius: 0.875rem;
+    /* Radius — escala orgânica base 8px */
+    --radius: 0.5rem;
     /* Sidebar — zona de navegação tem tint verde suave para diferenciação */
     --sidebar: oklch(0.972 0.012 163);
     --sidebar-foreground: oklch(0.145 0 0);
@@ -143,6 +143,12 @@
     }
   html {
     @apply font-sans;
+    }
+  button, [role="button"], a, [role="link"],
+  label[for], select, summary,
+  [role="tab"], [role="menuitem"], [role="option"],
+  [role="checkbox"], [role="radio"], [role="switch"] {
+    cursor: pointer;
     }
 }
 

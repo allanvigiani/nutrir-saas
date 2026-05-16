@@ -1,4 +1,5 @@
 import type { BaseRouteDeps } from "../types.ts";
+import { prisma } from "../lib/prisma.ts";
 
 export function registerAuthRoutes(deps: BaseRouteDeps) {
   deps.app.post("/api/auth/register-profile", deps.authenticate, async (req: any, res: any) => {
@@ -11,18 +12,28 @@ export function registerAuthRoutes(deps: BaseRouteDeps) {
     }
 
     try {
-      await deps.adminDb.collection("nutritionists").doc(uid).set({
-        name,
-        crn: crn || null,
-        cpf: cpf || null,
-        cnpj: cnpj || null,
-        email,
-        phone: phone || null,
-        role: "nutritionist",
-        plan: "free",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        lastLogin: new Date().toISOString(),
+      await prisma.nutritionist.upsert({
+        where: { id: uid },
+        update: {
+          name,
+          crn: crn || null,
+          cpf: cpf || null,
+          cnpj: cnpj || null,
+          email,
+          phone: phone || null,
+          updatedAt: new Date(),
+        },
+        create: {
+          id: uid,
+          name,
+          crn: crn || null,
+          cpf: cpf || null,
+          cnpj: cnpj || null,
+          email,
+          phone: phone || null,
+          role: "nutritionist",
+          plan: "free",
+        },
       });
 
       return res.json({ success: true });

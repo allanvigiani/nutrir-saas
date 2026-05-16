@@ -4,63 +4,14 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Link, useNavigate } from 'react-router-dom';
 import { signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
-import { doc, updateDoc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db, googleProvider } from '../lib/firebase';
+import { auth, googleProvider } from '../lib/firebase';
+import { apiRequest } from '../hooks/useApi';
 import { Eye, EyeOff, ChevronLeft, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { remoteLogger } from '../lib/remote-logger';
 import { recordSessionStart } from '../contexts/AuthContext';
 
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
 
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -91,9 +42,8 @@ export const Login = () => {
       const user = userCredential.user;
       
       // Update last login (non-blocking)
-      updateDoc(doc(db, 'nutritionists', user.uid), {
+      apiRequest('/api/me', 'PATCH', {
         lastLogin: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
       }).catch(error => {
         console.error("Failed to update last login:", error);
       });
@@ -124,26 +74,21 @@ export const Login = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      // Check if user exists in Firestore
-      const userDoc = await getDoc(doc(db, 'nutritionists', user.uid));
-
-      if (!userDoc.exists()) {
-        // If user doesn't exist, we need to redirect to register or handle creation
-        // But we need CRN/CPF/CNPJ. For now, let's redirect to register with a state
-        // or just show a message.
-        // Actually, let's create a basic profile and ask them to complete it later?
-        // No, the user said "login/cadastro com google".
-        // I'll redirect them to register page with pre-filled email/name if they are new.
-        toast.info('Conta Google conectada. Por favor, complete seu cadastro.');
-        navigate('/register', { state: { email: user.email, name: user.displayName } });
-        return;
+      // Check if user exists in PostgreSQL via API
+      try {
+        await apiRequest('/api/me', 'PATCH', {
+          lastLogin: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        // 404 means user not registered yet
+        if (err.message?.includes('404') || err.message?.includes('não encontrado')) {
+          toast.info('Conta Google conectada. Por favor, complete seu cadastro.');
+          navigate('/register', { state: { email: user.email, name: user.displayName } });
+          return;
+        }
+        // Non-critical: log but continue
+        console.error("Failed to update last login:", err);
       }
-
-      // Update last login
-      await updateDoc(doc(db, 'nutritionists', user.uid), {
-        lastLogin: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
 
       recordSessionStart();
       remoteLogger.info("Login realizado com sucesso (Google)", { userId: user.uid, email: user.email });

@@ -14,61 +14,9 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { db, auth } from '../lib/firebase';
-import { collection, addDoc, updateDoc, doc } from 'firebase/firestore';
 import { toast } from 'sonner';
 import { CustomFood } from '../types';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
+import { apiRequest } from '../hooks/useApi';
 
 const foodSchema = z.object({
   name: z.string().min(2, 'Nome é obrigatório'),
@@ -143,8 +91,6 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
   }, [food, initialName, reset]);
 
   const onSubmit = async (data: FoodFormValues) => {
-    if (!auth.currentUser) return;
-
     const { servingName, servingWeight, ...rest } = data;
     const finalData = {
       ...rest,
@@ -153,29 +99,13 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
 
     try {
       if (food) {
-        try {
-          await updateDoc(doc(db, 'custom_foods', food.id), {
-            ...finalData,
-            updatedAt: new Date().toISOString(),
-          });
-        } catch (error) {
-          handleFirestoreError(error, OperationType.UPDATE, `custom_foods/${food.id}`);
-        }
+        const updated = await apiRequest<CustomFood>(`/api/custom-foods/${food.id}`, 'PATCH', finalData);
         toast.success('Alimento atualizado com sucesso!');
-        if (onSuccess) onSuccess({ ...food, ...finalData });
+        if (onSuccess) onSuccess(updated);
       } else {
-        let docRef;
-        try {
-          docRef = await addDoc(collection(db, 'custom_foods'), {
-            ...finalData,
-            nutritionist_id: auth.currentUser.uid,
-            createdAt: new Date().toISOString(),
-          });
-        } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, 'custom_foods');
-        }
+        const created = await apiRequest<CustomFood>('/api/custom-foods', 'POST', finalData);
         toast.success('Alimento cadastrado com sucesso!');
-        if (onSuccess) onSuccess({ id: docRef.id, nutritionist_id: auth.currentUser.uid, ...finalData });
+        if (onSuccess) onSuccess(created);
       }
       onOpenChange(false);
     } catch (error) {

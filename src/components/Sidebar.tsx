@@ -38,7 +38,7 @@ const SidebarItem = ({
     className={cn(
       "flex items-center gap-3 px-3 py-2.5 transition-all duration-200 group",
       active
-        ? "bg-primary text-primary-foreground shadow-sm rounded-full"
+        ? "bg-primary text-primary-foreground shadow-sm rounded-lg"
         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-lg"
     )}
   >
@@ -75,15 +75,18 @@ const SidebarItemLocked = ({
 
 export const Sidebar = () => {
   const [collapsed, setCollapsed] = React.useState(false);
+  const [loggingOut, setLoggingOut] = React.useState(false);
   const location = useLocation();
   const { user, nutritionist } = useAuth();
   const { openTutorial } = useTutorial();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
     if (auth.currentUser) {
       remoteLogger.info("Logout realizado", { userId: auth.currentUser.uid, email: auth.currentUser.email });
     }
-    signOut(auth);
+    await signOut(auth);
   };
 
   const navItems = [];
@@ -161,7 +164,7 @@ export const Sidebar = () => {
             label={item.label}
             to={item.to}
             collapsed={collapsed}
-            active={location.pathname === item.to}
+            active={location.pathname === item.to || (item.to !== '/dashboard' && location.pathname.startsWith(item.to + '/'))}
           />
         ))}
         {lockedNavItems.map((item) => (
@@ -204,14 +207,22 @@ export const Sidebar = () => {
           <Button
             variant="ghost"
             size={collapsed ? "icon" : "sm"}
+            disabled={loggingOut}
             className={cn(
               "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
               !collapsed && "flex-1 justify-start gap-2"
             )}
             onClick={handleLogout}
           >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="font-medium text-sm">Sair</span>}
+            {loggingOut
+              ? <span className="w-4 h-4 shrink-0 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+              : <LogOut className="w-4 h-4 shrink-0" />
+            }
+            {!collapsed && (
+              <span className="font-medium text-sm">
+                {loggingOut ? 'Saindo...' : 'Sair'}
+              </span>
+            )}
           </Button>
         </div>
       </div>

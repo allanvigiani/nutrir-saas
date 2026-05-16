@@ -55,9 +55,9 @@ import {
 import { cn, maskCPF, maskCNPJ, maskPhone } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 import { FREE_PLAN_LIMITS } from '../lib/planLimits';
-import { doc, updateDoc, collection, query, where, onSnapshot, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, auth, storage } from '../lib/firebase';
+import { auth, storage } from '../lib/firebase';
+import { apiRequest } from '../hooks/useApi';
 import { signOut, updatePassword } from 'firebase/auth';
 import { isStrongPassword } from '../lib/passwordStrength';
 import { PasswordStrengthBar } from '../components/ui/PasswordStrengthBar';
@@ -194,19 +194,35 @@ export const Settings = () => {
 
   useEffect(() => {
     if (!user) return;
-
-    const q = query(
-      collection(db, 'custom_foods'),
-      where('nutritionist_id', '==', user.uid)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const foods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomFood));
-      setCustomFoods(foods);
-    });
-
-    return () => unsubscribe();
+    const load = async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const res = await fetch('/api/custom-foods', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const foods = await res.json();
+          setCustomFoods(foods);
+        }
+      } catch (err) {
+        console.error('Error loading custom foods:', err);
+      }
+    };
+    load();
   }, [user]);
+
+  const refetchCustomFoods = async () => {
+    if (!user) return;
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/custom-foods', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setCustomFoods(await res.json());
+    } catch (err) {
+      console.error('Error loading custom foods:', err);
+    }
+  };
 
   const handleResetAllUsers = async () => {
     if (!user?.email) return;
@@ -276,14 +292,7 @@ export const Settings = () => {
       const downloadURL = await getDownloadURL(storageRef);
 
       console.log("Updating nutritionist document with new photo URL...");
-      try {
-        await updateDoc(doc(db, 'nutritionists', user.uid), {
-          photoUrl: downloadURL,
-          updatedAt: new Date().toISOString(),
-        });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `nutritionists/${user.uid}`);
-      }
+      await apiRequest('/api/me', 'PATCH', { photoUrl: downloadURL });
 
       toast.success('Foto de perfil atualizada!', { id: toastId });
     } catch (error: any) {
@@ -302,13 +311,8 @@ export const Settings = () => {
     setIsSaving(true);
     try {
       // 1. Verificar duplicidade de CRN (excluindo o próprio usuário)
-      const crnQuery = query(
-        collection(db, 'nutritionists'), 
-        where('crn', '==', data.crn)
-      );
-      const crnSnapshot = await getDocs(crnQuery);
-      const isCrnDuplicate = crnSnapshot.docs.some(doc => doc.id !== user.uid);
-      if (isCrnDuplicate) {
+      const crnCheck = await apiRequest<{ isDuplicate: boolean }>(`/api/me/check-unique?field=crn&value=${encodeURIComponent(data.crn)}`, 'GET');
+      if (crnCheck?.isDuplicate) {
         toast.error('CRN já cadastrado: Este número já pertence a outro profissional.');
         setIsSaving(false);
         return;
@@ -316,13 +320,8 @@ export const Settings = () => {
 
       // 2. Verificar duplicidade de CPF (se preenchido e excluindo o próprio usuário)
       if (data.cpf) {
-        const cpfQuery = query(
-          collection(db, 'nutritionists'), 
-          where('cpf', '==', data.cpf)
-        );
-        const cpfSnapshot = await getDocs(cpfQuery);
-        const isCpfDuplicate = cpfSnapshot.docs.some(doc => doc.id !== user.uid);
-        if (isCpfDuplicate) {
+        const cpfCheck = await apiRequest<{ isDuplicate: boolean }>(`/api/me/check-unique?field=cpf&value=${encodeURIComponent(data.cpf)}`, 'GET');
+        if (cpfCheck?.isDuplicate) {
           toast.error('CPF já cadastrado: Este documento já está sendo utilizado.');
           setIsSaving(false);
           return;
@@ -331,36 +330,26 @@ export const Settings = () => {
 
       // 3. Verificar duplicidade de CNPJ (se preenchido e excluindo o próprio usuário)
       if (data.cnpj) {
-        const cnpjQuery = query(
-          collection(db, 'nutritionists'), 
-          where('cnpj', '==', data.cnpj)
-        );
-        const cnpjSnapshot = await getDocs(cnpjQuery);
-        const isCnpjDuplicate = cnpjSnapshot.docs.some(doc => doc.id !== user.uid);
-        if (isCnpjDuplicate) {
+        const cnpjCheck = await apiRequest<{ isDuplicate: boolean }>(`/api/me/check-unique?field=cnpj&value=${encodeURIComponent(data.cnpj)}`, 'GET');
+        if (cnpjCheck?.isDuplicate) {
           toast.error('CNPJ já cadastrado: Este documento já está sendo utilizado.');
           setIsSaving(false);
           return;
         }
       }
 
-      const specialtiesArray = data.specialties 
-        ? data.specialties.split(',').map(s => s.trim()) 
+      const specialtiesArray = data.specialties
+        ? data.specialties.split(',').map(s => s.trim())
         : [];
-        
-      try {
-        await updateDoc(doc(db, 'nutritionists', user.uid), {
-          name: data.name,
-          crn: data.crn,
-          cpf: data.cpf || null,
-          cnpj: data.cnpj || null,
-          phone: data.phone,
-          specialties: specialtiesArray,
-          updatedAt: new Date().toISOString(),
-        });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `nutritionists/${user.uid}`);
-      }
+
+      await apiRequest('/api/me', 'PATCH', {
+        name: data.name,
+        crn: data.crn,
+        cpf: data.cpf || null,
+        cnpj: data.cnpj || null,
+        phone: data.phone,
+        specialties: specialtiesArray,
+      });
       toast.success('Perfil atualizado com sucesso!');
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -418,10 +407,9 @@ export const Settings = () => {
     if (!user) return;
     const toastId = toast.loading('Desconectando Google Agenda...');
     try {
-      await updateDoc(doc(db, 'nutritionists', user.uid), {
+      await apiRequest('/api/me', 'PATCH', {
         googleCalendarConnected: false,
         googleCalendarTokens: null,
-        updatedAt: new Date().toISOString()
       });
       toast.success('Google Agenda desconectado.', { id: toastId });
     } catch (error) {
@@ -505,11 +493,17 @@ export const Settings = () => {
 
   const handleDeleteFood = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'custom_foods', id));
+      const token = await auth.currentUser?.getIdToken();
+      await fetch(`/api/custom-foods/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await refetchCustomFoods();
       toast.success('Alimento excluído com sucesso!');
       setFoodToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `custom_foods/${id}`);
+      console.error('Error deleting custom food:', error);
+      toast.error('Erro ao excluir alimento.');
     }
   };
 
@@ -981,9 +975,9 @@ export const Settings = () => {
                   </CardDescription>
                 </div>
 
-                {nutritionist?.plan === 'premium' && !nutritionist.cancelAtPeriodEnd && !nutritionist.hadRefundBefore && (
+                {nutritionist?.plan === 'premium' && !nutritionist.subscription?.cancelAtPeriodEnd && !nutritionist.subscription?.hadRefundBefore && (
                   (() => {
-                    const createdDate = nutritionist.firstSubscriptionDate ? new Date(nutritionist.firstSubscriptionDate) : new Date();
+                    const createdDate = nutritionist.subscription?.firstSubscriptionDate ? new Date(nutritionist.subscription.firstSubscriptionDate) : new Date();
                     const now = new Date();
                     const diffDays = Math.ceil((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
                     
@@ -1049,9 +1043,9 @@ export const Settings = () => {
                     </div>
                   </div>
 
-                  {(nutritionist?.plan === 'premium' || nutritionist?.cancelAtPeriodEnd) && (
+                  {(nutritionist?.plan === 'premium' || nutritionist?.subscription?.cancelAtPeriodEnd) && (
                     <div className="pt-4 space-y-4">
-                      {!nutritionist.cancelAtPeriodEnd && nutritionist.currentPeriodEnd && (
+                      {!nutritionist.subscription?.cancelAtPeriodEnd && nutritionist.subscription?.currentPeriodEnd && (
                         <div className="bg-primary/40 border border-primary/50 rounded-xl p-4 flex items-start gap-3">
                           <Calendar className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                           <div className="space-y-1">
@@ -1059,14 +1053,14 @@ export const Settings = () => {
                             <p className="text-xs text-primary-foreground">
                               Sua assinatura será renovada automaticamente em{' '}
                               <span className="font-bold">
-                                {new Date(nutritionist.currentPeriodEnd).toLocaleDateString('pt-BR')}
+                                {new Date(nutritionist.subscription.currentPeriodEnd).toLocaleDateString('pt-BR')}
                               </span>.
                             </p>
                           </div>
                         </div>
                       )}
 
-                      {nutritionist.cancelAtPeriodEnd && (
+                      {nutritionist.subscription?.cancelAtPeriodEnd && (
                         <div className="bg-amber-500/20 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
                           <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                           <div className="space-y-1">
@@ -1074,7 +1068,7 @@ export const Settings = () => {
                             <p className="text-xs text-amber-100/80">
                               Seu acesso Premium continuará ativo até o dia{' '}
                               <span className="font-bold">
-                                {nutritionist.currentPeriodEnd ? new Date(nutritionist.currentPeriodEnd).toLocaleDateString('pt-BR') : 'fim do período'}
+                                {nutritionist.subscription?.currentPeriodEnd ? new Date(nutritionist.subscription.currentPeriodEnd).toLocaleDateString('pt-BR') : 'fim do período'}
                               </span>.
                             </p>
                             <Button 
@@ -1179,7 +1173,7 @@ export const Settings = () => {
                     </div>
                   )}
 
-                  {nutritionist?.plan !== 'premium' && !nutritionist?.cancelAtPeriodEnd && (
+                  {nutritionist?.plan !== 'premium' && !nutritionist?.subscription?.cancelAtPeriodEnd && (
                     <div className="pt-4 space-y-4">
                       <Button 
                         className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-10 font-bold text-sm shadow-lg shadow-primary/10 transition-all active:scale-95" 
@@ -1234,7 +1228,7 @@ export const Settings = () => {
                               className="flex-1 text-[10px] h-8"
                               onClick={async () => {
                                 try {
-                                  await updateDoc(doc(db, 'nutritionists', user.uid), {
+                                  await apiRequest('/api/me', 'PATCH', {
                                     plan: 'free',
                                     subscriptionId: null,
                                     subscriptionStatus: null,
@@ -1243,7 +1237,6 @@ export const Settings = () => {
                                     firstSubscriptionDate: null,
                                     hadRefundBefore: false,
                                     lastSubscriptionCheck: null,
-                                    updatedAt: new Date().toISOString(),
                                   });
                                   toast.success('Seus dados foram resetados!');
                                   setTimeout(() => window.location.reload(), 1000);

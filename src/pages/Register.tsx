@@ -4,13 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup } from 'firebase/auth';
-import { getDocs, query, where, collection, getDoc, doc } from 'firebase/firestore';
-import { auth, db, googleProvider } from '../lib/firebase';
+import { auth, googleProvider } from '../lib/firebase';
 import { Eye, EyeOff, ChevronLeft, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { maskCPF, maskCNPJ, maskPhone } from '../lib/utils';
 import { remoteLogger } from '../lib/remote-logger';
-import { recordSessionStart } from '../contexts/AuthContext';
+import { recordSessionStart, useAuth } from '../contexts/AuthContext';
 
 enum OperationType {
   CREATE = 'create',
@@ -94,6 +93,7 @@ export const Register = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, setTheme } = useTheme();
+  const { reloadNutritionist } = useAuth();
   const [showPassword, setShowPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const registerHeroImageUrl = import.meta.env.VITE_LOGIN_HERO_IMAGE_URL || '';
@@ -115,9 +115,10 @@ export const Register = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      // Check if user already exists
-      const userDoc = await getDoc(doc(db, 'nutritionists', user.uid));
-      if (userDoc.exists()) {
+      // Check if user already exists in PostgreSQL
+      const idToken = await user.getIdToken();
+      const meRes = await fetch('/api/me', { headers: { Authorization: `Bearer ${idToken}` } });
+      if (meRes.ok) {
         toast.success('Você já possui uma conta. Entrando...');
         navigate('/');
         return;
@@ -137,18 +138,16 @@ export const Register = () => {
   const onSubmit = async (data: RegisterFormValues) => {
     try {
       // 1. Verificar duplicidade de CRN
-      const crnQuery = query(collection(db, 'nutritionists'), where('crn', '==', data.crn));
-      const crnSnapshot = await getDocs(crnQuery);
-      if (!crnSnapshot.empty) {
+      const crnCheck = await fetch(`/api/check-unique?field=crn&value=${encodeURIComponent(data.crn)}`).then(r => r.json());
+      if (crnCheck.isDuplicate) {
         toast.error('Ops! Este CRN já está em uso por outro profissional. Verifique se o número está correto.');
         return;
       }
 
       // 2. Verificar duplicidade de CPF (se preenchido)
       if (data.cpf) {
-        const cpfQuery = query(collection(db, 'nutritionists'), where('cpf', '==', data.cpf));
-        const cpfSnapshot = await getDocs(cpfQuery);
-        if (!cpfSnapshot.empty) {
+        const cpfCheck = await fetch(`/api/check-unique?field=cpf&value=${encodeURIComponent(data.cpf)}`).then(r => r.json());
+        if (cpfCheck.isDuplicate) {
           toast.error('Este CPF já está cadastrado. Você já possui uma conta com este documento.');
           return;
         }
@@ -156,9 +155,8 @@ export const Register = () => {
 
       // 3. Verificar duplicidade de CNPJ (se preenchido)
       if (data.cnpj) {
-        const cnpjQuery = query(collection(db, 'nutritionists'), where('cnpj', '==', data.cnpj));
-        const cnpjSnapshot = await getDocs(cnpjQuery);
-        if (!cnpjSnapshot.empty) {
+        const cnpjCheck = await fetch(`/api/check-unique?field=cnpj&value=${encodeURIComponent(data.cnpj)}`).then(r => r.json());
+        if (cnpjCheck.isDuplicate) {
           toast.error('Este CNPJ já está cadastrado. Verifique os dados da sua empresa.');
           return;
         }
@@ -198,6 +196,7 @@ export const Register = () => {
 
       void logEvent('sign_up', { method: 'email' });
       recordSessionStart();
+      await reloadNutritionist();
       toast.success('Conta criada com sucesso!');
       navigate('/dashboard');
     } catch (error: any) {

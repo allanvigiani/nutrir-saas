@@ -50,20 +50,8 @@ import {
   SelectValue 
 } from '../components/ui/select';
 import { useAuth } from '../contexts/AuthContext';
-import { 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  orderBy, 
-  addDoc, 
-  deleteDoc, 
-  doc, 
-  onSnapshot,
-  serverTimestamp,
-  updateDoc
-} from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { auth } from '../lib/firebase';
+import { apiRequest } from '../hooks/useApi';
 import { Patient, Payment } from '../types';
 import { format, parseISO, isWithinInterval, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -73,56 +61,6 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from '../lib/utils';
 
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
 
 const maskCurrency = (value: string) => {
   if (!value) return "";
@@ -175,70 +113,61 @@ export const Financial = () => {
 
   const { method: methodValue, status: statusValue, patient_id: patientIdValue } = watch();
 
+  const refetchPayments = async () => {
+    if (!user) return;
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/payments', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setPayments(await res.json());
+    } catch (err) {
+      console.error('Erro ao carregar pagamentos:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!user) return;
 
     // Fetch Patients for the select
     const fetchPatients = async () => {
       try {
-        const q = query(
-          collection(db, 'patients'),
-          where('nutritionist_id', '==', user.uid),
-          orderBy('name', 'asc')
-        );
-        const querySnapshot = await getDocs(q);
-        const patientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Patient));
-        setPatients(patientsData);
+        const patientsData = await apiRequest<Patient[]>('/api/patients', 'GET');
+        // Sort by name
+        const sorted = (patientsData || []).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+        setPatients(sorted);
       } catch (error) {
         console.error("Error fetching patients:", error);
       }
     };
 
     fetchPatients();
-
-    // Listen to Payments
-    const q = query(
-      collection(db, 'payments'),
-      where('nutritionist_id', '==', user.uid),
-      orderBy('date', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const paymentsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Payment));
-      setPayments(paymentsData);
-      setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'payments');
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
+    refetchPayments();
   }, [user]);
 
   const handleCreatePayment = async (data: PaymentFormValues) => {
     if (!user) return;
 
     try {
-      const paymentData = {
-        patient_id: data.patient_id,
-        nutritionist_id: user.uid,
+      await apiRequest('/api/payments', 'POST', {
+        patientId: data.patient_id,
         amount: parseFloat(data.amount.replace(/\./g, '').replace(',', '.')),
         date: new Date(data.date).toISOString(),
         method: data.method,
         status: data.status,
         description: data.description || '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+      });
 
-      await addDoc(collection(db, 'payments'), paymentData);
-      
       void logEvent('novo_pagamento');
       toast.success('Pagamento registrado com sucesso!');
       setIsModalOpen(false);
       reset();
+      await refetchPayments();
     } catch (error) {
-      handleFirestoreError(error, OperationType.CREATE, 'payments');
+      console.error('Erro ao criar pagamento:', error);
+      toast.error('Erro ao registrar pagamento');
     }
   };
 
@@ -246,10 +175,12 @@ export const Financial = () => {
     if (!confirm('Tem certeza que deseja excluir este registro?')) return;
 
     try {
-      await deleteDoc(doc(db, 'payments', id));
+      await apiRequest(`/api/payments/${id}`, 'DELETE');
       toast.success('Pagamento excluído com sucesso');
+      await refetchPayments();
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `payments/${id}`);
+      console.error('Erro ao excluir pagamento:', error);
+      toast.error('Erro ao excluir pagamento');
     }
   };
 
@@ -257,16 +188,15 @@ export const Financial = () => {
     if (!selectedPayment || !user) return;
 
     try {
-      await updateDoc(doc(db, 'payments', selectedPayment.id), {
-        status: newStatus,
-        updatedAt: new Date().toISOString()
-      });
-      
+      await apiRequest(`/api/payments/${selectedPayment.id}`, 'PATCH', { status: newStatus });
+
       toast.success('Status do pagamento atualizado com sucesso!');
       setIsStatusModalOpen(false);
       setSelectedPayment(null);
+      await refetchPayments();
     } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `payments/${selectedPayment.id}`);
+      console.error('Erro ao atualizar pagamento:', error);
+      toast.error('Erro ao atualizar status do pagamento');
     }
   };
 

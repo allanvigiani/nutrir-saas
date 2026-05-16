@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { FREE_PLAN_LIMITS } from '../lib/planLimits';
+import { apiRequest } from './useApi';
 
 interface FreePlanLimits {
   consultationsThisMonth: number;
@@ -23,29 +22,26 @@ export function useFreeplanLimits(patientId?: string): FreePlanLimits {
     if (isPremium || !user) return;
 
     const today = new Date();
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
+    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
     setIsLoading(true);
 
-    const q = query(
-      collection(db, 'consultations'),
-      where('nutritionist_id', '==', user.uid),
-      where('date', '>=', startOfMonth.toISOString()),
-      where('date', '<=', endOfMonth.toISOString())
-    );
-
-    getDocs(q)
-      .then((snap) => {
-        const docs = snap.docs.map(d => d.data());
-        setConsultationsThisMonth(docs.length);
+    apiRequest<any>('/api/dashboard/stats', 'GET')
+      .then(async (stats) => {
+        const count = stats?.consultationsThisMonth ?? 0;
+        setConsultationsThisMonth(count);
         if (patientId) {
-          setPatientConsultationsThisMonth(docs.filter(d => d.patient_id === patientId).length);
+          const consultations = await apiRequest<any[]>(`/api/patients/${patientId}/consultations`, 'GET');
+          const filtered = (consultations || []).filter((c: any) => {
+            const d = c.date || c.createdAt;
+            return d >= startOfMonth && d <= endOfMonth;
+          });
+          setPatientConsultationsThisMonth(filtered.length);
         }
       })
-      .finally(() => {
-        setIsLoading(false);
-      });
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
   }, [isPremium, user, patientId]);
 
   if (isPremium) {

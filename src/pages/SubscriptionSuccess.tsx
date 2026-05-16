@@ -4,8 +4,7 @@ import { CheckCircle2, Loader2, ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { useAuth } from '../contexts/AuthContext';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { apiRequest } from '../hooks/useApi';
 import { toast } from 'sonner';
 
 export const SubscriptionSuccess = () => {
@@ -37,23 +36,21 @@ export const SubscriptionSuccess = () => {
         const asaasData = await response.json();
 
         if (asaasData.plan === 'premium') {
-          await updateDoc(doc(db, 'nutritionists', user.uid), {
+          await apiRequest('/api/subscription', 'PUT', {
             plan: 'premium',
-            subscriptionId: asaasData.subscriptionId || sessionId,
-            subscriptionStatus: asaasData.subscriptionStatus || 'active',
+            asaasSubscriptionId: asaasData.subscriptionId || sessionId,
+            asaasStatus: asaasData.subscriptionStatus || 'active',
             cancelAtPeriodEnd: asaasData.cancelAtPeriodEnd || false,
             currentPeriodEnd: asaasData.currentPeriodEnd || null,
             firstSubscriptionDate: asaasData.subscriptionCreatedAt || new Date().toISOString(),
-            lastSubscriptionCheck: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
+            lastCheckedAt: new Date().toISOString(),
           });
           toast.success('Assinatura confirmada! Bem-vindo ao Premium.');
         } else {
           // Fallback if Asaas hasn't updated yet (rare but possible)
-          await updateDoc(doc(db, 'nutritionists', user.uid), {
+          await apiRequest('/api/subscription', 'PUT', {
             plan: 'premium',
-            subscriptionId: sessionId,
-            updatedAt: new Date().toISOString(),
+            asaasSubscriptionId: sessionId,
           });
           toast.success('Assinatura em processamento. Seu acesso Premium será liberado em instantes.');
         }

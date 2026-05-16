@@ -1,3 +1,17 @@
+export interface Subscription {
+  id: string;
+  nutritionistId: string;
+  plan: string;
+  asaasSubscriptionId?: string | null;
+  asaasStatus?: string | null;
+  cancelAtPeriodEnd: boolean;
+  currentPeriodEnd?: string | null;
+  firstSubscriptionDate?: string | null;
+  hadRefundBefore: boolean;
+  lastCheckedAt?: string | null;
+  updatedAt: string;
+}
+
 export interface Nutritionist {
   id: string;
   name: string;
@@ -10,13 +24,7 @@ export interface Nutritionist {
   photoUrl?: string;
   role?: 'nutritionist' | 'admin';
   plan?: 'free' | 'premium';
-  subscriptionId?: string;
-  subscriptionStatus?: string;
-  cancelAtPeriodEnd?: boolean;
-  currentPeriodEnd?: string;
-  lastSubscriptionCheck?: string;
-  firstSubscriptionDate?: string;
-  hadRefundBefore?: boolean;
+  subscription?: Subscription | null;
   createdAt: string;
   updatedAt: string;
   lastLogin?: string;
