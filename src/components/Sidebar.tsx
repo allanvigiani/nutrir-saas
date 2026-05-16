@@ -38,7 +38,7 @@ const SidebarItem = ({
     className={cn(
       "flex items-center gap-3 px-3 py-2.5 transition-all duration-200 group",
       active
-        ? "bg-primary text-primary-foreground shadow-sm rounded-full"
+        ? "bg-primary text-primary-foreground shadow-sm rounded-lg"
         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-lg"
     )}
   >
@@ -164,7 +164,7 @@ export const Sidebar = () => {
             label={item.label}
             to={item.to}
             collapsed={collapsed}
-            active={location.pathname === item.to}
+            active={location.pathname === item.to || (item.to !== '/dashboard' && location.pathname.startsWith(item.to + '/'))}
           />
         ))}
         {lockedNavItems.map((item) => (

@@ -2563,10 +2563,11 @@ export const PatientProfile = () => {
                   {
                     label: 'Peso atual',
                     value: `${latest.weight} kg`,
-                    sub: idealMin && idealMax ? `Peso ideal: ${idealMin}–${idealMax} kg` : null,
+                    sub: idealMin && idealMax ? `Ideal: ${idealMin}–${idealMax} kg` : null,
                     delta: fmtDelta(latest.weight, prev?.weight, ' kg'),
-                    color: 'text-emerald-600',
-                    bg: 'bg-emerald-50 dark:bg-emerald-950/30',
+                    accent: 'border-emerald-500',
+                    valueColor: 'text-emerald-600 dark:text-emerald-400',
+                    bg: 'bg-card',
                   },
                   {
                     label: 'IMC',
@@ -2574,55 +2575,64 @@ export const PatientProfile = () => {
                     badge: imc,
                     sub: h ? `Altura: ${(h * 100).toFixed(0)} cm` : null,
                     delta: fmtDelta(latest.imc, prev?.imc),
-                    color: 'text-blue-600',
-                    bg: 'bg-blue-50 dark:bg-blue-950/30',
+                    accent: 'border-blue-500',
+                    valueColor: 'text-blue-600 dark:text-blue-400',
+                    bg: 'bg-card',
                   },
                   {
                     label: 'Gordura corporal',
                     value: latest.fatPercentage != null ? `${latest.fatPercentage}%` : '—',
                     delta: fmtDelta(latest.fatPercentage, prev?.fatPercentage, '%'),
-                    color: 'text-amber-600',
-                    bg: 'bg-amber-50 dark:bg-amber-950/30',
+                    accent: 'border-amber-500',
+                    valueColor: 'text-amber-600 dark:text-amber-400',
+                    bg: 'bg-card',
                   },
                   {
                     label: 'Cintura',
                     value: latest.waist != null ? `${latest.waist} cm` : '—',
                     delta: fmtDelta(latest.waist, prev?.waist, ' cm'),
-                    color: 'text-violet-600',
-                    bg: 'bg-violet-50 dark:bg-violet-950/30',
+                    accent: 'border-violet-500',
+                    valueColor: 'text-violet-600 dark:text-violet-400',
+                    bg: 'bg-card',
                   },
                   {
                     label: 'Quadril',
                     value: latest.hip != null ? `${latest.hip} cm` : '—',
                     delta: fmtDelta(latest.hip, prev?.hip, ' cm'),
-                    color: 'text-pink-600',
-                    bg: 'bg-pink-50 dark:bg-pink-950/30',
+                    accent: 'border-pink-500',
+                    valueColor: 'text-pink-600 dark:text-pink-400',
+                    bg: 'bg-card',
                   },
                   {
                     label: 'Braço',
                     value: latest.arm != null ? `${latest.arm} cm` : '—',
                     delta: fmtDelta(latest.arm, prev?.arm, ' cm'),
-                    color: 'text-cyan-600',
-                    bg: 'bg-cyan-50 dark:bg-cyan-950/30',
+                    accent: 'border-cyan-500',
+                    valueColor: 'text-cyan-600 dark:text-cyan-400',
+                    bg: 'bg-card',
                   },
                 ];
 
                 return (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                     {cards.map((card) => (
-                      <div key={card.label} className={cn('rounded-xl p-4', card.bg)}>
-                        <p className="text-xs font-medium text-muted-foreground mb-1">{card.label}</p>
-                        <p className={cn('text-2xl font-bold leading-tight', card.color)}>{card.value}</p>
+                      <div key={card.label} className={cn(
+                        'rounded-xl p-4 border border-border border-l-4 shadow-sm',
+                        card.accent,
+                        card.bg,
+                      )}>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{card.label}</p>
+                        <p className={cn('text-2xl font-bold leading-tight', card.valueColor)}>{card.value}</p>
                         {card.badge && (
-                          <span className={cn('inline-block text-xs font-medium px-2 py-0.5 rounded-full mt-1.5', card.badge.cls)}>
+                          <span className={cn('inline-block text-xs font-semibold px-2 py-0.5 rounded-md mt-1.5', card.badge.cls)}>
                             {card.badge.label}
                           </span>
                         )}
                         {card.sub && !card.badge && (
-                          <p className="text-xs text-muted-foreground mt-1">{card.sub}</p>
+                          <p className="text-xs text-muted-foreground mt-1.5">{card.sub}</p>
                         )}
                         {card.delta && (
-                          <p className="text-xs text-muted-foreground mt-1.5 leading-snug">{card.delta}</p>
+                          <p className="text-xs text-muted-foreground/80 mt-1.5 leading-snug">{card.delta}</p>
                         )}
                       </div>
                     ))}
