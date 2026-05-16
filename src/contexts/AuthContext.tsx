@@ -27,7 +27,7 @@ export function recordSessionStart() {
 
 function isSessionExpired(): boolean {
   const raw = localStorage.getItem(SESSION_KEY);
-  if (!raw) return true;
+  if (!raw) return false; // sem chave = login novo, não expirado
   return Date.now() - parseInt(raw, 10) > SESSION_MAX_MS;
 }
 
@@ -101,6 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(firebaseUser);
 
       if (firebaseUser) {
+      setLoading(true);
       const loadNutritionist = async () => {
         try {
           const token = await firebaseUser.getIdToken();

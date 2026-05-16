@@ -75,15 +75,18 @@ const SidebarItemLocked = ({
 
 export const Sidebar = () => {
   const [collapsed, setCollapsed] = React.useState(false);
+  const [loggingOut, setLoggingOut] = React.useState(false);
   const location = useLocation();
   const { user, nutritionist } = useAuth();
   const { openTutorial } = useTutorial();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
     if (auth.currentUser) {
       remoteLogger.info("Logout realizado", { userId: auth.currentUser.uid, email: auth.currentUser.email });
     }
-    signOut(auth);
+    await signOut(auth);
   };
 
   const navItems = [];
@@ -204,14 +207,22 @@ export const Sidebar = () => {
           <Button
             variant="ghost"
             size={collapsed ? "icon" : "sm"}
+            disabled={loggingOut}
             className={cn(
               "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
               !collapsed && "flex-1 justify-start gap-2"
             )}
             onClick={handleLogout}
           >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="font-medium text-sm">Sair</span>}
+            {loggingOut
+              ? <span className="w-4 h-4 shrink-0 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+              : <LogOut className="w-4 h-4 shrink-0" />
+            }
+            {!collapsed && (
+              <span className="font-medium text-sm">
+                {loggingOut ? 'Saindo...' : 'Sair'}
+              </span>
+            )}
           </Button>
         </div>
       </div>

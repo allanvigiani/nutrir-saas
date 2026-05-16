@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useTheme } from 'next-themes';
 import {
   Users,
   Calendar,
@@ -51,6 +52,13 @@ interface DashboardStats {
 export const Dashboard = () => {
   const { user, nutritionist, isAuthReady } = useAuth();
   const isPremium = nutritionist?.plan === 'premium';
+  const { resolvedTheme } = useTheme();
+  const chartTickColor = useMemo(() => {
+    if (typeof document !== 'undefined' && document.documentElement.classList.contains('dark')) {
+      return '#94a3b8';
+    }
+    return '#64748b';
+  }, [resolvedTheme]);
 
   const { data: stats, loading } = useApi<DashboardStats>('/api/dashboard/stats', {
     immediate: isAuthReady && !!user,
@@ -290,14 +298,14 @@ export const Dashboard = () => {
                       fontSize={11}
                       tickLine={false}
                       axisLine={false}
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fill: chartTickColor }}
                     />
                     <YAxis
                       fontSize={11}
                       tickLine={false}
                       axisLine={false}
                       allowDecimals={false}
-                      tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                      tick={{ fill: chartTickColor }}
                     />
                     <Tooltip content={<CustomTooltip />} cursor={{ fill: '#10b98120', radius: 6 }} />
                     <Bar dataKey="consultas" radius={[6, 6, 0, 0]}>
