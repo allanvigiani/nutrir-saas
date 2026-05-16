@@ -13,6 +13,8 @@ model Nutritionist {
   crn                     String?
   cpf                     String?
   cnpj                    String?
+  cpfHash                 String? @unique
+  cnpjHash                String? @unique
   phone                   String?
   specialties             String[]
   photoUrl                String?
@@ -55,7 +57,7 @@ model Subscription {
 model Patient {
   id             String       @id @default(cuid())
   nutritionistId String
-  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
   name           String
   birthDate      String
   gender         String
@@ -74,6 +76,7 @@ model Patient {
   uid            String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
 
   consultations Consultation[]
   mealPlans     MealPlan[]
@@ -177,7 +180,7 @@ model Appointment {
   patientId      String
   patient        Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
   nutritionistId String
-  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
   date           DateTime
   status         String
   googleEventId  String?
@@ -193,7 +196,7 @@ model Payment {
   id             String       @id @default(cuid())
   patientId      String
   nutritionistId String
-  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
   amount         Float
   date           DateTime
   method         String
@@ -223,7 +226,7 @@ model NutritionCalculation {
 model CustomFood {
   id             String       @id @default(cuid())
   nutritionistId String
-  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id])
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
   name           String
   kcal           Float
   protein        Float

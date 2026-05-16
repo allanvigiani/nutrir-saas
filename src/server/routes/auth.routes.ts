@@ -1,5 +1,6 @@
 import type { BaseRouteDeps } from "../types.ts";
 import { prisma } from "../lib/prisma.ts";
+import { hashField } from "../lib/crypto.ts";
 
 export function registerAuthRoutes(deps: BaseRouteDeps) {
   deps.app.post("/api/auth/register-profile", deps.authenticate, async (req: any, res: any) => {
@@ -12,13 +13,33 @@ export function registerAuthRoutes(deps: BaseRouteDeps) {
     }
 
     try {
+      // Checar unicidade de CPF (excluindo o próprio nutricionista)
+      if (cpf) {
+        const cpfHash = hashField(cpf);
+        const duplicate = await prisma.nutritionist.findFirst({
+          where: { cpfHash, NOT: { id: uid } },
+        });
+        if (duplicate) return res.status(409).json({ error: "CPF já cadastrado para outro nutricionista." });
+      }
+
+      // Checar unicidade de CNPJ
+      if (cnpj) {
+        const cnpjHash = hashField(cnpj);
+        const duplicate = await prisma.nutritionist.findFirst({
+          where: { cnpjHash, NOT: { id: uid } },
+        });
+        if (duplicate) return res.status(409).json({ error: "CNPJ já cadastrado para outro nutricionista." });
+      }
+
       await prisma.nutritionist.upsert({
         where: { id: uid },
         update: {
           name,
           crn: crn || null,
           cpf: cpf || null,
+          cpfHash: cpf ? hashField(cpf) : null,
           cnpj: cnpj || null,
+          cnpjHash: cnpj ? hashField(cnpj) : null,
           email,
           phone: phone || null,
           updatedAt: new Date(),
@@ -28,7 +49,9 @@ export function registerAuthRoutes(deps: BaseRouteDeps) {
           name,
           crn: crn || null,
           cpf: cpf || null,
+          cpfHash: cpf ? hashField(cpf) : null,
           cnpj: cnpj || null,
+          cnpjHash: cnpj ? hashField(cnpj) : null,
           email,
           phone: phone || null,
           role: "nutritionist",

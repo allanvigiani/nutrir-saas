@@ -99,15 +99,18 @@ export const PatientAccess = () => {
     verifyTokenAndFetchPatient();
   }, [id, token]);
 
-  const handleAuth = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!patient) return;
+    if (!patient || !token) return;
 
-    // Limpar CPF para pegar os 3 últimos dígitos
-    const cleanCpf = patient.cpf.replace(/\D/g, '');
-    const lastThree = cleanCpf.slice(-3);
+    // Validação server-side — CPF nunca comparado no client
+    const verifyResponse = await fetch(`/api/portal/patients/${patient.id}/verify-cpf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, cpfSuffix }),
+    });
 
-    if (cpfSuffix === lastThree) {
+    if (verifyResponse.ok) {
       setIsAuthenticated(true);
     } else {
       setAuthError('Os 3 últimos dígitos do CPF não conferem.');

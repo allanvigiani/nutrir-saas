@@ -1400,6 +1400,25 @@ export const Settings = () => {
 function PrivacyTab() {
   const { consent, acceptAll, acceptEssentialOnly, resetConsent } = useCookieConsent();
 
+  async function handleExportData() {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const response = await fetch('/api/account/export', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Falha ao exportar dados');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'meus-dados-nutrir.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Não foi possível exportar os dados. Tente novamente.');
+    }
+  }
+
   const statusLabel = consent === 'all'
     ? 'Aceito — cookies essenciais e analíticos'
     : consent === 'essential'
@@ -1502,6 +1521,17 @@ function PrivacyTab() {
             </Link>{' '}
             para mais detalhes sobre os dados coletados.
           </p>
+
+          {/* Portabilidade de dados — LGPD Art. 20 */}
+          <div className="space-y-2 pt-4 border-t border-border">
+            <h3 className="text-sm font-medium">Portabilidade de dados</h3>
+            <p className="text-sm text-muted-foreground">
+              Conforme LGPD Art. 20, você pode exportar todos os seus dados em formato JSON.
+            </p>
+            <Button variant="outline" onClick={handleExportData}>
+              Exportar meus dados
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>

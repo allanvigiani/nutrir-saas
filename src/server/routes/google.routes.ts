@@ -7,9 +7,6 @@ export function registerGoogleRoutes(deps: BaseRouteDeps & GoogleConfig) {
     google: deps.google,
     googleClientId: deps.googleClientId,
     googleClientSecret: deps.googleClientSecret,
-    getDocWithFallback: deps.getDocWithFallback,
-    updateDocWithFallback: deps.updateDocWithFallback,
-    queryWithFallback: deps.queryWithFallback,
   });
 
   const controller = createGoogleController({

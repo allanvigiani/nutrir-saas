@@ -225,15 +225,30 @@ export function Privacidade() {
               <Section id="transferencia" title="7. Transferência Internacional de Dados">
                 <P>
                   Alguns fornecedores listados acima operam fora do Brasil (principalmente nos EUA e UE).
-                  Essas transferências são realizadas com base no Art. 33 da LGPD, mediante:
+                  Essas transferências são realizadas com base no Art. 33, I da LGPD, mediante:
                 </P>
                 <ul className="space-y-1 ml-1">
-                  <Li><strong>Google (Firebase):</strong> aderente ao EU-US Data Privacy Framework e cláusulas contratuais padrão da ANPD</Li>
+                  <Li>
+                    <strong>Autenticação:</strong> Google Firebase Authentication (Google LLC, EUA) — protegido pelo{' '}
+                    <a
+                      href="https://cloud.google.com/terms/data-processing-addendum"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      DPA do Google Cloud
+                    </a>.
+                  </Li>
+                  <Li>
+                    <strong>Banco de dados:</strong> Neon PostgreSQL (infraestrutura AWS, EUA) — protegido pelo DPA da AWS e Neon.
+                  </Li>
                   <Li><strong>Brevo:</strong> empresa europeia, regulada pelo GDPR, com nível de proteção equivalente à LGPD</Li>
                   <Li><strong>Axiom:</strong> transferência baseada em cláusulas contratuais padrão; coleta somente com consentimento do usuário</Li>
                 </ul>
                 <P>
-                  O usuário pode solicitar informações sobre os instrumentos de transferência utilizados pelo contato do DPO.
+                  Ambos os provedores adotam cláusulas contratuais padrão e estão em conformidade com
+                  regulamentações internacionais de proteção de dados. O usuário pode solicitar informações
+                  sobre os instrumentos de transferência utilizados pelo contato do DPO.
                 </P>
               </Section>
 

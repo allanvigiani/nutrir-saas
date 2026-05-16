@@ -1,17 +1,17 @@
 import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma.ts';
 
-type Deps = { prisma: PrismaClient };
-
-export function createPatientsService({ prisma }: Deps) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function createPatientsService(_deps?: { prisma?: PrismaClient }) {
   async function list(nutritionistId: string) {
     return prisma.patient.findMany({
-      where: { nutritionistId },
+      where: { nutritionistId, deletedAt: null },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async function getOne(nutritionistId: string, id: string) {
-    const patient = await prisma.patient.findFirst({ where: { id, nutritionistId } });
+    const patient = await prisma.patient.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!patient) throw new Error('Paciente não encontrado');
     return patient;
   }
@@ -21,15 +21,15 @@ export function createPatientsService({ prisma }: Deps) {
   }
 
   async function update(nutritionistId: string, id: string, data: Record<string, unknown>) {
-    const existing = await prisma.patient.findFirst({ where: { id, nutritionistId } });
+    const existing = await prisma.patient.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
     return prisma.patient.update({ where: { id }, data: data as any });
   }
 
   async function remove(nutritionistId: string, id: string) {
-    const existing = await prisma.patient.findFirst({ where: { id, nutritionistId } });
+    const existing = await prisma.patient.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
-    return prisma.patient.delete({ where: { id } });
+    return prisma.patient.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
   return { list, getOne, create, update, remove };

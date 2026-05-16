@@ -21,6 +21,7 @@ import { registerDashboardRoutes } from "./routes/dashboard.routes.ts";
 import { registerPatientPortalRoutes } from "./routes/patient-portal.routes.ts";
 import { registerAdminRoutes } from "./routes/admin.routes.ts";
 import { registerSubscriptionRoutes } from "./routes/subscription.routes.ts";
+import { registerAccountExportRoutes } from "./routes/account-export.routes.ts";
 import { logger } from "./logger.ts";
 import {
   createAiLimiter,
@@ -67,6 +68,7 @@ export function registerApiRoutes(deps: RegisterApiRoutesDeps) {
   registerNutritionistsRoutes(deps);
   registerSettingsRoutes(deps);
   registerAccountRoutes(deps);
+  registerAccountExportRoutes(deps);
   registerAuthRoutes(deps);
   registerLogRoutes(deps.app);
   registerCustomFoodsRoutes(deps);

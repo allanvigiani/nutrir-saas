@@ -5,11 +5,8 @@ import { logger } from "../logger.ts";
 export function registerAccountRoutes(deps: BaseRouteDeps & Partial<AsaasConfig>) {
   const accountService = createAccountService({
     admin: deps.admin,
-    adminDb: deps.adminDb,
     asaasApiUrl: deps.asaasApiUrl || '',
     asaasApiKey: deps.asaasApiKey || '',
-    firestoreProjectId: deps.firestoreProjectId,
-    firestoreDatabaseId: deps.firestoreDatabaseId,
   });
 
   deps.app.delete("/api/account", deps.authenticate, async (req: any, res: any) => {
@@ -24,11 +21,8 @@ export function registerAccountRoutes(deps: BaseRouteDeps & Partial<AsaasConfig>
       });
     }
 
-    // Extrai o ID token do header Authorization para usar na REST API do Firestore
-    const idToken = (req.headers.authorization as string).split('Bearer ')[1];
-
     try {
-      const result = await accountService.deleteAccount(uid, idToken);
+      const result = await accountService.deleteAccount(uid);
       return res.json({ success: true, ...result });
     } catch (err: any) {
       logger.error('Erro ao excluir conta', err, { uid });

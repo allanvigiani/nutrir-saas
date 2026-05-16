@@ -21,7 +21,6 @@ export function registerPatientPortalRoutes(deps: BaseRouteDeps) {
           name: true,
           email: true,
           phone: true,
-          cpf: true,
           birthDate: true,
           nutritionistId: true,
         },
@@ -89,6 +88,37 @@ export function registerPatientPortalRoutes(deps: BaseRouteDeps) {
       if (!plan || plan.patient.accessToken !== token) return res.status(401).json({ error: 'Acesso negado.' });
       const items = await prisma.mealPlanItem.findMany({ where: { mealPlanId: planId } });
       return res.json(items);
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Verifica CPF server-side (últimos 3 dígitos)
+  deps.app.post('/api/portal/patients/:id/verify-cpf', async (req: any, res: any) => {
+    const { id } = req.params;
+    const { token, cpfSuffix } = req.body;
+
+    if (!token || !cpfSuffix) {
+      return res.status(400).json({ error: 'Token e sufixo do CPF são obrigatórios.' });
+    }
+
+    try {
+      const patient = await prisma.patient.findFirst({
+        where: { id, accessToken: token as string },
+        select: { cpf: true },
+      });
+
+      if (!patient) return res.status(401).json({ error: 'Acesso negado.' });
+
+      // O middleware Prisma já descriptografou patient.cpf automaticamente
+      const cleanCpf = patient.cpf.replace(/\D/g, '');
+      const lastThree = cleanCpf.slice(-3);
+
+      if (cpfSuffix !== lastThree) {
+        return res.status(401).json({ error: 'Os 3 últimos dígitos do CPF não conferem.' });
+      }
+
+      return res.json({ valid: true });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }

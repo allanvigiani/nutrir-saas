@@ -1,41 +1,60 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const { mockFindMany, mockFindFirst, mockUpdate, mockCreate, mockDelete } = vi.hoisted(() => ({
+  mockFindMany:  vi.fn(),
+  mockFindFirst: vi.fn(),
+  mockUpdate:    vi.fn(),
+  mockCreate:    vi.fn(),
+  mockDelete:    vi.fn(),
+}));
+
+vi.mock('../../server/lib/prisma.ts', () => ({
+  prisma: {
+    patient: {
+      findMany:  mockFindMany,
+      findFirst: mockFindFirst,
+      update:    mockUpdate,
+      create:    mockCreate,
+      delete:    mockDelete,
+    },
+  },
+}));
+
 import { createPatientsService } from '../../server/services/patients.service.ts';
 
-function makePrisma(overrides: Record<string, any> = {}) {
-  return {
-    patient: {
-      findMany: vi.fn().mockResolvedValue([]),
-      findFirst: vi.fn().mockResolvedValue(null),
-      create: vi.fn().mockResolvedValue({ id: 'pat1' }),
-      update: vi.fn().mockResolvedValue({ id: 'pat1' }),
-      delete: vi.fn().mockResolvedValue({ id: 'pat1' }),
-      ...overrides.patient,
-    },
-  };
-}
+const service = createPatientsService({ prisma: {} as any });
 
-describe('PatientsService', () => {
-  it('list retorna pacientes do nutricionista ordenados por createdAt desc', async () => {
-    const prisma = makePrisma();
-    const service = createPatientsService({ prisma: prisma as any });
-    await service.list('uid1');
-    expect(prisma.patient.findMany).toHaveBeenCalledWith({
-      where: { nutritionistId: 'uid1' },
-      orderBy: { createdAt: 'desc' },
-    });
+describe('patients.service — soft delete', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('list() filtra pacientes com deletedAt preenchido', async () => {
+    mockFindMany.mockResolvedValue([]);
+    await service.list('nutri-1');
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) }),
+    );
   });
 
-  it('create associa nutritionistId ao paciente', async () => {
-    const created = { id: 'pat1', nutritionistId: 'uid1', name: 'João' };
-    const prisma = makePrisma({ patient: { create: vi.fn().mockResolvedValue(created) } });
-    const service = createPatientsService({ prisma: prisma as any });
-    const result = await service.create('uid1', { name: 'João', email: 'joao@test.com' } as any);
-    expect(result.nutritionistId).toBe('uid1');
+  it('getOne() filtra pacientes com deletedAt preenchido', async () => {
+    mockFindFirst.mockResolvedValue({ id: 'p-1', nutritionistId: 'nutri-1', deletedAt: null });
+    await service.getOne('nutri-1', 'p-1');
+    expect(mockFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) }),
+    );
   });
 
-  it('remove lança erro se paciente não pertence ao nutricionista', async () => {
-    const prisma = makePrisma();
-    const service = createPatientsService({ prisma: prisma as any });
-    await expect(service.remove('uid1', 'pat-other')).rejects.toThrow('Não autorizado');
+  it('remove() faz soft delete (seta deletedAt) em vez de deletar', async () => {
+    mockFindFirst.mockResolvedValue({ id: 'p-1', nutritionistId: 'nutri-1', deletedAt: null });
+    mockUpdate.mockResolvedValue({});
+    await service.remove('nutri-1', 'p-1');
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ deletedAt: expect.any(Date) }) }),
+    );
+    expect(mockDelete).not.toHaveBeenCalled();
+  });
+
+  it('remove() lança erro se paciente não pertence ao nutricionista', async () => {
+    mockFindFirst.mockResolvedValue(null);
+    await expect(service.remove('nutri-1', 'p-outro')).rejects.toThrow('Não autorizado');
   });
 });
