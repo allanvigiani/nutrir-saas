@@ -287,6 +287,7 @@ export const PatientProfile = () => {
   const [selectedMealPlanItems, setSelectedMealPlanItems] = useState<MealPlanItem[]>([]);
 
   const isPremium = isAdminOrPremium(nutritionist);
+  const isPatientReadOnly = !isPremium && !!(patient as any)?.isReadOnly;
   const isMealPlanLimitReached = !isPremium && mealPlans.filter(p => p.status === 'active').length >= FREE_PLAN_LIMITS.maxMealPlans;
   const isLabExamLimitReached = !isPremium && exams.length >= FREE_PLAN_LIMITS.maxExams;
   const {
@@ -1048,6 +1049,19 @@ export const PatientProfile = () => {
   return (
     <div className="space-y-8">
 
+      {isPatientReadOnly && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-bold text-amber-800 dark:text-amber-300">Paciente em somente leitura</p>
+            <p className="text-amber-700 dark:text-amber-400 mt-0.5">
+              Este paciente excede o limite do plano gratuito. Você pode visualizar o histórico, mas novas consultas, planos e exames estão bloqueados.{' '}
+              <Link to="/settings" className="underline font-medium">Fazer upgrade</Link>
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button nativeButton={false} variant="ghost" size="icon" render={<Link to="/patients" />} title="Voltar para lista de pacientes">
@@ -1364,7 +1378,7 @@ export const PatientProfile = () => {
                 size="sm"
                 className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                 onClick={() => setIsConsultationModalOpen(true)}
-                disabled={!isPremium && (limitsLoading || !canAddConsultation || patientAlreadyHasConsultationThisMonth)}
+                disabled={isPatientReadOnly || (!isPremium && (limitsLoading || !canAddConsultation || patientAlreadyHasConsultationThisMonth))}
               >
                 <Plus className="w-4 h-4" /> Nova Consulta
               </Button>
@@ -1538,6 +1552,7 @@ export const PatientProfile = () => {
                                     size="sm"
                                     variant="outline"
                                     className="text-primary border-primary/30 hover:bg-primary/10 h-8 text-xs"
+                                    disabled={isPatientReadOnly}
                                     onClick={() => navigate(`/patients/${id}/meal-plan/new`, { state: { consultationId: consultation.id } })}
                                   >
                                     <Plus className="w-3.5 h-3.5 mr-1" /> Criar Plano
@@ -1628,6 +1643,7 @@ export const PatientProfile = () => {
                                       <Button
                                         size="sm"
                                         className="bg-primary hover:bg-primary/90 text-white rounded-lg shadow-sm text-xs h-8"
+                                        disabled={isPatientReadOnly}
                                         onClick={() => navigate(`/patients/${id}/meal-plan/new`, { state: { calculation: calc } })}
                                       >
                                         Criar Plano Alimentar
@@ -2126,9 +2142,9 @@ export const PatientProfile = () => {
 
                 }
               }}>
-                <PremiumFeature active={isLabExamLimitReached}>
+                <PremiumFeature active={isLabExamLimitReached || isPatientReadOnly}>
                   <DialogTrigger
-                    render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" />}
+                    render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" disabled={isPatientReadOnly} />}
                     nativeButton={true}
                   >
                     <Plus className="w-4 h-4" /> Registrar Exame

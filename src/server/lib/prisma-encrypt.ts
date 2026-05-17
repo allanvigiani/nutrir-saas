@@ -1,4 +1,5 @@
 import { encrypt, decrypt } from './crypto.ts';
+import { PrismaClient } from '@prisma/client';
 
 type FieldConfig = {
   fields: string[];
@@ -75,19 +76,24 @@ function decryptResult(model: string, result: any): void {
 const WRITE_ACTIONS = new Set(['create', 'update', 'upsert', 'createMany', 'updateMany']);
 const READ_ACTIONS  = new Set(['findUnique', 'findFirst', 'findMany', 'findUniqueOrThrow', 'findFirstOrThrow']);
 
-export function applyEncryptionMiddleware(prisma: any): void {
-  prisma.$use(async (params: any, next: any) => {
-    if (params.model && WRITE_ACTIONS.has(params.action)) {
-      const data = params.args?.data;
-      if (data) encryptData(params.model, data);
-    }
+export function withEncryption(prisma: PrismaClient): any {
+  return prisma.$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ model, operation, args, query }: any) {
+          if (model && WRITE_ACTIONS.has(operation) && args.data) {
+            encryptData(model, args.data);
+          }
 
-    const result = await next(params);
+          const result = await query(args);
 
-    if (params.model && READ_ACTIONS.has(params.action) && result) {
-      decryptResult(params.model, result);
-    }
+          if (model && READ_ACTIONS.has(operation) && result) {
+            decryptResult(model, result);
+          }
 
-    return result;
+          return result;
+        },
+      },
+    },
   });
 }

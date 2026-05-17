@@ -25,7 +25,7 @@ export function createAuthenticateMiddleware({ admin }: AuthMiddlewareDeps) {
       const nutritionist = await withAdminRLS(() =>
         getDb().nutritionist.findUnique({
           where: { id: decodedToken.uid },
-          select: { role: true, plan: true },
+          select: { role: true, plan: true, gracePeriodEndAt: true },
         })
       );
 
@@ -33,6 +33,7 @@ export function createAuthenticateMiddleware({ admin }: AuthMiddlewareDeps) {
       req.user.dbPlan = nutritionist?.plan ?? "free";
       req.user.isAdmin = req.user.dbRole === "admin";
       req.user.isPremium = req.user.isAdmin || req.user.dbPlan === "premium";
+      req.user.gracePeriodEndAt = nutritionist?.gracePeriodEndAt ?? null;
 
       return next();
     } catch (error) {

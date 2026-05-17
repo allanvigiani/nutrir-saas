@@ -42,16 +42,31 @@ export function createSubscriptionService() {
       create: { nutritionistId, ...clean },
     });
 
-    // Keep Nutritionist.plan in sync if plan changed — mas não sobrescreve plano definido manualmente pelo admin
+    // Keep Nutritionist.plan in sync if plan changed
     if (data.plan) {
       const nutritionistData = await getDb().nutritionist.findUnique({
         where: { id: nutritionistId },
-        select: { planOverridedByAdmin: true },
+        select: { plan: true, planOverridedByAdmin: true, gracePeriodEndAt: true },
       });
+
       if (!nutritionistData?.planOverridedByAdmin) {
+        const updateData: any = { plan: data.plan };
+
+        if (data.plan === 'free' && nutritionistData?.plan === 'premium') {
+          // Downgrade: setar grace period apenas se não houver um em andamento
+          if (!nutritionistData.gracePeriodEndAt) {
+            const gracePeriodEnd = new Date();
+            gracePeriodEnd.setDate(gracePeriodEnd.getDate() + 30);
+            updateData.gracePeriodEndAt = gracePeriodEnd;
+          }
+        } else if (data.plan === 'premium') {
+          // Upgrade: limpar grace period
+          updateData.gracePeriodEndAt = null;
+        }
+
         await getDb().nutritionist.update({
           where: { id: nutritionistId },
-          data: { plan: data.plan },
+          data: updateData,
         });
       }
     }

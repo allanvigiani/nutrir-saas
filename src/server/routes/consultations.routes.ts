@@ -1,6 +1,13 @@
 import type { BaseRouteDeps } from '../types.ts';
 import { createConsultationsService } from '../services/consultations.service.ts';
+import { createPatientsService } from '../services/patients.service.ts';
 import { withNutritionistRLS } from '../lib/rls-context.ts';
+
+function computeGracePeriodOver(req: any): boolean {
+  if (req.user.isPremium) return false;
+  const end = req.user.gracePeriodEndAt;
+  return end !== null && new Date(end) < new Date();
+}
 
 export function registerConsultationsRoutes(deps: BaseRouteDeps) {
   const service = createConsultationsService();
@@ -18,6 +25,12 @@ export function registerConsultationsRoutes(deps: BaseRouteDeps) {
   deps.app.post('/api/patients/:patientId/consultations', deps.authenticate, async (req: any, res: any) => {
     try {
       await withNutritionistRLS(req.user.uid, async () => {
+        const patientsService = createPatientsService();
+        const gracePeriodOver = computeGracePeriodOver(req);
+        const readOnly = await patientsService.isPatientReadOnly(req.user.uid, req.params.patientId, gracePeriodOver);
+        if (readOnly) {
+          return res.status(403).json({ error: 'Este paciente está em somente leitura. Faça upgrade para o plano Premium para retomar o acesso.' });
+        }
         const data = await service.create(req.user.uid, req.params.patientId, req.body, req.user.isPremium);
         res.status(201).json(data);
       });

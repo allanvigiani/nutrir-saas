@@ -28,6 +28,7 @@ model Nutritionist {
   hasSeenTutorial         Boolean?
   welcomeEmailSentAt      DateTime?
   planOverridedByAdmin    Boolean   @default(false)
+  gracePeriodEndAt        DateTime?
 
   patients     Patient[]
   appointments Appointment[]

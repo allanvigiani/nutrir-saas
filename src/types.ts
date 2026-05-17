@@ -33,6 +33,7 @@ export interface Nutritionist {
   welcomeEmailSentAt?: string;
   hasSeenTutorial?: boolean;
   planOverridedByAdmin?: boolean;
+  gracePeriodEndAt?: string | null;
 }
 
 export interface Patient {
@@ -53,6 +54,7 @@ export interface Patient {
   allergies?: string;
   photoUrl?: string;
   status: 'active' | 'inactive';
+  isReadOnly?: boolean;
   createdAt: string;
   updatedAt: string;
 }

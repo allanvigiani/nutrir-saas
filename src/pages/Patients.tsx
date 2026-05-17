@@ -48,7 +48,7 @@ import { FREE_PLAN_LIMITS, isAdminOrPremium } from '../lib/planLimits';
 import { auth } from '../lib/firebase';
 
 import { Patient } from '../types';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -136,6 +136,15 @@ type PatientFormValues = z.infer<typeof patientSchema>;
 export const Patients = () => {
   const { user, nutritionist, isAuthReady } = useAuth();
   const isPremium = isAdminOrPremium(nutritionist);
+  const gracePeriodEndAt = nutritionist?.gracePeriodEndAt
+    ? new Date(nutritionist.gracePeriodEndAt)
+    : null;
+  const now = new Date();
+  const isInGracePeriod = !isPremium && gracePeriodEndAt !== null && gracePeriodEndAt > now;
+  const isGracePeriodOver = !isPremium && gracePeriodEndAt !== null && gracePeriodEndAt <= now;
+  const gracePeriodDaysLeft = isInGracePeriod && gracePeriodEndAt
+    ? differenceInDays(gracePeriodEndAt, now)
+    : 0;
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -345,6 +354,34 @@ export const Patients = () => {
 
   return (
     <div className="space-y-8">
+      {isInGracePeriod && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-bold text-amber-800 dark:text-amber-300">Período de transição ativo</p>
+            <p className="text-amber-700 dark:text-amber-400 mt-0.5">
+              Você mudou para o plano gratuito. Todos os seus pacientes estão acessíveis por mais{' '}
+              <strong>{gracePeriodDaysLeft} {gracePeriodDaysLeft === 1 ? 'dia' : 'dias'}</strong>.
+              Após esse prazo, pacientes além do limite de {FREE_PLAN_LIMITS.maxPatients} ficarão em somente leitura.{' '}
+              <Link to="/settings" className="underline font-medium">Reativar Premium</Link>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isGracePeriodOver && patients.length > FREE_PLAN_LIMITS.maxPatients && (
+        <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-bold text-red-800 dark:text-red-300">Limite do plano gratuito atingido</p>
+            <p className="text-red-700 dark:text-red-400 mt-0.5">
+              {patients.length - FREE_PLAN_LIMITS.maxPatients} paciente(s) estão em somente leitura.
+              Faça <Link to="/settings" className="underline font-medium">upgrade para Premium</Link> para recuperar o acesso completo.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Pacientes</h1>
@@ -555,7 +592,14 @@ export const Patients = () => {
                       {initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-semibold text-foreground truncate text-sm" title={patient.name}>{patient.name}</h3>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="font-semibold text-foreground truncate text-sm" title={patient.name}>{patient.name}</h3>
+                        {patient.isReadOnly && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 shrink-0">
+                            Somente leitura
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-muted-foreground mt-0.5">{patient.cpf || '—'}</p>
                     </div>
                   </div>
