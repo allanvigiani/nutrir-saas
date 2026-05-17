@@ -1,4 +1,4 @@
-import { prisma } from "../lib/prisma.ts";
+import { getDb } from "../lib/rls-context.ts";
 
 type GoogleCalendarServiceInput = {
   google: any;
@@ -43,10 +43,10 @@ export function createGoogleCalendarService({
     const email = userInfo.data.email;
     if (!email) throw new Error("Could not get user email from Google");
 
-    const nutritionist = await prisma.nutritionist.findFirst({ where: { email } });
+    const nutritionist = await getDb().nutritionist.findFirst({ where: { email } });
     if (!nutritionist) return { found: false, email };
 
-    await prisma.nutritionist.update({
+    await getDb().nutritionist.update({
       where: { id: nutritionist.id },
       data: {
         googleCalendarTokens: tokens,
@@ -59,12 +59,12 @@ export function createGoogleCalendarService({
   }
 
   async function createCalendarEvent(params: { appointmentId: string; nutritionistId: string }) {
-    const nutritionist = await prisma.nutritionist.findUnique({
+    const nutritionist = await getDb().nutritionist.findUnique({
       where: { id: params.nutritionistId },
     });
     if (!nutritionist?.googleCalendarTokens) throw new Error("Google Calendar not connected");
 
-    const appointment = await prisma.appointment.findUnique({
+    const appointment = await getDb().appointment.findUnique({
       where: { id: params.appointmentId },
       include: { patient: true },
     });
@@ -77,7 +77,7 @@ export function createGoogleCalendarService({
 
     oauthClient.on("tokens", async (tokens: any) => {
       if (tokens.refresh_token) {
-        await prisma.nutritionist.update({
+        await getDb().nutritionist.update({
           where: { id: params.nutritionistId },
           data: {
             googleCalendarTokens: { ...(nutritionist.googleCalendarTokens as object), ...tokens },
@@ -108,7 +108,7 @@ export function createGoogleCalendarService({
       conferenceDataVersion: 1,
     });
 
-    await prisma.appointment.update({
+    await getDb().appointment.update({
       where: { id: params.appointmentId },
       data: {
         googleEventId: response.data.id,

@@ -1,14 +1,17 @@
 import type { BaseRouteDeps } from '../types.ts';
 import { createNutritionistsService } from '../services/nutritionists.service.ts';
 import { prisma } from '../lib/prisma.ts';
+import { withNutritionistRLS } from '../lib/rls-context.ts';
 
 export function registerNutritionistsRoutes(deps: BaseRouteDeps) {
-  const service = createNutritionistsService({ prisma });
+  const service = createNutritionistsService();
 
   deps.app.get('/api/me', deps.authenticate, async (req: any, res: any) => {
     try {
-      const data = await service.getMe(req.user.uid);
-      return res.json(data);
+      await withNutritionistRLS(req.user.uid, async () => {
+        const data = await service.getMe(req.user.uid);
+        res.json(data);
+      });
     } catch (err: any) {
       return res.status(404).json({ error: err.message });
     }
@@ -16,8 +19,10 @@ export function registerNutritionistsRoutes(deps: BaseRouteDeps) {
 
   deps.app.patch('/api/me', deps.authenticate, async (req: any, res: any) => {
     try {
-      const data = await service.updateMe(req.user.uid, req.body);
-      return res.json(data);
+      await withNutritionistRLS(req.user.uid, async () => {
+        const data = await service.updateMe(req.user.uid, req.body);
+        res.json(data);
+      });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }
@@ -30,11 +35,13 @@ export function registerNutritionistsRoutes(deps: BaseRouteDeps) {
     const allowed = ['crn', 'cpf', 'cnpj'];
     if (!allowed.includes(field)) return res.status(400).json({ error: 'Campo inválido' });
     try {
-      const existing = await prisma.nutritionist.findFirst({
-        where: { [field]: value, NOT: { id: req.user.uid } },
-        select: { id: true },
+      await withNutritionistRLS(req.user.uid, async () => {
+        const existing = await prisma.nutritionist.findFirst({
+          where: { [field]: value, NOT: { id: req.user.uid } },
+          select: { id: true },
+        });
+        res.json({ isDuplicate: !!existing });
       });
-      return res.json({ isDuplicate: !!existing });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });
     }

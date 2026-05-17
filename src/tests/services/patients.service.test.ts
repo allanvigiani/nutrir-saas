@@ -8,8 +8,8 @@ const { mockFindMany, mockFindFirst, mockUpdate, mockCreate, mockDelete } = vi.h
   mockDelete:    vi.fn(),
 }));
 
-vi.mock('../../server/lib/prisma.ts', () => ({
-  prisma: {
+vi.mock('../../server/lib/rls-context.ts', () => ({
+  getDb: () => ({
     patient: {
       findMany:  mockFindMany,
       findFirst: mockFindFirst,
@@ -17,12 +17,12 @@ vi.mock('../../server/lib/prisma.ts', () => ({
       create:    mockCreate,
       delete:    mockDelete,
     },
-  },
+  }),
 }));
 
 import { createPatientsService } from '../../server/services/patients.service.ts';
 
-const service = createPatientsService({ prisma: {} as any });
+const service = createPatientsService();
 
 describe('patients.service — soft delete', () => {
   beforeEach(() => vi.clearAllMocks());

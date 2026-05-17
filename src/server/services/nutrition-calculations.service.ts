@@ -1,25 +1,23 @@
-import { PrismaClient } from '@prisma/client';
+import { getDb } from '../lib/rls-context.ts';
 
-type Deps = { prisma: PrismaClient };
-
-export function createNutritionCalculationsService({ prisma }: Deps) {
+export function createNutritionCalculationsService() {
   async function list(nutritionistId: string, patientId: string) {
-    return prisma.nutritionCalculation.findMany({
+    return getDb().nutritionCalculation.findMany({
       where: { patientId, nutritionistId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async function create(nutritionistId: string, patientId: string, data: Record<string, unknown>) {
-    return prisma.nutritionCalculation.create({
+    return getDb().nutritionCalculation.create({
       data: { ...(data as any), patientId, nutritionistId },
     });
   }
 
   async function remove(nutritionistId: string, id: string) {
-    const existing = await prisma.nutritionCalculation.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().nutritionCalculation.findFirst({ where: { id, nutritionistId } });
     if (!existing) throw new Error('Não autorizado');
-    return prisma.nutritionCalculation.delete({ where: { id } });
+    return getDb().nutritionCalculation.delete({ where: { id } });
   }
 
   return { list, create, remove };

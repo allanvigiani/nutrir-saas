@@ -6,17 +6,17 @@ const { mockNutritionistFindUnique, mockPatientFindMany, mockSubscriptionFindMan
   mockSubscriptionFindMany:   vi.fn(),
 }));
 
-vi.mock('../../server/lib/prisma.ts', () => ({
-  prisma: {
+vi.mock('../../server/lib/rls-context.ts', () => ({
+  getDb: () => ({
     nutritionist: { findUnique: mockNutritionistFindUnique },
     patient:      { findMany: mockPatientFindMany },
     subscription: { findMany: mockSubscriptionFindMany },
-  },
+  }),
 }));
 
 import { createAccountExportService } from '../../server/services/account-export.service.ts';
 
-const service = createAccountExportService({ prisma: {} as any });
+const service = createAccountExportService();
 
 describe('AccountExportService.exportData', () => {
   beforeEach(() => {

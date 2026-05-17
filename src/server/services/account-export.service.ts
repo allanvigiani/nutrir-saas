@@ -1,12 +1,10 @@
-import { PrismaClient } from '@prisma/client';
-import { prisma as prismaClient } from '../lib/prisma.ts';
+import { getDb } from '../lib/rls-context.ts';
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export function createAccountExportService(_deps?: { prisma?: PrismaClient }) {
+export function createAccountExportService() {
   async function exportData(nutritionistId: string) {
     const [nutritionist, patients, subscriptions] = await Promise.all([
-      prismaClient.nutritionist.findUnique({ where: { id: nutritionistId } }),
-      prismaClient.patient.findMany({
+      getDb().nutritionist.findUnique({ where: { id: nutritionistId } }),
+      getDb().patient.findMany({
         where: { nutritionistId },
         include: {
           consultations: true,
@@ -16,7 +14,7 @@ export function createAccountExportService(_deps?: { prisma?: PrismaClient }) {
           calculations: true,
         },
       }),
-      prismaClient.subscription.findMany({ where: { nutritionistId } }),
+      getDb().subscription.findMany({ where: { nutritionistId } }),
     ]);
 
     return {

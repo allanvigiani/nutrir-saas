@@ -3,7 +3,7 @@
  * Estas rotas são acessíveis sem autenticação Firebase, apenas com o token do paciente.
  */
 import type { BaseRouteDeps } from '../types.ts';
-import { prisma } from '../lib/prisma.ts';
+import { withPortalAuth, withAdminRLS, getDb } from '../lib/rls-context.ts';
 
 export function registerPatientPortalRoutes(deps: BaseRouteDeps) {
   // Verifica o token e retorna dados do paciente + nutricionista
@@ -14,28 +14,16 @@ export function registerPatientPortalRoutes(deps: BaseRouteDeps) {
     if (!token) return res.status(401).json({ error: 'Token obrigatório' });
 
     try {
-      const patient = await prisma.patient.findFirst({
-        where: { id, accessToken: token as string },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          phone: true,
-          birthDate: true,
-          nutritionistId: true,
-        },
+      await withPortalAuth(id, token as string, async (patient) => {
+        const nutritionist = await getDb().nutritionist.findUnique({
+          where: { id: patient.nutritionistId },
+          select: { id: true, name: true, crn: true, email: true, photoUrl: true, phone: true },
+        });
+        res.json({ patient, nutritionist });
       });
-
-      if (!patient) return res.status(401).json({ error: 'Link de acesso inválido ou expirado.' });
-
-      const nutritionist = await prisma.nutritionist.findUnique({
-        where: { id: patient.nutritionistId },
-        select: { id: true, name: true, crn: true, email: true, photoUrl: true, phone: true },
-      });
-
-      return res.json({ patient, nutritionist });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      const status = (err as any).status ?? 500;
+      return res.status(status).json({ error: err.message });
     }
   });
 
@@ -45,15 +33,16 @@ export function registerPatientPortalRoutes(deps: BaseRouteDeps) {
     const { token } = req.query;
     if (!token) return res.status(401).json({ error: 'Token obrigatório' });
     try {
-      const patient = await prisma.patient.findFirst({ where: { id, accessToken: token as string }, select: { id: true } });
-      if (!patient) return res.status(401).json({ error: 'Acesso negado.' });
-      const consultations = await prisma.consultation.findMany({
-        where: { patientId: id },
-        orderBy: { date: 'desc' },
+      await withPortalAuth(id, token as string, async () => {
+        const consultations = await getDb().consultation.findMany({
+          where: { patientId: id },
+          orderBy: { date: 'desc' },
+        });
+        res.json(consultations);
       });
-      return res.json(consultations);
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      const status = (err as any).status ?? 500;
+      return res.status(status).json({ error: err.message });
     }
   });
 
@@ -63,15 +52,16 @@ export function registerPatientPortalRoutes(deps: BaseRouteDeps) {
     const { token } = req.query;
     if (!token) return res.status(401).json({ error: 'Token obrigatório' });
     try {
-      const patient = await prisma.patient.findFirst({ where: { id, accessToken: token as string }, select: { id: true } });
-      if (!patient) return res.status(401).json({ error: 'Acesso negado.' });
-      const plans = await prisma.mealPlan.findMany({
-        where: { patientId: id },
-        orderBy: { createdAt: 'desc' },
+      await withPortalAuth(id, token as string, async () => {
+        const plans = await getDb().mealPlan.findMany({
+          where: { patientId: id },
+          orderBy: { createdAt: 'desc' },
+        });
+        res.json(plans);
       });
-      return res.json(plans);
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      const status = (err as any).status ?? 500;
+      return res.status(status).json({ error: err.message });
     }
   });
 
@@ -81,15 +71,22 @@ export function registerPatientPortalRoutes(deps: BaseRouteDeps) {
     const { token } = req.query;
     if (!token) return res.status(401).json({ error: 'Token obrigatório' });
     try {
-      const plan = await prisma.mealPlan.findUnique({
-        where: { id: planId },
-        include: { patient: { select: { accessToken: true } } },
+      // Precisamos buscar o plano para descobrir o patientId antes de aplicar o RLS do portal
+      const plan = await withAdminRLS(() =>
+        getDb().mealPlan.findUnique({
+          where: { id: planId },
+          select: { patientId: true },
+        })
+      );
+      if (!plan) return res.status(404).json({ error: 'Plano não encontrado.' });
+
+      await withPortalAuth(plan.patientId, token as string, async () => {
+        const items = await getDb().mealPlanItem.findMany({ where: { mealPlanId: planId } });
+        res.json(items);
       });
-      if (!plan || plan.patient.accessToken !== token) return res.status(401).json({ error: 'Acesso negado.' });
-      const items = await prisma.mealPlanItem.findMany({ where: { mealPlanId: planId } });
-      return res.json(items);
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      const status = (err as any).status ?? 500;
+      return res.status(status).json({ error: err.message });
     }
   });
 
@@ -98,29 +95,20 @@ export function registerPatientPortalRoutes(deps: BaseRouteDeps) {
     const { id } = req.params;
     const { token, cpfSuffix } = req.body;
 
-    if (!token || !cpfSuffix) {
-      return res.status(400).json({ error: 'Token e sufixo do CPF são obrigatórios.' });
-    }
+    if (!token || !cpfSuffix) return res.status(400).json({ error: 'Token e sufixo obrigatórios.' });
 
     try {
-      const patient = await prisma.patient.findFirst({
-        where: { id, accessToken: token as string },
-        select: { cpf: true },
+      await withPortalAuth(id, token, async (patient) => {
+        const cleanCpf = patient.cpf.replace(/\D/g, '');
+        if (cpfSuffix !== cleanCpf.slice(-3)) {
+          res.status(401).json({ error: 'Os 3 últimos dígitos do CPF não conferem.' });
+          return;
+        }
+        res.json({ valid: true });
       });
-
-      if (!patient) return res.status(401).json({ error: 'Acesso negado.' });
-
-      // O middleware Prisma já descriptografou patient.cpf automaticamente
-      const cleanCpf = patient.cpf.replace(/\D/g, '');
-      const lastThree = cleanCpf.slice(-3);
-
-      if (cpfSuffix !== lastThree) {
-        return res.status(401).json({ error: 'Os 3 últimos dígitos do CPF não conferem.' });
-      }
-
-      return res.json({ valid: true });
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      const status = (err as any).status ?? 500;
+      return res.status(status).json({ error: err.message });
     }
   });
 
@@ -130,15 +118,16 @@ export function registerPatientPortalRoutes(deps: BaseRouteDeps) {
     const { token } = req.query;
     if (!token) return res.status(401).json({ error: 'Token obrigatório' });
     try {
-      const patient = await prisma.patient.findFirst({ where: { id, accessToken: token as string }, select: { id: true } });
-      if (!patient) return res.status(401).json({ error: 'Acesso negado.' });
-      const exams = await prisma.labExam.findMany({
-        where: { patientId: id },
-        orderBy: { date: 'desc' },
+      await withPortalAuth(id, token as string, async () => {
+        const exams = await getDb().labExam.findMany({
+          where: { patientId: id },
+          orderBy: { date: 'desc' },
+        });
+        res.json(exams);
       });
-      return res.json(exams);
     } catch (err: any) {
-      return res.status(500).json({ error: err.message });
+      const status = (err as any).status ?? 500;
+      return res.status(status).json({ error: err.message });
     }
   });
 }

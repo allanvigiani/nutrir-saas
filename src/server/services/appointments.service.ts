@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-type Deps = { prisma: PrismaClient };
+import { getDb } from '../lib/rls-context.ts';
 
 type CreateAppointmentInput = {
   patientId: string;
@@ -10,9 +8,9 @@ type CreateAppointmentInput = {
   meetLink?: string;
 };
 
-export function createAppointmentsService({ prisma }: Deps) {
+export function createAppointmentsService() {
   async function list(nutritionistId: string) {
-    return prisma.appointment.findMany({
+    return getDb().appointment.findMany({
       where: { nutritionistId },
       orderBy: { date: 'asc' },
       include: { patient: { select: { name: true } } },
@@ -20,19 +18,19 @@ export function createAppointmentsService({ prisma }: Deps) {
   }
 
   async function create(nutritionistId: string, data: CreateAppointmentInput) {
-    return prisma.appointment.create({ data: { ...data, nutritionistId } });
+    return getDb().appointment.create({ data: { ...data, nutritionistId } });
   }
 
   async function update(nutritionistId: string, id: string, data: Partial<CreateAppointmentInput>) {
-    const existing = await prisma.appointment.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().appointment.findFirst({ where: { id, nutritionistId } });
     if (!existing) throw new Error('Não autorizado');
-    return prisma.appointment.update({ where: { id }, data });
+    return getDb().appointment.update({ where: { id }, data });
   }
 
   async function remove(nutritionistId: string, id: string) {
-    const existing = await prisma.appointment.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().appointment.findFirst({ where: { id, nutritionistId } });
     if (!existing) throw new Error('Não autorizado');
-    return prisma.appointment.delete({ where: { id } });
+    return getDb().appointment.delete({ where: { id } });
   }
 
   return { list, create, update, remove };

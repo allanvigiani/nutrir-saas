@@ -1,17 +1,16 @@
-import { PrismaClient } from '@prisma/client';
+import { getDb } from '../lib/rls-context.ts';
+import { prisma } from '../lib/prisma.ts';
 
-type Deps = { prisma: PrismaClient };
-
-export function createMealPlansService({ prisma }: Deps) {
+export function createMealPlansService() {
   async function list(nutritionistId: string, patientId: string) {
-    return prisma.mealPlan.findMany({
+    return getDb().mealPlan.findMany({
       where: { patientId, nutritionistId },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async function getOne(nutritionistId: string, id: string) {
-    const plan = await prisma.mealPlan.findFirst({
+    const plan = await getDb().mealPlan.findFirst({
       where: { id, nutritionistId },
       include: { items: true },
     });
@@ -20,21 +19,21 @@ export function createMealPlansService({ prisma }: Deps) {
   }
 
   async function create(nutritionistId: string, patientId: string, data: Record<string, unknown>) {
-    return prisma.mealPlan.create({
+    return getDb().mealPlan.create({
       data: { ...(data as any), patientId, nutritionistId },
     });
   }
 
   async function update(nutritionistId: string, id: string, data: Record<string, unknown>) {
-    const existing = await prisma.mealPlan.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().mealPlan.findFirst({ where: { id, nutritionistId } });
     if (!existing) throw new Error('Não autorizado');
     const { items, ...planData } = data as any;
-    return prisma.mealPlan.update({ where: { id }, data: planData });
+    return getDb().mealPlan.update({ where: { id }, data: planData });
   }
 
   // Replaces all items of a meal plan atomically (delete old + insert new)
   async function replaceItems(nutritionistId: string, id: string, items: Record<string, unknown>[]) {
-    const existing = await prisma.mealPlan.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().mealPlan.findFirst({ where: { id, nutritionistId } });
     if (!existing) throw new Error('Não autorizado');
     return prisma.$transaction([
       prisma.mealPlanItem.deleteMany({ where: { mealPlanId: id } }),
@@ -47,34 +46,34 @@ export function createMealPlansService({ prisma }: Deps) {
   }
 
   async function remove(nutritionistId: string, id: string) {
-    const existing = await prisma.mealPlan.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().mealPlan.findFirst({ where: { id, nutritionistId } });
     if (!existing) throw new Error('Não autorizado');
-    return prisma.mealPlan.delete({ where: { id } });
+    return getDb().mealPlan.delete({ where: { id } });
   }
 
   // Items
   async function listItems(nutritionistId: string, mealPlanId: string) {
-    const plan = await prisma.mealPlan.findFirst({ where: { id: mealPlanId, nutritionistId } });
+    const plan = await getDb().mealPlan.findFirst({ where: { id: mealPlanId, nutritionistId } });
     if (!plan) throw new Error('Não autorizado');
-    return prisma.mealPlanItem.findMany({ where: { mealPlanId } });
+    return getDb().mealPlanItem.findMany({ where: { mealPlanId } });
   }
 
   async function createItem(nutritionistId: string, mealPlanId: string, data: Record<string, unknown>) {
-    const plan = await prisma.mealPlan.findFirst({ where: { id: mealPlanId, nutritionistId } });
+    const plan = await getDb().mealPlan.findFirst({ where: { id: mealPlanId, nutritionistId } });
     if (!plan) throw new Error('Não autorizado');
-    return prisma.mealPlanItem.create({ data: { ...(data as any), mealPlanId, nutritionistId } });
+    return getDb().mealPlanItem.create({ data: { ...(data as any), mealPlanId, nutritionistId } });
   }
 
   async function updateItem(nutritionistId: string, itemId: string, data: Record<string, unknown>) {
-    const existing = await prisma.mealPlanItem.findFirst({ where: { id: itemId, nutritionistId } });
+    const existing = await getDb().mealPlanItem.findFirst({ where: { id: itemId, nutritionistId } });
     if (!existing) throw new Error('Não autorizado');
-    return prisma.mealPlanItem.update({ where: { id: itemId }, data: data as any });
+    return getDb().mealPlanItem.update({ where: { id: itemId }, data: data as any });
   }
 
   async function removeItem(nutritionistId: string, itemId: string) {
-    const existing = await prisma.mealPlanItem.findFirst({ where: { id: itemId, nutritionistId } });
+    const existing = await getDb().mealPlanItem.findFirst({ where: { id: itemId, nutritionistId } });
     if (!existing) throw new Error('Não autorizado');
-    return prisma.mealPlanItem.delete({ where: { id: itemId } });
+    return getDb().mealPlanItem.delete({ where: { id: itemId } });
   }
 
   return { list, getOne, create, update, remove, listItems, createItem, updateItem, removeItem, replaceItems };

@@ -1,10 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import { getDb } from '../lib/rls-context.ts';
 
-type Deps = { prisma: PrismaClient };
-
-export function createNutritionistsService({ prisma }: Deps) {
+export function createNutritionistsService() {
   async function getMe(uid: string) {
-    const nutritionist = await prisma.nutritionist.findUnique({
+    const nutritionist = await getDb().nutritionist.findUnique({
       where: { id: uid },
       include: { subscription: true },
     });
@@ -13,7 +11,7 @@ export function createNutritionistsService({ prisma }: Deps) {
   }
 
   async function updateMe(uid: string, data: Record<string, unknown>) {
-    return prisma.nutritionist.update({
+    return getDb().nutritionist.update({
       where: { id: uid },
       data: { ...data, updatedAt: new Date() },
     });

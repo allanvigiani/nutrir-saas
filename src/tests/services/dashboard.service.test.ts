@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createDashboardService } from '../../server/services/dashboard.service.ts';
 
-function makePrisma() {
+function makeDb() {
   return {
     patient: { count: vi.fn().mockResolvedValue(5), findMany: vi.fn().mockResolvedValue([]) },
     appointment: { findMany: vi.fn().mockResolvedValue([]) },
@@ -13,16 +13,16 @@ function makePrisma() {
 
 describe('DashboardService.getStats', () => {
   it('retorna contagem de pacientes ativos', async () => {
-    const prisma = makePrisma();
-    const service = createDashboardService({ prisma: prisma as any });
+    const db = makeDb();
+    const service = createDashboardService({ db });
     const stats = await service.getStats('uid1');
-    expect(prisma.patient.count).toHaveBeenCalledWith({ where: { nutritionistId: 'uid1', status: 'active' } });
+    expect(db.patient.count).toHaveBeenCalledWith({ where: { nutritionistId: 'uid1', status: 'active', deletedAt: null } });
     expect(stats.activePatients).toBe(5);
   });
 
   it('retorna total de planos alimentares ativos', async () => {
-    const prisma = makePrisma();
-    const service = createDashboardService({ prisma: prisma as any });
+    const db = makeDb();
+    const service = createDashboardService({ db });
     const stats = await service.getStats('uid1');
     expect(stats.activeMealPlans).toBe(3);
   });

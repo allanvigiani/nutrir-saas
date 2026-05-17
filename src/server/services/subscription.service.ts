@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-type Deps = { prisma: PrismaClient };
+import { getDb } from '../lib/rls-context.ts';
 
 type SubscriptionData = {
   plan?: string;
@@ -13,9 +11,9 @@ type SubscriptionData = {
   lastCheckedAt?: Date | string | null;
 };
 
-export function createSubscriptionService({ prisma }: Deps) {
+export function createSubscriptionService() {
   async function getByNutritionistId(nutritionistId: string) {
-    return prisma.subscription.findUnique({ where: { nutritionistId } });
+    return getDb().subscription.findUnique({ where: { nutritionistId } });
   }
 
   async function upsert(nutritionistId: string, data: SubscriptionData) {
@@ -38,7 +36,7 @@ export function createSubscriptionService({ prisma }: Deps) {
       Object.entries(payload).filter(([, v]) => v !== undefined)
     );
 
-    const sub = await prisma.subscription.upsert({
+    const sub = await getDb().subscription.upsert({
       where: { nutritionistId },
       update: clean,
       create: { nutritionistId, ...clean },
@@ -46,7 +44,7 @@ export function createSubscriptionService({ prisma }: Deps) {
 
     // Keep Nutritionist.plan in sync if plan changed
     if (data.plan) {
-      await prisma.nutritionist.update({
+      await getDb().nutritionist.update({
         where: { id: nutritionistId },
         data: { plan: data.plan },
       });

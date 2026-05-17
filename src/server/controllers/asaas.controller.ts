@@ -1,4 +1,5 @@
 import { logger } from "../logger.ts";
+import { withAdminRLS } from "../lib/rls-context.ts";
 
 type AsaasControllerDeps = {
   isSuperAdmin: (user: { email?: string | null }) => boolean;
@@ -29,17 +30,20 @@ export function createAsaasController({ isSuperAdmin, asaasWebhookToken, asaasSe
     }
 
     try {
-      logger.info(`[Asaas Webhook] Processando evento: ${event.event}`, { 
-        eventId: event.id, 
-        paymentId: event.payment?.id 
+      logger.info(`[Asaas Webhook] Processando evento: ${event.event}`, {
+        eventId: event.id,
+        paymentId: event.payment?.id
       });
-      const result = await asaasService.handleWebhookEvent(event);
-      if (result?.noUserId) {
-        logger.warn(`[Asaas Webhook] Evento ignorado - Nenhum externalReference (userId) encontrado`, { event: event.event });
-        return res.status(200).send("OK - No User ID");
-      }
-      logger.info(`[Asaas Webhook] Evento processado com sucesso: ${event.event}`);
-      return res.status(200).send("OK");
+      await withAdminRLS(async () => {
+        const result = await asaasService.handleWebhookEvent(event);
+        if (result?.noUserId) {
+          logger.warn(`[Asaas Webhook] Evento ignorado - Nenhum externalReference (userId) encontrado`, { event: event.event });
+          res.status(200).send("OK - No User ID");
+          return;
+        }
+        logger.info(`[Asaas Webhook] Evento processado com sucesso: ${event.event}`);
+        res.status(200).send("OK");
+      });
     } catch (error: any) {
       logger.error("[Asaas Webhook] Erro ao processar webhook", error, { event: event.event });
       return res.status(500).send("Internal Server Error");

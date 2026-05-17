@@ -1,8 +1,8 @@
-import { PrismaClient } from '@prisma/client';
+import { subDays } from 'date-fns';
 
-type Deps = { prisma: PrismaClient };
+type Deps = { db: any };
 
-export function createDashboardService({ prisma }: Deps) {
+export function createDashboardService({ db }: Deps) {
   async function getStats(nutritionistId: string) {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -19,37 +19,37 @@ export function createDashboardService({ prisma }: Deps) {
       monthPayments,
       activeMealPlans,
     ] = await Promise.all([
-      prisma.patient.count({ where: { nutritionistId, status: 'active' } }),
-      prisma.patient.findMany({
-        where: { nutritionistId },
+      db.patient.count({ where: { nutritionistId, status: 'active', deletedAt: null } }),
+      db.patient.findMany({
+        where: { nutritionistId, deletedAt: null },
         orderBy: { createdAt: 'desc' },
         take: 5,
         select: { id: true, name: true, createdAt: true, status: true },
       }),
-      prisma.appointment.findMany({
-        where: { nutritionistId, date: { gte: startOfDay, lte: endOfDay } },
+      db.appointment.findMany({
+        where: { nutritionistId, date: { gte: startOfDay.toISOString(), lte: endOfDay.toISOString() } },
         include: { patient: { select: { name: true } } },
         orderBy: { date: 'asc' },
       }),
-      prisma.consultation.findMany({
+      db.consultation.findMany({
         where: { nutritionistId, createdAt: { gte: startOfMonth } },
         select: { id: true, createdAt: true },
       }),
-      prisma.payment.findMany({
-        where: { nutritionistId, status: 'paid', date: { gte: startOfMonth } },
+      db.payment.findMany({
+        where: { nutritionistId, status: 'paid', date: { gte: startOfMonth.toISOString() } },
         select: { amount: true },
       }),
-      prisma.mealPlan.count({ where: { nutritionistId, status: 'active' } }),
+      db.mealPlan.count({ where: { nutritionistId, status: 'active' } }),
     ]);
 
-    const monthRevenue = monthPayments.reduce((sum, p) => sum + p.amount, 0);
+    const monthRevenue = monthPayments.reduce((sum: number, p: any) => sum + p.amount, 0);
 
     return {
       activePatients,
       recentPatients,
       todayAppointments,
       monthConsultations: monthConsultations.length,
-      consultationDates: monthConsultations.map(c => c.createdAt),
+      consultationDates: monthConsultations.map((c: any) => c.createdAt),
       monthRevenue,
       activeMealPlans,
     };

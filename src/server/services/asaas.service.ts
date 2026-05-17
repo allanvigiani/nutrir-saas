@@ -1,7 +1,7 @@
 import { getPremiumWelcomeTemplate, sendEmail } from "../../lib/mail.ts";
 import { logger } from "../logger.ts";
 import type { AsaasClient } from "../integrations/asaas.client.ts";
-import { prisma } from "../lib/prisma.ts";
+import { getDb } from "../lib/rls-context.ts";
 import { createSubscriptionService } from "./subscription.service.ts";
 
 type AsaasServiceInput = {
@@ -9,7 +9,7 @@ type AsaasServiceInput = {
 };
 
 export function createAsaasService({ asaasClient }: AsaasServiceInput) {
-  const subscriptionService = createSubscriptionService({ prisma });
+  const subscriptionService = createSubscriptionService();
 
   async function handleWebhookEvent(event: any) {
     const payment = event.payment;
@@ -49,7 +49,7 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
         // welcomeEmailSentAt garante que não duplica quando PAYMENT_RECEIVED chegar 32 dias depois.
         if (event.event === "PAYMENT_CONFIRMED") {
           try {
-            const nutritionist = await prisma.nutritionist.findUnique({ where: { id: userId } });
+            const nutritionist = await getDb().nutritionist.findUnique({ where: { id: userId } });
             if (nutritionist) {
               if (nutritionist.email && !nutritionist.welcomeEmailSentAt) {
                 logger.info(`[Asaas Service] Enviando email de boas-vindas Premium`, { userId, email: nutritionist.email });
@@ -58,7 +58,7 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
                   subject: "💎 Bem-vindo ao Plano Premium Nutrir!",
                   html: getPremiumWelcomeTemplate(nutritionist.name || "Nutricionista"),
                 });
-                await prisma.nutritionist.update({
+                await getDb().nutritionist.update({
                   where: { id: userId },
                   data: { welcomeEmailSentAt: new Date() },
                 });
@@ -293,7 +293,7 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
     if (!activeSub) throw new Error("Nenhuma assinatura ativa encontrada.");
 
     let userDocId: string | null = null;
-    const nutritionist = await prisma.nutritionist.findUnique({
+    const nutritionist = await getDb().nutritionist.findUnique({
       where: { email },
       include: { subscription: true },
     });

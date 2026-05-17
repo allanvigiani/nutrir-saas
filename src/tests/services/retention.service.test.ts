@@ -4,15 +4,15 @@ const { mockDeleteMany } = vi.hoisted(() => ({
   mockDeleteMany: vi.fn(),
 }));
 
-vi.mock('../../server/lib/prisma.ts', () => ({
-  prisma: {
+vi.mock('../../server/lib/rls-context.ts', () => ({
+  getDb: () => ({
     patient: { deleteMany: mockDeleteMany },
-  },
+  }),
 }));
 
 import { createRetentionService } from '../../server/services/retention.service.ts';
 
-const service = createRetentionService({ prisma: {} as any });
+const service = createRetentionService();
 
 describe('RetentionService.cleanupSoftDeleted', () => {
   beforeEach(() => {

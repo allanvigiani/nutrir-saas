@@ -1,6 +1,6 @@
 import { logger } from "../logger.ts";
 import { createAsaasClient } from "../integrations/asaas.client.ts";
-import { prisma } from "../lib/prisma.ts";
+import { getDb } from "../lib/rls-context.ts";
 
 interface AccountServiceDeps {
   admin: any;
@@ -16,7 +16,7 @@ export function createAccountService({
   const asaasClient = createAsaasClient({ asaasApiUrl, asaasApiKey });
 
   async function cancelAsaasSubscription(uid: string): Promise<void> {
-    const nutritionist = await prisma.nutritionist.findUnique({
+    const nutritionist = await getDb().nutritionist.findUnique({
       where: { id: uid },
       include: { subscription: true },
     });
@@ -45,7 +45,7 @@ export function createAccountService({
     await cancelAsaasSubscription(uid);
 
     // 2. Deletar nutricionista — cascata elimina patients e todos os relacionamentos
-    await prisma.nutritionist.delete({ where: { id: uid } });
+    await getDb().nutritionist.delete({ where: { id: uid } });
     logger.info('Nutricionista e dados em cascata deletados via Prisma', { uid });
 
     // 3. Deletar usuário do Firebase Auth

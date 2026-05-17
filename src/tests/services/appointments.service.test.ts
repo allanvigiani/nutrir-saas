@@ -1,25 +1,36 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const { mockFindMany, mockFindFirst, mockCreate, mockUpdate, mockDelete } = vi.hoisted(() => ({
+  mockFindMany:  vi.fn(),
+  mockFindFirst: vi.fn(),
+  mockCreate:    vi.fn(),
+  mockUpdate:    vi.fn(),
+  mockDelete:    vi.fn(),
+}));
+
+vi.mock('../../server/lib/rls-context.ts', () => ({
+  getDb: () => ({
+    appointment: {
+      findMany:  mockFindMany,
+      findFirst: mockFindFirst,
+      create:    mockCreate,
+      update:    mockUpdate,
+      delete:    mockDelete,
+    },
+  }),
+}));
+
 import { createAppointmentsService } from '../../server/services/appointments.service.ts';
 
-function makePrisma(overrides: Record<string, any> = {}) {
-  return {
-    appointment: {
-      findMany: vi.fn().mockResolvedValue([]),
-      create: vi.fn().mockResolvedValue({ id: 'apt1' }),
-      findFirst: vi.fn().mockResolvedValue(null),
-      update: vi.fn().mockResolvedValue({ id: 'apt1' }),
-      delete: vi.fn().mockResolvedValue({ id: 'apt1' }),
-      ...overrides.appointment,
-    },
-  };
-}
+const service = createAppointmentsService();
 
 describe('AppointmentsService', () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it('list retorna agendamentos do nutricionista ordenados por data', async () => {
-    const prisma = makePrisma();
-    const service = createAppointmentsService({ prisma: prisma as any });
+    mockFindMany.mockResolvedValue([]);
     await service.list('uid1');
-    expect(prisma.appointment.findMany).toHaveBeenCalledWith({
+    expect(mockFindMany).toHaveBeenCalledWith({
       where: { nutritionistId: 'uid1' },
       orderBy: { date: 'asc' },
       include: { patient: { select: { name: true } } },
@@ -27,15 +38,13 @@ describe('AppointmentsService', () => {
   });
 
   it('create inclui nutritionistId', async () => {
-    const prisma = makePrisma({ appointment: { create: vi.fn().mockResolvedValue({ id: 'apt1', nutritionistId: 'uid1' }) } });
-    const service = createAppointmentsService({ prisma: prisma as any });
+    mockCreate.mockResolvedValue({ id: 'apt1', nutritionistId: 'uid1' });
     const result = await service.create('uid1', { patientId: 'pat1', date: new Date(), status: 'confirmed' });
     expect(result.nutritionistId).toBe('uid1');
   });
 
   it('remove lança erro se agendamento não pertence ao nutricionista', async () => {
-    const prisma = makePrisma();
-    const service = createAppointmentsService({ prisma: prisma as any });
+    mockFindFirst.mockResolvedValue(null);
     await expect(service.remove('uid1', 'apt-other')).rejects.toThrow('Não autorizado');
   });
 });

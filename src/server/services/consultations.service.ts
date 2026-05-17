@@ -1,31 +1,29 @@
-import { PrismaClient } from '@prisma/client';
+import { getDb } from '../lib/rls-context.ts';
 
-type Deps = { prisma: PrismaClient };
-
-export function createConsultationsService({ prisma }: Deps) {
+export function createConsultationsService() {
   async function list(nutritionistId: string, patientId: string) {
-    return prisma.consultation.findMany({
+    return getDb().consultation.findMany({
       where: { patientId, nutritionistId },
       orderBy: { date: 'desc' },
     });
   }
 
   async function create(nutritionistId: string, patientId: string, data: Record<string, unknown>) {
-    return prisma.consultation.create({
+    return getDb().consultation.create({
       data: { ...(data as any), patientId, nutritionistId },
     });
   }
 
   async function update(nutritionistId: string, id: string, data: Record<string, unknown>) {
-    const existing = await prisma.consultation.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().consultation.findFirst({ where: { id, nutritionistId } });
     if (!existing) throw new Error('Não autorizado');
-    return prisma.consultation.update({ where: { id }, data: data as any });
+    return getDb().consultation.update({ where: { id }, data: data as any });
   }
 
   async function remove(nutritionistId: string, id: string) {
-    const existing = await prisma.consultation.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().consultation.findFirst({ where: { id, nutritionistId } });
     if (!existing) throw new Error('Não autorizado');
-    return prisma.consultation.delete({ where: { id } });
+    return getDb().consultation.delete({ where: { id } });
   }
 
   return { list, create, update, remove };

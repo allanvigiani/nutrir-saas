@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client';
-
-type Deps = { prisma: PrismaClient };
+import { getDb } from '../lib/rls-context.ts';
 
 type CreatePaymentInput = {
   patientId: string;
@@ -11,28 +9,28 @@ type CreatePaymentInput = {
   description?: string;
 };
 
-export function createPaymentsService({ prisma }: Deps) {
+export function createPaymentsService() {
   async function list(nutritionistId: string) {
-    return prisma.payment.findMany({
+    return getDb().payment.findMany({
       where: { nutritionistId },
       orderBy: { date: 'desc' },
     });
   }
 
   async function create(nutritionistId: string, data: CreatePaymentInput) {
-    return prisma.payment.create({ data: { ...data, nutritionistId } });
+    return getDb().payment.create({ data: { ...data, nutritionistId } });
   }
 
   async function update(nutritionistId: string, id: string, data: Partial<CreatePaymentInput>) {
-    const existing = await prisma.payment.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().payment.findFirst({ where: { id, nutritionistId } });
     if (!existing) throw new Error('Não autorizado');
-    return prisma.payment.update({ where: { id }, data });
+    return getDb().payment.update({ where: { id }, data });
   }
 
   async function remove(nutritionistId: string, id: string) {
-    const existing = await prisma.payment.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().payment.findFirst({ where: { id, nutritionistId } });
     if (!existing) throw new Error('Não autorizado');
-    return prisma.payment.delete({ where: { id } });
+    return getDb().payment.delete({ where: { id } });
   }
 
   return { list, create, update, remove };

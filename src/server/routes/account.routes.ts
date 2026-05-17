@@ -1,6 +1,7 @@
 import type { BaseRouteDeps, AsaasConfig } from "../types.ts";
 import { createAccountService } from "../services/account.service.ts";
 import { logger } from "../logger.ts";
+import { withNutritionistRLS } from "../lib/rls-context.ts";
 
 export function registerAccountRoutes(deps: BaseRouteDeps & Partial<AsaasConfig>) {
   const accountService = createAccountService({
@@ -22,8 +23,10 @@ export function registerAccountRoutes(deps: BaseRouteDeps & Partial<AsaasConfig>
     }
 
     try {
-      const result = await accountService.deleteAccount(uid);
-      return res.json({ success: true, ...result });
+      await withNutritionistRLS(uid, async () => {
+        const result = await accountService.deleteAccount(uid);
+        res.json({ success: true, ...result });
+      });
     } catch (err: any) {
       logger.error('Erro ao excluir conta', err, { uid });
       return res.status(500).json({
