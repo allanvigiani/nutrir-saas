@@ -8,6 +8,7 @@ import {
 } from "./ui/tooltip";
 import { UpgradeModal } from './UpgradeModal';
 import { cn } from '../lib/utils';
+import { isAdminOrPremium } from '../lib/planLimits';
 
 interface PremiumFeatureProps {
   children: React.ReactNode;
@@ -19,7 +20,7 @@ export const PremiumFeature = ({ children, className, active = true }: PremiumFe
   const { nutritionist } = useAuth();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
-  const isPremium = nutritionist?.plan === 'premium';
+  const isPremium = isAdminOrPremium(nutritionist);
 
   if (isPremium || !active) {
     return <>{children}</>;

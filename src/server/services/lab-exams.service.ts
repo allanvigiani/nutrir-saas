@@ -1,4 +1,5 @@
 import { getDb } from '../lib/rls-context.ts';
+import { FREE_PLAN_LIMITS } from '../../lib/planLimits.ts';
 
 export function createLabExamsService() {
   async function list(nutritionistId: string, patientId: string) {
@@ -8,7 +9,13 @@ export function createLabExamsService() {
     });
   }
 
-  async function create(nutritionistId: string, patientId: string, data: Record<string, unknown>) {
+  async function create(nutritionistId: string, patientId: string, data: Record<string, unknown>, isPremium: boolean) {
+    if (!isPremium) {
+      const examCount = await getDb().labExam.count({ where: { patientId, nutritionistId } });
+      if (examCount >= FREE_PLAN_LIMITS.maxExams) {
+        throw new Error(`Limite de ${FREE_PLAN_LIMITS.maxExams} exame por paciente atingido no plano gratuito.`);
+      }
+    }
     return getDb().labExam.create({
       data: { ...(data as any), patientId, nutritionistId },
     });

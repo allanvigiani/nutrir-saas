@@ -28,7 +28,7 @@ export function registerPatientsRoutes(deps: BaseRouteDeps) {
   deps.app.post('/api/patients', deps.authenticate, async (req: any, res: any) => {
     try {
       await withNutritionistRLS(req.user.uid, async () => {
-        const data = await service.create(req.user.uid, req.body);
+        const data = await service.create(req.user.uid, req.body, req.user.isPremium);
         res.status(201).json(data);
       });
     } catch (err: any) {
@@ -39,7 +39,7 @@ export function registerPatientsRoutes(deps: BaseRouteDeps) {
   deps.app.patch('/api/patients/:id', deps.authenticate, async (req: any, res: any) => {
     try {
       await withNutritionistRLS(req.user.uid, async () => {
-        res.json(await service.update(req.user.uid, req.params.id, req.body));
+        res.json(await service.update(req.user.uid, req.params.id, req.body, req.user.isPremium));
       });
     } catch (err: any) {
       return res.status(403).json({ error: err.message });

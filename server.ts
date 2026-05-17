@@ -5,7 +5,7 @@ import dotenv from "dotenv";
 import { createRequire } from "module";
 import admin from "firebase-admin";
 import { registerApiRoutes } from "./src/server/register-api-routes.ts";
-import { createAuthenticateMiddleware } from "./src/server/middlewares/auth.ts";
+import { createAuthenticateMiddleware, requirePremiumOrAdmin } from "./src/server/middlewares/auth.ts";
 import { logger } from "./src/server/logger.ts";
 
 const require = createRequire(import.meta.url);
@@ -84,6 +84,7 @@ async function startServer() {
   registerApiRoutes({
     app,
     authenticate,
+    requirePremiumOrAdmin,
     isSuperAdmin,
     admin,
     google,

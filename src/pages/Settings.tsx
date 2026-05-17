@@ -54,7 +54,7 @@ import {
 } from "../components/ui/dialog";
 import { cn, maskCPF, maskCNPJ, maskPhone } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
-import { FREE_PLAN_LIMITS } from '../lib/planLimits';
+import { FREE_PLAN_LIMITS, isAdminOrPremium } from '../lib/planLimits';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { auth, storage } from '../lib/firebase';
 import { apiRequest } from '../hooks/useApi';
@@ -136,6 +136,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export const Settings = () => {
   const { nutritionist, user } = useAuth();
+  const isPremiumOrAdmin = isAdminOrPremium(nutritionist);
   const [searchParams] = useSearchParams();
   const { 
     handleSubscribe, 
@@ -601,10 +602,10 @@ export const Settings = () => {
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-foreground">{nutritionist?.name}</h3>
                           <Badge 
-                            variant={nutritionist?.plan === 'premium' ? 'default' : 'secondary'} 
-                            className={nutritionist?.plan === 'premium' ? 'bg-primary/15 text-primary hover:bg-primary/15' : ''}
+                            variant={isPremiumOrAdmin ? 'default' : 'secondary'}
+                            className={isPremiumOrAdmin ? 'bg-primary/15 text-primary hover:bg-primary/15' : ''}
                           >
-                            {nutritionist?.plan === 'premium' ? 'Premium' : 'Gratuito'}
+                            {nutritionist?.role === 'admin' ? 'Admin' : isPremiumOrAdmin ? 'Premium' : 'Gratuito'}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">Nutricionista • CRN {nutritionist?.crn}</p>
@@ -960,17 +961,17 @@ export const Settings = () => {
           <div className="max-w-2xl">
             <Card className={cn(
               "border-none shadow-sm",
-              nutritionist?.plan === 'premium' ? "bg-primary/90 text-white" : "bg-card"
+              isPremiumOrAdmin ? "bg-primary/90 text-white" : "bg-card"
             )}>
               <CardHeader className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div className="space-y-1">
-                  <CardTitle className={cn("text-xl font-bold flex items-center gap-2", nutritionist?.plan === 'premium' ? "text-white" : "text-foreground")}>
-                    <Award className={cn("w-6 h-6", nutritionist?.plan === 'premium' ? "text-primary" : "text-primary")} />
-                    {nutritionist?.plan === 'premium' ? 'Plano Premium Ativo' : 'Plano Gratuito'}
+                  <CardTitle className={cn("text-xl font-bold flex items-center gap-2", isPremiumOrAdmin ? "text-white" : "text-foreground")}>
+                    <Award className={cn("w-6 h-6", "text-primary")} />
+                    {nutritionist?.role === 'admin' ? 'Acesso Admin' : isPremiumOrAdmin ? 'Plano Premium Ativo' : 'Plano Gratuito'}
                   </CardTitle>
-                  <CardDescription className={nutritionist?.plan === 'premium' ? "text-primary-foreground/80" : "text-muted-foreground"}>
-                    {nutritionist?.plan === 'premium' 
-                      ? 'Você está usando a versão completa do sistema com todos os recursos liberados.' 
+                  <CardDescription className={isPremiumOrAdmin ? "text-primary-foreground/80" : "text-muted-foreground"}>
+                    {isPremiumOrAdmin
+                      ? 'Você está usando a versão completa do sistema com todos os recursos liberados.'
                       : 'Você está usando a versão limitada do sistema. Faça o upgrade para remover limites.'}
                   </CardDescription>
                 </div>
@@ -1011,34 +1012,34 @@ export const Settings = () => {
                 <div className="space-y-6">
                   <div className={cn(
                     "grid grid-cols-1 md:grid-cols-2 gap-4",
-                    nutritionist?.plan === 'premium' ? "text-primary-foreground" : "text-muted-foreground"
+                    isPremiumOrAdmin ? "text-primary-foreground" : "text-muted-foreground"
                   )}>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
                       <Users className="w-5 h-5 text-primary" />
                       <div>
                         <p className="text-xs font-medium text-primary-foreground/60">Pacientes</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxPatients} ativos`}</p>
+                        <p className="font-bold">{isPremiumOrAdmin ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxPatients} ativos`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
                       <Activity className="w-5 h-5 text-primary" />
                       <div>
                         <p className="text-xs font-medium text-primary-foreground/60">Planos Alimentares</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxMealPlans} ativos`}</p>
+                        <p className="font-bold">{isPremiumOrAdmin ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxMealPlans} ativos`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
                       <Shield className="w-5 h-5 text-primary" />
                       <div>
                         <p className="text-xs font-medium text-primary-foreground/60">Histórico</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Completo' : `${FREE_PLAN_LIMITS.historyMonths} meses`}</p>
+                        <p className="font-bold">{isPremiumOrAdmin ? 'Completo' : `${FREE_PLAN_LIMITS.historyMonths} meses`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
                       <CreditCard className="w-5 h-5 text-primary" />
                       <div>
                         <p className="text-xs font-medium text-primary-foreground/60">Exames</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxExams} por paciente`}</p>
+                        <p className="font-bold">{isPremiumOrAdmin ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxExams} por paciente`}</p>
                       </div>
                     </div>
                   </div>
@@ -1173,7 +1174,7 @@ export const Settings = () => {
                     </div>
                   )}
 
-                  {nutritionist?.plan !== 'premium' && !nutritionist?.subscription?.cancelAtPeriodEnd && (
+                  {!isPremiumOrAdmin && !nutritionist?.subscription?.cancelAtPeriodEnd && (
                     <div className="pt-4 space-y-4">
                       <Button 
                         className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-10 font-bold text-sm shadow-lg shadow-primary/10 transition-all active:scale-95" 

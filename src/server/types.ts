@@ -3,6 +3,7 @@ import express from "express";
 export type BaseRouteDeps = {
   app: express.Express;
   authenticate: (req: any, res: any, next: any) => Promise<void>;
+  requirePremiumOrAdmin: (req: any, res: any, next: any) => void;
   isSuperAdmin: (user: { email?: string | null }) => boolean;
   admin: any;
 };

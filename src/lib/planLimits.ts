@@ -6,3 +6,7 @@ export const FREE_PLAN_LIMITS = {
   maxExams: 1,
   historyMonths: 3,
 } as const;
+
+export function isAdminOrPremium(nutritionist: { role?: string; plan?: string } | null): boolean {
+  return nutritionist?.role === "admin" || nutritionist?.plan === "premium";
+}

@@ -18,7 +18,7 @@ export function registerLabExamsRoutes(deps: BaseRouteDeps) {
   deps.app.post('/api/patients/:patientId/lab-exams', deps.authenticate, async (req: any, res: any) => {
     try {
       await withNutritionistRLS(req.user.uid, async () => {
-        res.status(201).json(await service.create(req.user.uid, req.params.patientId, req.body));
+        res.status(201).json(await service.create(req.user.uid, req.params.patientId, req.body, req.user.isPremium));
       });
     } catch (err: any) {
       return res.status(400).json({ error: err.message });

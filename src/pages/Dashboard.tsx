@@ -24,7 +24,7 @@ import { Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { PremiumFeature } from '../components/PremiumFeature';
 import { PremiumBanner } from '../components/PremiumBanner';
-import { FREE_PLAN_LIMITS } from '../lib/planLimits';
+import { FREE_PLAN_LIMITS, isAdminOrPremium } from '../lib/planLimits';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell,
@@ -51,7 +51,7 @@ interface DashboardStats {
 
 export const Dashboard = () => {
   const { user, nutritionist, isAuthReady } = useAuth();
-  const isPremium = nutritionist?.plan === 'premium';
+  const isPremium = isAdminOrPremium(nutritionist);
   const { resolvedTheme } = useTheme();
   const chartTickColor = useMemo(() => {
     if (typeof document !== 'undefined' && document.documentElement.classList.contains('dark')) {

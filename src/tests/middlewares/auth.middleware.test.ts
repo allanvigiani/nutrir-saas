@@ -1,6 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createAuthenticateMiddleware } from '../../server/middlewares/auth.ts';
 
+// ─── Mocks ────────────────────────────────────────────────────────────────────
+
+const mockFindUnique = vi.fn().mockResolvedValue({ role: 'nutritionist', plan: 'free' });
+
+vi.mock('../../server/lib/rls-context.ts', () => ({
+  withAdminRLS: vi.fn((fn: () => Promise<any>) => fn()),
+  getDb: vi.fn(() => ({
+    nutritionist: { findUnique: mockFindUnique },
+  })),
+}));
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function makeAdmin(overrides: Record<string, any> = {}) {
@@ -85,7 +96,11 @@ describe('AuthMiddleware', () => {
     await authenticate(req, res, next);
 
     expect(next).toHaveBeenCalledOnce();
-    expect(req.user).toEqual(decodedToken);
+    expect(req.user).toMatchObject(decodedToken);
+    expect(req.user.dbRole).toBe('nutritionist');
+    expect(req.user.dbPlan).toBe('free');
+    expect(req.user.isAdmin).toBe(false);
+    expect(req.user.isPremium).toBe(false);
     expect(res.status).not.toHaveBeenCalled();
   });
 

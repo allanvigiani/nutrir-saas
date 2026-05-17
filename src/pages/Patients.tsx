@@ -44,7 +44,7 @@ import {
 } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import { useAuth } from '../contexts/AuthContext';
-import { FREE_PLAN_LIMITS } from '../lib/planLimits';
+import { FREE_PLAN_LIMITS, isAdminOrPremium } from '../lib/planLimits';
 import { auth } from '../lib/firebase';
 
 import { Patient } from '../types';
@@ -135,7 +135,7 @@ type PatientFormValues = z.infer<typeof patientSchema>;
 
 export const Patients = () => {
   const { user, nutritionist, isAuthReady } = useAuth();
-  const isPremium = nutritionist?.plan === 'premium';
+  const isPremium = isAdminOrPremium(nutritionist);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');

@@ -18,7 +18,7 @@ export function registerConsultationsRoutes(deps: BaseRouteDeps) {
   deps.app.post('/api/patients/:patientId/consultations', deps.authenticate, async (req: any, res: any) => {
     try {
       await withNutritionistRLS(req.user.uid, async () => {
-        const data = await service.create(req.user.uid, req.params.patientId, req.body);
+        const data = await service.create(req.user.uid, req.params.patientId, req.body, req.user.isPremium);
         res.status(201).json(data);
       });
     } catch (err: any) {

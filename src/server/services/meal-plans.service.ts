@@ -1,5 +1,6 @@
 import { getDb } from '../lib/rls-context.ts';
 import { prisma } from '../lib/prisma.ts';
+import { FREE_PLAN_LIMITS } from '../../lib/planLimits.ts';
 
 export function createMealPlansService() {
   async function list(nutritionistId: string, patientId: string) {
@@ -18,7 +19,15 @@ export function createMealPlansService() {
     return plan;
   }
 
-  async function create(nutritionistId: string, patientId: string, data: Record<string, unknown>) {
+  async function create(nutritionistId: string, patientId: string, data: Record<string, unknown>, isPremium: boolean) {
+    if (!isPremium) {
+      const activeCount = await getDb().mealPlan.count({
+        where: { patientId, nutritionistId, status: 'active' },
+      });
+      if (activeCount >= FREE_PLAN_LIMITS.maxMealPlans) {
+        throw new Error(`Limite de ${FREE_PLAN_LIMITS.maxMealPlans} plano alimentar ativo por paciente atingido no plano gratuito.`);
+      }
+    }
     return getDb().mealPlan.create({
       data: { ...(data as any), patientId, nutritionistId },
     });

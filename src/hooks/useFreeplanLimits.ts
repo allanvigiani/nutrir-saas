@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { FREE_PLAN_LIMITS } from '../lib/planLimits';
+import { FREE_PLAN_LIMITS, isAdminOrPremium } from '../lib/planLimits';
 import { apiRequest } from './useApi';
 
 interface FreePlanLimits {
@@ -16,7 +16,7 @@ export function useFreeplanLimits(patientId?: string): FreePlanLimits {
   const [patientConsultationsThisMonth, setPatientConsultationsThisMonth] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
-  const isPremium = nutritionist?.plan === 'premium';
+  const isPremium = isAdminOrPremium(nutritionist);
 
   useEffect(() => {
     if (isPremium || !user) return;
