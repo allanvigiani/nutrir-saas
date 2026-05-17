@@ -111,6 +111,7 @@ model Consultation {
   accessToken    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
 
   calculations NutritionCalculation[]
 
@@ -130,6 +131,7 @@ model MealPlan {
   accessToken         String?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
+  deletedAt           DateTime?
 
   items MealPlanItem[]
 
@@ -173,6 +175,7 @@ model LabExam {
   accessToken    String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
 
   @@map("lab_exams")
 }
@@ -190,6 +193,7 @@ model Appointment {
   accessToken    String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
 
   @@map("appointments")
 }
@@ -206,6 +210,7 @@ model Payment {
   description    String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
 
   @@map("payments")
 }
@@ -221,6 +226,7 @@ model NutritionCalculation {
   input          Json
   result         Json
   createdAt      DateTime      @default(now())
+  deletedAt      DateTime?
 
   @@map("nutrition_calculations")
 }
@@ -237,6 +243,7 @@ model CustomFood {
   baseUnit       String
   baseQuantity   Float
   serving        Json?
+  deletedAt      DateTime?
 
   @@map("custom_foods")
 }

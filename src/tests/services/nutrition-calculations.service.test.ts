@@ -10,7 +10,7 @@ const { mockFindMany, mockFindFirst, mockUpdate, mockCreate, mockDelete } = vi.h
 
 vi.mock('../../server/lib/rls-context.ts', () => ({
   getDb: () => ({
-    payment: {
+    nutritionCalculation: {
       findMany:  mockFindMany,
       findFirst: mockFindFirst,
       update:    mockUpdate,
@@ -20,39 +20,33 @@ vi.mock('../../server/lib/rls-context.ts', () => ({
   }),
 }));
 
-import { createPaymentsService } from '../../server/services/payments.service.ts';
+import { createNutritionCalculationsService } from '../../server/services/nutrition-calculations.service.ts';
 
-const service = createPaymentsService();
+const service = createNutritionCalculationsService();
 
-describe('payments.service — soft delete', () => {
+describe('nutrition-calculations.service — soft delete', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('list() filtra pagamentos com deletedAt preenchido', async () => {
+  it('list() filtra cálculos com deletedAt preenchido', async () => {
     mockFindMany.mockResolvedValue([]);
-    await service.list('nutri-1');
+    await service.list('nutri-1', 'pac-1');
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) }),
     );
   });
 
   it('remove() faz soft delete em vez de deletar', async () => {
-    mockFindFirst.mockResolvedValue({ id: 'pay-1', nutritionistId: 'nutri-1', deletedAt: null });
+    mockFindFirst.mockResolvedValue({ id: 'calc-1', nutritionistId: 'nutri-1', deletedAt: null });
     mockUpdate.mockResolvedValue({});
-    await service.remove('nutri-1', 'pay-1');
+    await service.remove('nutri-1', 'calc-1');
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ deletedAt: expect.any(Date) }) }),
     );
     expect(mockDelete).not.toHaveBeenCalled();
   });
 
-  it('remove() lança erro se pagamento não pertence ao nutricionista', async () => {
+  it('remove() lança erro se cálculo não pertence ao nutricionista', async () => {
     mockFindFirst.mockResolvedValue(null);
-    await expect(service.remove('nutri-1', 'pay-outro')).rejects.toThrow('Não autorizado');
-  });
-
-  it('update() lança erro se pagamento foi soft-deleted', async () => {
-    mockFindFirst.mockResolvedValue(null);
-    await expect(service.update('nutri-1', 'pay-deleted', { status: 'pago' }))
-      .rejects.toThrow('Não autorizado');
+    await expect(service.remove('nutri-1', 'calc-outro')).rejects.toThrow('Não autorizado');
   });
 });

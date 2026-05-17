@@ -11,7 +11,7 @@ type CreateAppointmentInput = {
 export function createAppointmentsService() {
   async function list(nutritionistId: string) {
     return getDb().appointment.findMany({
-      where: { nutritionistId },
+      where: { nutritionistId, deletedAt: null },
       orderBy: { date: 'asc' },
       include: { patient: { select: { name: true } } },
     });
@@ -22,15 +22,15 @@ export function createAppointmentsService() {
   }
 
   async function update(nutritionistId: string, id: string, data: Partial<CreateAppointmentInput>) {
-    const existing = await getDb().appointment.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().appointment.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
     return getDb().appointment.update({ where: { id }, data });
   }
 
   async function remove(nutritionistId: string, id: string) {
-    const existing = await getDb().appointment.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().appointment.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
-    return getDb().appointment.delete({ where: { id } });
+    return getDb().appointment.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
   return { list, create, update, remove };

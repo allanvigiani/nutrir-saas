@@ -5,14 +5,14 @@ import { FREE_PLAN_LIMITS } from '../../lib/planLimits.ts';
 export function createMealPlansService() {
   async function list(nutritionistId: string, patientId: string) {
     return getDb().mealPlan.findMany({
-      where: { patientId, nutritionistId },
+      where: { patientId, nutritionistId, deletedAt: null },
       orderBy: { createdAt: 'desc' },
     });
   }
 
   async function getOne(nutritionistId: string, id: string) {
     const plan = await getDb().mealPlan.findFirst({
-      where: { id, nutritionistId },
+      where: { id, nutritionistId, deletedAt: null },
       include: { items: true },
     });
     if (!plan) throw new Error('Plano não encontrado');
@@ -22,7 +22,7 @@ export function createMealPlansService() {
   async function create(nutritionistId: string, patientId: string, data: Record<string, unknown>, isPremium: boolean) {
     if (!isPremium) {
       const activeCount = await getDb().mealPlan.count({
-        where: { patientId, nutritionistId, status: 'active' },
+        where: { patientId, nutritionistId, status: 'active', deletedAt: null },
       });
       if (activeCount >= FREE_PLAN_LIMITS.maxMealPlans) {
         throw new Error(`Limite de ${FREE_PLAN_LIMITS.maxMealPlans} plano alimentar ativo por paciente atingido no plano gratuito.`);
@@ -34,15 +34,15 @@ export function createMealPlansService() {
   }
 
   async function update(nutritionistId: string, id: string, data: Record<string, unknown>) {
-    const existing = await getDb().mealPlan.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().mealPlan.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
     const { items, ...planData } = data as any;
     return getDb().mealPlan.update({ where: { id }, data: planData });
   }
 
-  // Replaces all items of a meal plan atomically (delete old + insert new)
+  // Substituição atômica de itens (operação interna — meal_plan_items usa hard delete intencional)
   async function replaceItems(nutritionistId: string, id: string, items: Record<string, unknown>[]) {
-    const existing = await getDb().mealPlan.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().mealPlan.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
     return prisma.$transaction([
       prisma.mealPlanItem.deleteMany({ where: { mealPlanId: id } }),
@@ -55,20 +55,20 @@ export function createMealPlansService() {
   }
 
   async function remove(nutritionistId: string, id: string) {
-    const existing = await getDb().mealPlan.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().mealPlan.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
-    return getDb().mealPlan.delete({ where: { id } });
+    return getDb().mealPlan.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
-  // Items
+  // Items — meal_plan_items usa hard delete intencional (sem deletedAt na tabela)
   async function listItems(nutritionistId: string, mealPlanId: string) {
-    const plan = await getDb().mealPlan.findFirst({ where: { id: mealPlanId, nutritionistId } });
+    const plan = await getDb().mealPlan.findFirst({ where: { id: mealPlanId, nutritionistId, deletedAt: null } });
     if (!plan) throw new Error('Não autorizado');
     return getDb().mealPlanItem.findMany({ where: { mealPlanId } });
   }
 
   async function createItem(nutritionistId: string, mealPlanId: string, data: Record<string, unknown>) {
-    const plan = await getDb().mealPlan.findFirst({ where: { id: mealPlanId, nutritionistId } });
+    const plan = await getDb().mealPlan.findFirst({ where: { id: mealPlanId, nutritionistId, deletedAt: null } });
     if (!plan) throw new Error('Não autorizado');
     return getDb().mealPlanItem.create({ data: { ...(data as any), mealPlanId, nutritionistId } });
   }

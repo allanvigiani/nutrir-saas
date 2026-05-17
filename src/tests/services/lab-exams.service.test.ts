@@ -11,7 +11,7 @@ const { mockFindMany, mockFindFirst, mockUpdate, mockCreate, mockDelete, mockCou
 
 vi.mock('../../server/lib/rls-context.ts', () => ({
   getDb: () => ({
-    consultation: {
+    labExam: {
       findMany:  mockFindMany,
       findFirst: mockFindFirst,
       update:    mockUpdate,
@@ -23,17 +23,17 @@ vi.mock('../../server/lib/rls-context.ts', () => ({
 }));
 
 vi.mock('../../lib/planLimits.ts', () => ({
-  FREE_PLAN_LIMITS: { maxConsultationsPerMonth: 4, maxConsultationsPerPatientPerMonth: 1 },
+  FREE_PLAN_LIMITS: { maxExams: 2 },
 }));
 
-import { createConsultationsService } from '../../server/services/consultations.service.ts';
+import { createLabExamsService } from '../../server/services/lab-exams.service.ts';
 
-const service = createConsultationsService();
+const service = createLabExamsService();
 
-describe('consultations.service — soft delete', () => {
+describe('lab-exams.service — soft delete', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('list() filtra consultas com deletedAt preenchido', async () => {
+  it('list() filtra exames com deletedAt preenchido', async () => {
     mockFindMany.mockResolvedValue([]);
     await service.list('nutri-1', 'pac-1');
     expect(mockFindMany).toHaveBeenCalledWith(
@@ -42,34 +42,31 @@ describe('consultations.service — soft delete', () => {
   });
 
   it('remove() faz soft delete em vez de deletar', async () => {
-    mockFindFirst.mockResolvedValue({ id: 'c-1', nutritionistId: 'nutri-1', deletedAt: null });
+    mockFindFirst.mockResolvedValue({ id: 'e-1', nutritionistId: 'nutri-1', deletedAt: null });
     mockUpdate.mockResolvedValue({});
-    await service.remove('nutri-1', 'c-1');
+    await service.remove('nutri-1', 'e-1');
     expect(mockUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ deletedAt: expect.any(Date) }) }),
     );
     expect(mockDelete).not.toHaveBeenCalled();
   });
 
-  it('remove() lança erro se consulta não pertence ao nutricionista', async () => {
+  it('remove() lança erro se exame não pertence ao nutricionista', async () => {
     mockFindFirst.mockResolvedValue(null);
-    await expect(service.remove('nutri-1', 'c-outro')).rejects.toThrow('Não autorizado');
+    await expect(service.remove('nutri-1', 'e-outro')).rejects.toThrow('Não autorizado');
   });
 
-  it('update() lança erro se consulta foi soft-deleted', async () => {
+  it('update() lança erro se exame foi soft-deleted', async () => {
     mockFindFirst.mockResolvedValue(null);
-    await expect(service.update('nutri-1', 'c-deleted', { status: 'cancelada' }))
+    await expect(service.update('nutri-1', 'e-deleted', { title: 'Novo' }))
       .rejects.toThrow('Não autorizado');
   });
 
-  it('count de plano free exclui consultas soft-deleted', async () => {
+  it('count de plano free exclui exames soft-deleted', async () => {
     mockCount.mockResolvedValue(0);
-    mockCreate.mockResolvedValue({ id: 'c-new' });
-    await service.create('nutri-1', 'pac-1', { date: '2026-05-17', status: 'realizada' }, false);
-    expect(mockCount).toHaveBeenNthCalledWith(1,
-      expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) }),
-    );
-    expect(mockCount).toHaveBeenNthCalledWith(2,
+    mockCreate.mockResolvedValue({ id: 'e-new' });
+    await service.create('nutri-1', 'pac-1', { date: '2026-05-17', title: 'Hemograma', markers: [] }, false);
+    expect(mockCount).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) }),
     );
   });

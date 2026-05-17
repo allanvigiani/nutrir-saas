@@ -4,7 +4,7 @@ import { FREE_PLAN_LIMITS } from '../../lib/planLimits.ts';
 export function createConsultationsService() {
   async function list(nutritionistId: string, patientId: string) {
     return getDb().consultation.findMany({
-      where: { patientId, nutritionistId },
+      where: { patientId, nutritionistId, deletedAt: null },
       orderBy: { date: 'desc' },
     });
   }
@@ -17,10 +17,10 @@ export function createConsultationsService() {
 
       const [totalThisMonth, patientThisMonth] = await Promise.all([
         getDb().consultation.count({
-          where: { nutritionistId, date: { gte: startOfMonth, lte: endOfMonth } },
+          where: { nutritionistId, deletedAt: null, date: { gte: startOfMonth, lte: endOfMonth } },
         }),
         getDb().consultation.count({
-          where: { nutritionistId, patientId, date: { gte: startOfMonth, lte: endOfMonth } },
+          where: { nutritionistId, patientId, deletedAt: null, date: { gte: startOfMonth, lte: endOfMonth } },
         }),
       ]);
 
@@ -37,15 +37,15 @@ export function createConsultationsService() {
   }
 
   async function update(nutritionistId: string, id: string, data: Record<string, unknown>) {
-    const existing = await getDb().consultation.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().consultation.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
     return getDb().consultation.update({ where: { id }, data: data as any });
   }
 
   async function remove(nutritionistId: string, id: string) {
-    const existing = await getDb().consultation.findFirst({ where: { id, nutritionistId } });
+    const existing = await getDb().consultation.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
-    return getDb().consultation.delete({ where: { id } });
+    return getDb().consultation.update({ where: { id }, data: { deletedAt: new Date() } });
   }
 
   return { list, create, update, remove };
