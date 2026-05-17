@@ -32,6 +32,7 @@ export interface Nutritionist {
   googleCalendarTokens?: any;
   welcomeEmailSentAt?: string;
   hasSeenTutorial?: boolean;
+  planOverridedByAdmin?: boolean;
 }
 
 export interface Patient {

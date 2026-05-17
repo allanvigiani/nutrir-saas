@@ -27,6 +27,7 @@ model Nutritionist {
   googleCalendarConnected Boolean?
   hasSeenTutorial         Boolean?
   welcomeEmailSentAt      DateTime?
+  planOverridedByAdmin    Boolean   @default(false)
 
   patients     Patient[]
   appointments Appointment[]
@@ -244,4 +245,18 @@ model GlobalSettings {
   data Json
 
   @@map("settings")
+}
+
+model AdminAuditLog {
+  id             String   @id @default(cuid())
+  adminId        String
+  adminEmail     String
+  action         String
+  targetId       String?
+  targetEmail    String?
+  previousValue  String?
+  newValue       String?
+  createdAt      DateTime @default(now())
+
+  @@map("admin_audit_logs")
 }

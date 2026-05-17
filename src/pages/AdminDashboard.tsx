@@ -5,14 +5,20 @@ import { apiRequest } from '../hooks/useApi';
 import { Nutritionist } from '../types';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { 
-  Users, 
-  ShieldCheck, 
-  CreditCard, 
+import {
+  Users,
+  ShieldCheck,
+  CreditCard,
   Search,
   Activity,
   Settings as SettingsIcon,
-  LayoutDashboard
+  LayoutDashboard,
+  TrendingUp,
+  AlertTriangle,
+  ClipboardList,
+  UtensilsCrossed,
+  ScrollText,
+  Wrench
 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
@@ -29,7 +35,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '../components/ui/select';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { 
@@ -47,16 +53,78 @@ export const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [engagementFilter, setEngagementFilter] = useState('all');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [pendingDeletion, setPendingDeletion] = useState<number | null>(null);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [adminStats, setAdminStats] = useState<{
+    totalNutritionists: number;
+    premiumCount: number;
+    freeCount: number;
+    adminCount: number;
+    conversionRate: number;
+    estimatedRevenue: number;
+    activeLast30Days: number;
+    newLast7Days: number;
+    totalPatients: number;
+    newSubscribersThisMonth: number;
+    newSubscribersPrevMonth: number;
+    pendingChurn: number;
+    consultationsThisMonth: number;
+    mealPlansThisMonth: number;
+  } | null>(null);
+  const [operationalData, setOperationalData] = useState<{
+    noCpfCnpjCount: number;
+    noPatientsCount: number;
+    manualPlanOverrides: { id: string; name: string; email: string; plan: string; updatedAt: string }[];
+  } | null>(null);
+  const [showRetentionConfirm, setShowRetentionConfirm] = useState(false);
+  const [isRunningCleanup, setIsRunningCleanup] = useState(false);
+  const LIMIT = 20;
+
+  useEffect(() => { setPage(1); }, [engagementFilter]);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [nutriData, patientCount] = await Promise.all([
-          apiRequest<Nutritionist[]>('/api/admin/nutritionists', 'GET'),
+        const filterParam = engagementFilter !== 'all' ? `&filter=${engagementFilter}` : '';
+        const [nutriRes, patientCount, pending, logs, statsRes, operational] = await Promise.all([
+          apiRequest<{ data: Nutritionist[]; total: number; totalPages: number }>(
+            `/api/admin/nutritionists?page=${page}&limit=${LIMIT}${filterParam}`, 'GET'
+          ),
           apiRequest<{ count: number }>('/api/admin/patients/count', 'GET'),
+          apiRequest<{ count: number }>('/api/admin/retention/pending', 'GET'),
+          apiRequest<any[]>('/api/admin/audit-logs', 'GET'),
+          apiRequest<{
+            totalNutritionists: number;
+            premiumCount: number;
+            freeCount: number;
+            adminCount: number;
+            conversionRate: number;
+            estimatedRevenue: number;
+            activeLast30Days: number;
+            newLast7Days: number;
+            totalPatients: number;
+            newSubscribersThisMonth: number;
+            newSubscribersPrevMonth: number;
+            pendingChurn: number;
+            consultationsThisMonth: number;
+            mealPlansThisMonth: number;
+          }>('/api/admin/stats/expanded', 'GET'),
+          apiRequest<{
+            noCpfCnpjCount: number;
+            noPatientsCount: number;
+            manualPlanOverrides: { id: string; name: string; email: string; plan: string; updatedAt: string }[];
+          }>('/api/admin/operational', 'GET'),
         ]);
-        setNutritionists(nutriData || []);
+        setNutritionists(nutriRes?.data || []);
+        setTotalPages(nutriRes?.totalPages || 1);
         setTotalPatients(patientCount?.count || 0);
+        setPendingDeletion(pending?.count ?? 0);
+        setAuditLogs(logs || []);
+        setAdminStats(statsRes);
+        setOperationalData(operational);
       } catch (error) {
         console.error("Error fetching admin data:", error);
         toast.error("Erro ao carregar dados administrativos.");
@@ -68,7 +136,7 @@ export const AdminDashboard = () => {
     if (nutritionist?.role === 'admin') {
       fetchData();
     }
-  }, [nutritionist]);
+  }, [nutritionist, page, engagementFilter]);
 
   if (authLoading) {
     return (
@@ -82,17 +150,6 @@ export const AdminDashboard = () => {
     return <Navigate to="/" replace />;
   }
 
-  const handlePromoteToAdmin = async (id: string, currentRole: string) => {
-    const newRole = currentRole === 'admin' ? 'nutritionist' : 'admin';
-    try {
-      await apiRequest(`/api/admin/nutritionists/${id}`, 'PATCH', { role: newRole });
-      setNutritionists(prev => prev.map(n => n.id === id ? { ...n, role: newRole as any } : n));
-      toast.success(`Usuário ${newRole === 'admin' ? 'promovido a admin' : 'removido de admin'} com sucesso!`);
-    } catch (error: any) {
-      toast.error('Erro ao atualizar role: ' + error.message);
-    }
-  };
-
   const handleTogglePlan = async (id: string, currentPlan: string) => {
     const newPlan = currentPlan === 'premium' ? 'free' : 'premium';
     try {
@@ -101,6 +158,19 @@ export const AdminDashboard = () => {
       toast.success(`Plano atualizado para ${newPlan === 'premium' ? 'Assinante' : 'Gratuito'}!`);
     } catch (error: any) {
       toast.error('Erro ao atualizar plano: ' + error.message);
+    }
+  };
+
+  const handleRetentionCleanup = async () => {
+    setIsRunningCleanup(true);
+    try {
+      await apiRequest('/api/admin/retention-cleanup', 'POST');
+      toast.success('Limpeza LGPD executada com sucesso!');
+      setPendingDeletion(0);
+    } catch (error: any) {
+      toast.error('Erro ao executar limpeza: ' + error.message);
+    } finally {
+      setIsRunningCleanup(false);
     }
   };
 
@@ -145,72 +215,154 @@ export const AdminDashboard = () => {
           >
             <Users className="w-4 h-4" /> Nutricionistas
           </TabsTrigger>
-          <TabsTrigger 
-            value="settings" 
+          <TabsTrigger
+            value="settings"
             className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <SettingsIcon className="w-4 h-4" /> Configurações do Plano
           </TabsTrigger>
+          <TabsTrigger value="audit" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
+            <ScrollText className="w-4 h-4" /> Auditoria
+          </TabsTrigger>
+          <TabsTrigger value="operational" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
+            <Wrench className="w-4 h-4" /> Operacional
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {/* Nutricionistas */}
             <Card className="border-none shadow-sm bg-card overflow-hidden">
               <CardContent className="py-4 px-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                    <Users className="w-6 h-6" />
-                  </div>
+                <div className="flex items-center gap-3">
+                  <Users className="w-5 h-5 text-primary" />
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total de Nutricionistas</p>
-                    <p className="text-2xl font-bold text-foreground">{stats.total}</p>
+                    <p className="text-xs text-muted-foreground">Nutricionistas</p>
+                    <p className="text-2xl font-bold text-foreground">{adminStats?.totalNutritionists ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground">{adminStats?.newLast7Days ?? 0} novos nos últimos 7 dias</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Premium */}
             <Card className="border-none shadow-sm bg-card overflow-hidden">
               <CardContent className="py-4 px-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                    <CreditCard className="w-6 h-6" />
-                  </div>
+                <div className="flex items-center gap-3">
+                  <CreditCard className="w-5 h-5 text-primary" />
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Assinantes Premium</p>
-                    <p className="text-2xl font-bold text-foreground">{stats.subscribers}</p>
+                    <p className="text-xs text-muted-foreground">Premium</p>
+                    <p className="text-2xl font-bold text-foreground">{adminStats?.premiumCount ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground">Conversão: {adminStats?.conversionRate ?? 0}%</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Receita */}
             <Card className="border-none shadow-sm bg-card overflow-hidden">
               <CardContent className="py-4 px-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-muted/30 text-muted-foreground flex items-center justify-center">
-                    <Activity className="w-6 h-6" />
-                  </div>
+                <div className="flex items-center gap-3">
+                  <Activity className="w-5 h-5 text-primary" />
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Total de Pacientes</p>
-                    <p className="text-2xl font-bold text-foreground">{totalPatients}</p>
+                    <p className="text-xs text-muted-foreground">Receita Estimada</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {adminStats ? `R$ ${adminStats.estimatedRevenue.toFixed(2).replace('.', ',')}` : '—'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">mensal recorrente</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Novos assinantes */}
             <Card className="border-none shadow-sm bg-card overflow-hidden">
               <CardContent className="py-4 px-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-                    <ShieldCheck className="w-6 h-6" />
-                  </div>
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="w-5 h-5 text-primary" />
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Administradores</p>
-                    <p className="text-2xl font-bold text-foreground">{stats.admins}</p>
+                    <p className="text-xs text-muted-foreground">Novos Assinantes</p>
+                    <p className="text-2xl font-bold text-foreground">{adminStats?.newSubscribersThisMonth ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {adminStats ? `${adminStats.newSubscribersPrevMonth} no mês anterior` : 'este mês'}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Churn pendente */}
+            <Card className="border-none shadow-sm bg-card overflow-hidden">
+              <CardContent className="py-4 px-6">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className={cn("w-5 h-5", adminStats?.pendingChurn ? "text-amber-500" : "text-primary")} />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Cancelamentos Pendentes</p>
+                    <p className={cn("text-2xl font-bold", adminStats?.pendingChurn ? "text-amber-600" : "text-foreground")}>
+                      {adminStats?.pendingChurn ?? '—'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">não renovarão</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Ativos */}
+            <Card className="border-none shadow-sm bg-card overflow-hidden">
+              <CardContent className="py-4 px-6">
+                <div className="flex items-center gap-3">
+                  <Activity className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Ativos (30 dias)</p>
+                    <p className="text-2xl font-bold text-foreground">{adminStats?.activeLast30Days ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground">com login recente</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Consultas do mês */}
+            <Card className="border-none shadow-sm bg-card overflow-hidden">
+              <CardContent className="py-4 px-6">
+                <div className="flex items-center gap-3">
+                  <ClipboardList className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Consultas este Mês</p>
+                    <p className="text-2xl font-bold text-foreground">{adminStats?.consultationsThisMonth ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground">registradas na plataforma</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Planos alimentares do mês */}
+            <Card className="border-none shadow-sm bg-card overflow-hidden">
+              <CardContent className="py-4 px-6">
+                <div className="flex items-center gap-3">
+                  <UtensilsCrossed className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Planos Alimentares este Mês</p>
+                    <p className="text-2xl font-bold text-foreground">{adminStats?.mealPlansThisMonth ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground">criados na plataforma</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Pacientes */}
+            <Card className="border-none shadow-sm bg-card overflow-hidden">
+              <CardContent className="py-4 px-6">
+                <div className="flex items-center gap-3">
+                  <Users className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Pacientes (total)</p>
+                    <p className="text-2xl font-bold text-foreground">{adminStats?.totalPatients ?? totalPatients}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
+
         </TabsContent>
 
         <TabsContent value="nutritionists">
@@ -245,8 +397,8 @@ export const AdminDashboard = () => {
                   <Select value={roleFilter} onValueChange={setRoleFilter}>
                     <SelectTrigger className="w-[140px] bg-muted/30 border-none rounded-xl h-8 text-sm">
                       <SelectValue placeholder="Cargo">
-                        {roleFilter === 'all' ? 'Todos Cargos' : 
-                         roleFilter === 'nutritionist' ? 'Nutricionista' : 
+                        {roleFilter === 'all' ? 'Todos Cargos' :
+                         roleFilter === 'nutritionist' ? 'Nutricionista' :
                          roleFilter === 'admin' ? 'Admin' : undefined}
                       </SelectValue>
                     </SelectTrigger>
@@ -254,6 +406,16 @@ export const AdminDashboard = () => {
                       <SelectItem value="all">Todos Cargos</SelectItem>
                       <SelectItem value="nutritionist">Nutricionista</SelectItem>
                       <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={engagementFilter} onValueChange={(v) => { setEngagementFilter(v); }}>
+                    <SelectTrigger className="w-[180px] h-9 text-sm rounded-xl border-border">
+                      <SelectValue placeholder="Engajamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todos</SelectItem>
+                      <SelectItem value="churnRisk">Risco de Churn</SelectItem>
+                      <SelectItem value="atLimit">Atingiu Limite Free</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -307,6 +469,14 @@ export const AdminDashboard = () => {
                             )}>
                               {n.plan === 'premium' ? 'Premium' : 'Gratuito'}
                             </span>
+                            {n.planOverridedByAdmin && (
+                              <span
+                                className="ml-1 text-xs text-amber-600 font-medium"
+                                title="Plano definido manualmente — sync do Asaas não irá sobrescrever"
+                              >
+                                Manual
+                              </span>
+                            )}
                           </td>
                           <td className="px-6 py-4">
                             <span className={cn(
@@ -316,11 +486,20 @@ export const AdminDashboard = () => {
                               {n.role === 'admin' ? 'Admin' : 'Nutricionista'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-muted-foreground text-sm">
-                            {n.lastLogin ? (
-                              format(parseISO(n.lastLogin), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-                            ) : (
-                              <span className="text-muted-foreground italic">Nunca logou</span>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {(n as any).lastLogin ? (() => {
+                              const daysInactive = differenceInDays(new Date(), parseISO((n as any).lastLogin));
+                              return (
+                                <span className={cn(
+                                  "text-sm",
+                                  daysInactive > 60 ? "text-amber-600 font-medium" : "text-muted-foreground"
+                                )}>
+                                  {format(parseISO((n as any).lastLogin), "dd/MM/yyyy", { locale: ptBR })}
+                                  {daysInactive > 60 && <span className="ml-1 text-xs">(inativo {daysInactive}d)</span>}
+                                </span>
+                              );
+                            })() : (
+                              <span className="text-xs text-muted-foreground">Nunca</span>
                             )}
                           </td>
                           <td className="px-6 py-4">
@@ -333,18 +512,6 @@ export const AdminDashboard = () => {
                               >
                                 Mudar Plano
                               </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className={cn(
-                                  "h-8 w-8 rounded-lg",
-                                  n.role === 'admin' ? "text-red-600 hover:bg-red-50" : "text-purple-600 hover:bg-purple-50"
-                                )}
-                                onClick={() => handlePromoteToAdmin(n.id, n.role || 'nutritionist')}
-                                title={n.role === 'admin' ? "Remover Admin" : "Promover a Admin"}
-                              >
-                                <ShieldCheck className="w-4 h-4" />
-                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -353,6 +520,19 @@ export const AdminDashboard = () => {
                   </tbody>
                 </table>
               </div>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between px-6 py-4 border-t border-border">
+                  <p className="text-sm text-muted-foreground">Página {page} de {totalPages}</p>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>
+                      Anterior
+                    </Button>
+                    <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>
+                      Próxima
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -389,7 +569,148 @@ export const AdminDashboard = () => {
             </Card>
           </div>
         </TabsContent>
+
+        <TabsContent value="audit">
+          <Card className="border-none shadow-sm bg-card">
+            <CardHeader className="border-b border-border pb-6">
+              <CardTitle className="text-xl font-bold">Log de Auditoria</CardTitle>
+              <p className="text-sm text-muted-foreground">Últimas 50 ações administrativas</p>
+            </CardHeader>
+            <CardContent className="p-0">
+              {auditLogs.length === 0 ? (
+                <p className="p-6 text-sm text-muted-foreground">Nenhuma ação registrada.</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {auditLogs.map((log) => (
+                    <div key={log.id} className="flex items-start justify-between px-6 py-4 gap-4">
+                      <div className="space-y-0.5">
+                        <p className="text-sm font-medium">
+                          {log.action === 'set_role' && `Papel alterado: ${log.previousValue} → ${log.newValue}`}
+                          {log.action === 'set_plan' && `Plano alterado: ${log.previousValue} → ${log.newValue}`}
+                          {log.action === 'retention_cleanup' && `Limpeza LGPD: ${log.newValue}`}
+                        </p>
+                        {log.targetEmail && (
+                          <p className="text-xs text-muted-foreground">Alvo: {log.targetEmail}</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">Por: {log.adminEmail}</p>
+                      </div>
+                      <span className="text-xs text-muted-foreground whitespace-nowrap">
+                        {format(parseISO(log.createdAt), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="operational" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="border-none shadow-sm bg-card">
+              <CardContent className="py-4 px-6">
+                <div className="flex items-center gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Sem CPF/CNPJ</p>
+                    <p className="text-2xl font-bold text-foreground">{operationalData?.noCpfCnpjCount ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground">impedem checkout do Asaas</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-none shadow-sm bg-card">
+              <CardContent className="py-4 px-6">
+                <div className="flex items-center gap-3">
+                  <Users className="w-5 h-5 text-amber-500" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Sem Pacientes</p>
+                    <p className="text-2xl font-bold text-foreground">{operationalData?.noPatientsCount ?? '—'}</p>
+                    <p className="text-xs text-muted-foreground">onboarding incompleto</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card className="border-none shadow-sm bg-card">
+            <CardHeader className="border-b border-border pb-4">
+              <CardTitle className="text-base font-bold">Liberações Manuais de Plano</CardTitle>
+              <p className="text-sm text-muted-foreground">Planos definidos pelo admin — sync do Asaas não sobrescreve</p>
+            </CardHeader>
+            <CardContent className="p-0">
+              {!operationalData?.manualPlanOverrides?.length ? (
+                <p className="p-6 text-sm text-muted-foreground">Nenhuma liberação manual ativa.</p>
+              ) : (
+                <div className="divide-y divide-border">
+                  {operationalData.manualPlanOverrides.map((n) => (
+                    <div key={n.id} className="flex items-center justify-between px-6 py-3">
+                      <div>
+                        <p className="text-sm font-medium">{n.name}</p>
+                        <p className="text-xs text-muted-foreground">{n.email}</p>
+                      </div>
+                      <span className={cn(
+                        "text-xs px-2 py-0.5 rounded-full font-medium",
+                        n.plan === 'premium' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                      )}>
+                        {n.plan === 'premium' ? 'Premium' : 'Gratuito'}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border-none shadow-sm bg-card">
+            <CardHeader className="border-b border-border pb-4">
+              <CardTitle className="text-base font-bold">Limpeza LGPD</CardTitle>
+              <p className="text-sm text-muted-foreground">Remove permanentemente pacientes com soft delete há mais de 30 dias</p>
+            </CardHeader>
+            <CardContent className="p-6 space-y-3">
+              {pendingDeletion !== null && (
+                <p className="text-sm text-muted-foreground">
+                  {pendingDeletion === 0
+                    ? 'Nenhum paciente pendente de remoção permanente.'
+                    : `${pendingDeletion} paciente(s) aguardando remoção permanente.`}
+                </p>
+              )}
+              <Button
+                variant="destructive"
+                disabled={pendingDeletion === 0 || isRunningCleanup}
+                onClick={() => setShowRetentionConfirm(true)}
+              >
+                {isRunningCleanup ? 'Removendo...' : `Executar Limpeza LGPD${pendingDeletion ? ` (${pendingDeletion})` : ''}`}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {showRetentionConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card rounded-xl p-6 shadow-xl max-w-sm w-full space-y-4">
+            <h3 className="font-bold text-lg">Confirmar remoção permanente</h3>
+            <p className="text-sm text-muted-foreground">
+              Esta ação irá remover permanentemente <strong>{pendingDeletion} paciente(s)</strong> do banco de dados. Essa operação é irreversível e está em conformidade com a LGPD.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowRetentionConfirm(false)}>
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  setShowRetentionConfirm(false);
+                  await handleRetentionCleanup();
+                }}
+              >
+                Confirmar remoção
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

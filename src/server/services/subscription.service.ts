@@ -42,12 +42,18 @@ export function createSubscriptionService() {
       create: { nutritionistId, ...clean },
     });
 
-    // Keep Nutritionist.plan in sync if plan changed
+    // Keep Nutritionist.plan in sync if plan changed — mas não sobrescreve plano definido manualmente pelo admin
     if (data.plan) {
-      await getDb().nutritionist.update({
+      const nutritionistData = await getDb().nutritionist.findUnique({
         where: { id: nutritionistId },
-        data: { plan: data.plan },
+        select: { planOverridedByAdmin: true },
       });
+      if (!nutritionistData?.planOverridedByAdmin) {
+        await getDb().nutritionist.update({
+          where: { id: nutritionistId },
+          data: { plan: data.plan },
+        });
+      }
     }
 
     return sub;

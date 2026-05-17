@@ -10,5 +10,12 @@ export function createRetentionService() {
     return { deletedCount: result.count };
   }
 
-  return { cleanupSoftDeleted };
+  async function countPendingDeletion(daysOld = 30): Promise<number> {
+    const cutoff = subDays(new Date(), daysOld);
+    return getDb().patient.count({
+      where: { deletedAt: { lt: cutoff } },
+    });
+  }
+
+  return { cleanupSoftDeleted, countPendingDeletion };
 }
