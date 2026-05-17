@@ -1047,15 +1047,6 @@ export const PatientProfile = () => {
 
   return (
     <div className="space-y-8">
-      {patient.status === 'inactive' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 text-amber-800 shadow-sm">
-          <AlertCircle className="w-5 h-5 shrink-0" />
-          <div className="text-sm">
-            <p className="font-bold">Paciente Inativo</p>
-            <p>Este paciente está desativado. Edições e novos registros estão bloqueados até que o paciente seja reativado na lista de pacientes.</p>
-          </div>
-        </div>
-      )}
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -1074,8 +1065,7 @@ export const PatientProfile = () => {
                   size="icon-sm"
                   className="text-muted-foreground hover:text-primary hover:bg-primary/10"
                   onClick={() => setIsEditPatientModalOpen(true)}
-                  disabled={patient.status === 'inactive'}
-                  title="Editar dados cadastrais"
+                                   title="Editar dados cadastrais"
                 >
                   <Edit className="w-4 h-4" />
                 </Button>
@@ -1085,12 +1075,6 @@ export const PatientProfile = () => {
                 <span>•</span>
                 <span>{patient.cpf}</span>
                 <span>•</span>
-                <span className={cn(
-                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                  patient.status === 'active' ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
-                )}>
-                  {patient.status === 'active' ? 'Ativo' : 'Inativo'}
-                </span>
               </div>
             </div>
           </div>
@@ -1102,7 +1086,7 @@ export const PatientProfile = () => {
               variant="outline" 
               className="h-8 text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 px-4"
               onClick={generateAccessToken}
-              disabled={isGeneratingToken || patient.status === 'inactive'}
+              disabled={isGeneratingToken}
             >
               {isGeneratingToken ? 'GERANDO...' : 'GERAR LINK DE ACESSO'}
             </Button>
@@ -1111,8 +1095,7 @@ export const PatientProfile = () => {
               variant="outline" 
               className="h-8 text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 px-4"
               onClick={shareAccessLink}
-              disabled={patient.status === 'inactive'}
-            >
+                         >
               ENVIAR ACESSO WHATSAPP
             </Button>
           )}
@@ -1138,7 +1121,7 @@ export const PatientProfile = () => {
             }
           }}>
             <DialogTrigger
-              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" disabled={patient.status === 'inactive'} onClick={() => {
+              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" onClick={() => {
                 setSelectedConsultation(null);
                 resetConsultation({
                   date: new Date().toISOString().split('T')[0],
@@ -1381,10 +1364,7 @@ export const PatientProfile = () => {
                 size="sm"
                 className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                 onClick={() => setIsConsultationModalOpen(true)}
-                disabled={
-                  patient.status === 'inactive' ||
-                  (!isPremium && (limitsLoading || !canAddConsultation || patientAlreadyHasConsultationThisMonth))
-                }
+                disabled={!isPremium && (limitsLoading || !canAddConsultation || patientAlreadyHasConsultationThisMonth)}
               >
                 <Plus className="w-4 h-4" /> Nova Consulta
               </Button>
@@ -1438,8 +1418,7 @@ export const PatientProfile = () => {
                               variant="ghost"
                               size="icon-sm"
                               className="text-muted-foreground hover:text-primary disabled:opacity-30"
-                              disabled={patient.status === 'inactive'}
-                              onClick={(e) => {
+                                                           onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedConsultationForCalc(consultation);
                                 setIsCalculatorModalOpen(true);
@@ -1448,7 +1427,7 @@ export const PatientProfile = () => {
                             >
                               <Calculator className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-primary disabled:opacity-30" disabled={patient.status === 'inactive'} title="Editar consulta" onClick={(e) => {
+                            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-primary disabled:opacity-30" title="Editar consulta" onClick={(e) => {
                               e.stopPropagation();
                               setSelectedConsultation(consultation);
                               resetConsultation({
@@ -1469,7 +1448,7 @@ export const PatientProfile = () => {
                             }}>
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 disabled:opacity-30" disabled={patient.status === 'inactive'} title="Excluir consulta" onClick={(e) => {
+                            <Button variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 disabled:opacity-30" title="Excluir consulta" onClick={(e) => {
                               e.stopPropagation();
                               setConsultationToDelete(consultation.id);
                               setIsDeleteConsultationConfirmOpen(true);
@@ -1728,7 +1707,7 @@ export const PatientProfile = () => {
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => viewMealPlan(plan)}>Visualizar</Button>
-                        <Button variant="outline" size="sm" className="flex-1 disabled:opacity-50" onClick={() => editMealPlan(plan)} disabled={patient.status === 'inactive'}>Editar</Button>
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => editMealPlan(plan)}>Editar</Button>
 
                         <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => sendMealPlanByEmail(plan)} title="Enviar por E-mail">
                           <Mail className="w-4 h-4" />
@@ -1736,7 +1715,7 @@ export const PatientProfile = () => {
                         <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => exportMealPlanPDF(plan)} title="Imprimir PDF">
                           <Printer className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="px-2 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30" onClick={() => deleteMealPlan(plan.id)} disabled={patient.status === 'inactive'} title="Excluir plano">
+                        <Button variant="ghost" size="sm" className="px-2 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30" onClick={() => deleteMealPlan(plan.id)} title="Excluir plano">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -2149,7 +2128,7 @@ export const PatientProfile = () => {
               }}>
                 <PremiumFeature active={isLabExamLimitReached}>
                   <DialogTrigger
-                    render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" disabled={patient.status === 'inactive'} />}
+                    render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" />}
                     nativeButton={true}
                   >
                     <Plus className="w-4 h-4" /> Registrar Exame
@@ -2352,8 +2331,7 @@ export const PatientProfile = () => {
                               setExamMarkers(exam.markers || []);
                               setIsLabExamModalOpen(true);
                             }}
-                            disabled={patient.status === 'inactive'}
-                          >
+                                                     >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
@@ -2365,8 +2343,7 @@ export const PatientProfile = () => {
                               e.stopPropagation();
                               deleteLabExam(exam.id);
                             }}
-                            disabled={patient.status === 'inactive'}
-                          >
+                                                     >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>

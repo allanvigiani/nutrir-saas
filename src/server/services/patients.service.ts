@@ -17,29 +17,19 @@ export function createPatientsService() {
 
   async function create(nutritionistId: string, data: Record<string, unknown>, isPremium: boolean) {
     if (!isPremium) {
-      const activeCount = await getDb().patient.count({
-        where: { nutritionistId, deletedAt: null, status: 'active' },
+      const count = await getDb().patient.count({
+        where: { nutritionistId, deletedAt: null },
       });
-      if (activeCount >= FREE_PLAN_LIMITS.maxPatients) {
-        throw new Error(`Limite de ${FREE_PLAN_LIMITS.maxPatients} pacientes ativos atingido no plano gratuito.`);
+      if (count >= FREE_PLAN_LIMITS.maxPatients) {
+        throw new Error(`Limite de ${FREE_PLAN_LIMITS.maxPatients} pacientes atingido no plano gratuito.`);
       }
     }
     return getDb().patient.create({ data: { ...(data as any), nutritionistId } });
   }
 
-  async function update(nutritionistId: string, id: string, data: Record<string, unknown>, isPremium: boolean) {
+  async function update(nutritionistId: string, id: string, data: Record<string, unknown>, _isPremium: boolean) {
     const existing = await getDb().patient.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
-
-    if (!isPremium && (data as any).status === 'active' && existing.status !== 'active') {
-      const activeCount = await getDb().patient.count({
-        where: { nutritionistId, deletedAt: null, status: 'active' },
-      });
-      if (activeCount >= FREE_PLAN_LIMITS.maxPatients) {
-        throw new Error(`Limite de ${FREE_PLAN_LIMITS.maxPatients} pacientes ativos atingido no plano gratuito.`);
-      }
-    }
-
     return getDb().patient.update({ where: { id }, data: data as any });
   }
 

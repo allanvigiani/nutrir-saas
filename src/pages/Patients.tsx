@@ -139,8 +139,9 @@ export const Patients = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [isGeneratingToken, setIsGeneratingToken] = useState<string | null>(null);
@@ -219,33 +220,23 @@ export const Patients = () => {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  const togglePatientStatus = async (patient: Patient) => {
-    if (!user) return;
-
-    const newStatus = patient.status === 'active' ? 'inactive' : 'active';
-
-    // If activating, check limit
-    if (newStatus === 'active' && !isPremium) {
-      const activePatients = patients.filter(p => p.status === 'active');
-      const maxPatients = FREE_PLAN_LIMITS.maxPatients;
-      if (activePatients.length >= maxPatients) {
-        toast.error(`O plano gratuito permite apenas ${maxPatients} pacientes ativos.`);
-        return;
-      }
-    }
-
+  const handleDeletePatient = async () => {
+    if (!user || !patientToDelete) return;
+    setIsDeleting(true);
     try {
       const token = await auth.currentUser?.getIdToken();
-      await fetch(`/api/patients/${patient.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ status: newStatus }),
+      await fetch(`/api/patients/${patientToDelete.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
       });
-      toast.success(`Paciente ${newStatus === 'active' ? 'ativado' : 'desativado'} com sucesso!`);
+      toast.success('Paciente excluído com sucesso.');
+      setPatientToDelete(null);
       await refetchPatients();
     } catch (error) {
-      console.error("Error toggling patient status:", error);
-      toast.error("Erro ao alterar status do paciente.");
+      console.error('Error deleting patient:', error);
+      toast.error('Erro ao excluir paciente.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -345,15 +336,12 @@ export const Patients = () => {
     window.open(whatsappUrl, '_blank');
   };
 
-  const filteredPatients = patients.filter(patient => {
-    const matchesSearch = patient.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          patient.cpf.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || patient.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredPatients = patients.filter(patient =>
+    patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    patient.cpf.includes(searchTerm)
+  );
 
-  const activePatientsCount = patients.filter(p => p.status === 'active').length;
-  const isLimitReached = !isPremium && activePatientsCount >= FREE_PLAN_LIMITS.maxPatients;
+  const isLimitReached = !isPremium && patients.length >= FREE_PLAN_LIMITS.maxPatients;
 
   return (
     <div className="space-y-8">
@@ -519,18 +507,6 @@ export const Patients = () => {
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Status">
-              {statusFilter === 'all' ? 'Todos' : statusFilter === 'active' ? 'Ativos' : statusFilter === 'inactive' ? 'Inativos' : undefined}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="active">Ativos</SelectItem>
-            <SelectItem value="inactive">Inativos</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {loading ? (
@@ -584,27 +560,14 @@ export const Patients = () => {
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    <span className={cn(
-                      'px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide',
-                      patient.status === 'active'
-                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
-                        : 'bg-muted text-muted-foreground'
-                    )}>
-                      {patient.status === 'active' ? 'Ativo' : 'Inativo'}
-                    </span>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className={cn(
-                        'h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity',
-                        patient.status === 'active'
-                          ? 'text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30'
-                          : 'text-muted-foreground hover:text-primary hover:bg-primary/10'
-                      )}
-                      onClick={() => togglePatientStatus(patient)}
-                      title={patient.status === 'active' ? 'Desativar' : 'Ativar'}
+                      className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      onClick={() => setPatientToDelete(patient)}
+                      title="Excluir paciente"
                     >
-                      {patient.status === 'active' ? <UserX className="w-3.5 h-3.5" /> : <UserCheck className="w-3.5 h-3.5" />}
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
@@ -645,7 +608,6 @@ export const Patients = () => {
                     variant="outline"
                     className="h-8 w-8 p-0 rounded-lg"
                     onClick={() => openEditModal(patient)}
-                    disabled={patient.status === 'inactive'}
                     title="Editar Paciente"
                   >
                     <Edit className="w-3.5 h-3.5" />
@@ -663,6 +625,26 @@ export const Patients = () => {
           <p className="text-muted-foreground">Tente ajustar sua busca ou cadastrar um novo paciente.</p>
         </div>
       )}
+
+      {/* Dialog de confirmação de exclusão */}
+      <Dialog open={!!patientToDelete} onOpenChange={(open) => { if (!open) setPatientToDelete(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir paciente</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir <strong>{patientToDelete?.name}</strong>? O prontuário ficará salvo por 30 dias antes da remoção permanente, conforme a LGPD.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPatientToDelete(null)} disabled={isDeleting}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeletePatient} disabled={isDeleting}>
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
