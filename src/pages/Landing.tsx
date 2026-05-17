@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
@@ -715,6 +716,9 @@ export function Landing() {
         </div>
       </section>
 
+      {/* ─── FAQ ──────────────────────────────────────────────────────────── */}
+      <FAQ />
+
       {/* ─── CTA ──────────────────────────────────────────────────────────── */}
       <section className="py-24 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto">
@@ -757,5 +761,132 @@ export function Landing() {
 
       <LandingFooter />
     </div>
+  );
+}
+
+// ─── FAQ ──────────────────────────────────────────────────────────────────────
+
+const faqItems = [
+  {
+    category: 'Planos e Preços',
+    q: 'O plano gratuito tem prazo de validade?',
+    a: 'Não. O plano gratuito é permanente. Você pode usar o Nutrir com até 2 pacientes ativos e 2 consultas por mês sem pagar nada e sem prazo de expiração.',
+  },
+  {
+    category: 'Planos e Preços',
+    q: 'Quanto custa o plano Premium?',
+    a: 'R$ 39,90/mês, cobrado mensalmente. Não há contrato de fidelidade — você pode cancelar a qualquer momento.',
+  },
+  {
+    category: 'Planos e Preços',
+    q: 'Preciso de cartão de crédito para criar uma conta?',
+    a: 'Não. O cadastro é gratuito e não exige cartão. Você só informa dados de pagamento quando decidir assinar o Premium.',
+  },
+  {
+    category: 'Planos e Preços',
+    q: 'Posso testar o Premium antes de pagar?',
+    a: 'Sim. Você pode começar com o plano gratuito e sentir a plataforma no dia a dia. Se quiser fazer upgrade, o acesso Premium é liberado imediatamente após a confirmação do pagamento.',
+  },
+  {
+    category: 'Funcionalidades',
+    q: 'Como funciona o portal do paciente?',
+    a: 'Cada paciente recebe um link de acesso exclusivo onde pode visualizar seu plano alimentar, acompanhar seu progresso e histórico de consultas — sem precisar criar uma conta.',
+  },
+  {
+    category: 'Funcionalidades',
+    q: 'O Nutrir funciona no celular?',
+    a: 'Sim. A plataforma é responsiva e funciona em qualquer navegador, tanto no celular quanto no computador.',
+  },
+  {
+    category: 'Funcionalidades',
+    q: 'Posso integrar com o Google Agenda?',
+    a: 'Sim, no plano Premium. Ao conectar sua conta Google, consultas criadas no Nutrir aparecem automaticamente no Google Calendar — e alterações de horário sincronizam nas duas plataformas.',
+  },
+  {
+    category: 'Cancelamento e Reembolso',
+    q: 'Se eu cancelar, perco meus dados?',
+    a: 'Não imediatamente. Ao cancelar, seu acesso Premium continua até o fim do período pago. Após isso, a conta reverte para o plano gratuito e seus dados ficam armazenados normalmente dentro dos limites do plano free.',
+  },
+  {
+    category: 'Cancelamento e Reembolso',
+    q: 'Há garantia de reembolso?',
+    a: 'Sim. Oferecemos 7 dias de garantia. Se você assinar o Premium e não ficar satisfeito dentro desse prazo, devolvemos o valor integralmente.',
+  },
+  {
+    category: 'Segurança',
+    q: 'Meus dados e os dos pacientes são seguros?',
+    a: 'Sim. Os dados são armazenados com criptografia e a plataforma segue as diretrizes da LGPD. Pacientes excluídos da conta passam por remoção permanente após 30 dias, em conformidade com a legislação.',
+  },
+  {
+    category: 'Segurança',
+    q: 'O Nutrir é adequado para uso clínico e segue a LGPD?',
+    a: 'Sim. A plataforma foi desenvolvida com conformidade à LGPD: controle de acesso, retenção limitada de dados e exclusão definitiva de registros quando necessário.',
+  },
+];
+
+function FAQ() {
+  const [open, setOpen] = useState<number | null>(null);
+
+  return (
+    <section id="faq" className="pt-6 pb-16 px-4 sm:px-6 lg:px-8 bg-muted/25">
+      <div className="max-w-3xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <p className="text-sm font-semibold text-primary uppercase tracking-widest mb-3">FAQ</p>
+          <h2 className="text-3xl sm:text-4xl font-bold text-foreground">
+            Perguntas frequentes
+          </h2>
+          <p className="mt-4 text-muted-foreground text-lg">
+            Tudo o que você precisa saber antes de começar.
+          </p>
+        </div>
+
+        {/* Accordion */}
+        <div className="space-y-3">
+          {faqItems.map((item, i) => {
+            const isOpen = open === i;
+            return (
+              <div
+                key={i}
+                className="bg-card border border-border rounded-2xl overflow-hidden transition-all"
+              >
+                <button
+                  className="w-full flex items-center justify-between px-6 py-5 text-left gap-4 hover:bg-muted/40 transition-colors"
+                  onClick={() => setOpen(isOpen ? null : i)}
+                  aria-expanded={isOpen}
+                >
+                  <span className="font-medium text-foreground text-base leading-snug">
+                    {item.q}
+                  </span>
+                  <span
+                    className={`shrink-0 w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center transition-transform duration-200 ${isOpen ? 'rotate-45' : ''}`}
+                  >
+                    <svg className="w-3 h-3 text-primary" fill="none" viewBox="0 0 12 12">
+                      <path d="M6 1v10M1 6h10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+                    </svg>
+                  </span>
+                </button>
+                {isOpen && (
+                  <div className="px-6 pb-5">
+                    <p className="text-muted-foreground text-sm leading-relaxed">{item.a}</p>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Dúvida extra */}
+        <p className="text-center text-sm text-muted-foreground mt-10">
+          Ainda tem dúvidas?{' '}
+          <a
+            href="mailto:contato@nutrir.app"
+            className="text-primary font-medium hover:underline"
+          >
+            Fale com a equipe
+          </a>
+        </p>
+      </div>
+    </section>
   );
 }

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
+import { PageLoader } from './PageLoader';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -111,6 +112,8 @@ export const Sidebar = () => {
   const userEmail = nutritionist?.email || user?.email || '';
 
   return (
+    <>
+    {loggingOut && <PageLoader message="Saindo..." />}
     <aside
       className={cn(
         "flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300",
@@ -227,5 +230,6 @@ export const Sidebar = () => {
         </div>
       </div>
     </aside>
+    </>
   );
 };
