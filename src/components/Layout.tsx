@@ -4,9 +4,10 @@ import { useAuth } from '../contexts/AuthContext';
 import { Sidebar } from './Sidebar';
 import { PageLoader } from './PageLoader';
 import { TooltipProvider } from './ui/tooltip';
+import { SupportWidget } from './SupportWidget';
 
 export const Layout = () => {
-  const { user, loading } = useAuth();
+  const { user, loading, nutritionist } = useAuth();
 
   if (loading) {
     return <PageLoader message="Carregando..." />;
@@ -28,6 +29,7 @@ export const Layout = () => {
           </div>
         </main>
       </div>
+      <SupportWidget context="app" userName={nutritionist?.name} />
     </TooltipProvider>
   );
 };

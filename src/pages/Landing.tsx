@@ -30,10 +30,11 @@ import {
 } from 'lucide-react';
 import { LandingNavbar } from '../components/LandingNavbar';
 import { LandingFooter } from '../components/LandingFooter';
+import { SupportWidget } from '../components/SupportWidget';
 
 export function Landing() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, nutritionist } = useAuth();
   const ctaLabel = user ? 'Acessar Plataforma' : 'Começar Grátis';
   const ctaPath = user ? '/dashboard' : '/register';
 
@@ -760,6 +761,7 @@ export function Landing() {
       </section>
 
       <LandingFooter />
+      <SupportWidget context="landing" userName={nutritionist?.name} />
     </div>
   );
 }
