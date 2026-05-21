@@ -1,16 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import { 
-  doc, 
-  getDoc, 
-  collection, 
-  query, 
-  where, 
-  getDocs, 
-  orderBy,
-  limit 
-} from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
 import { Patient, Consultation, MealPlan, LabExam, MealPlanItem, Nutritionist } from '../types';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -61,56 +50,6 @@ import { format, parseISO, differenceInYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-const handleFirestoreError = (error: unknown, operationType: OperationType, path: string | null) => {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  };
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  return errInfo;
-};
 
 export const PatientAccess = () => {
   const { id } = useParams();
@@ -140,39 +79,18 @@ export const PatientAccess = () => {
       }
 
       try {
-        // Usar query em vez de getDoc para poder passar o token nas regras de segurança
-        const q = query(
-          collection(db, 'patients'), 
-          where('access_token', '==', token),
-          limit(1)
-        );
-        const querySnapshot = await getDocs(q);
-        
-        if (!querySnapshot.empty) {
-          const docSnap = querySnapshot.docs[0];
-          const data = { id: docSnap.id, ...docSnap.data() } as Patient;
-          
-          // Verificar se o ID bate (para garantir que é o paciente certo)
-          if (docSnap.id === id) {
-            setPatient(data);
-            
-            // Buscar dados do nutricionista
-            try {
-              const nutSnap = await getDoc(doc(db, 'nutritionists', data.nutritionist_id));
-              if (nutSnap.exists()) {
-                setNutritionist({ id: nutSnap.id, ...nutSnap.data() } as Nutritionist);
-              }
-            } catch (error) {
-              console.error("Error fetching nutritionist:", error);
-            }
-          } else {
-            toast.error('Link de acesso inválido.');
-          }
-        } else {
-          toast.error('Link de acesso inválido ou expirado.');
+        const res = await fetch(`/api/portal/patients/${id}?token=${encodeURIComponent(token)}`);
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          toast.error(err.error || 'Link de acesso inválido ou expirado.');
+          return;
         }
+        const { patient: patientData, nutritionist: nutData } = await res.json();
+        setPatient(patientData);
+        if (nutData) setNutritionist(nutData);
       } catch (error) {
         console.error("Error verifying access:", error);
+        toast.error('Erro ao verificar acesso.');
       } finally {
         setLoading(false);
       }
@@ -181,15 +99,18 @@ export const PatientAccess = () => {
     verifyTokenAndFetchPatient();
   }, [id, token]);
 
-  const handleAuth = (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!patient) return;
+    if (!patient || !token) return;
 
-    // Limpar CPF para pegar os 3 últimos dígitos
-    const cleanCpf = patient.cpf.replace(/\D/g, '');
-    const lastThree = cleanCpf.slice(-3);
+    // Validação server-side — CPF nunca comparado no client
+    const verifyResponse = await fetch(`/api/portal/patients/${patient.id}/verify-cpf`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, cpfSuffix }),
+    });
 
-    if (cpfSuffix === lastThree) {
+    if (verifyResponse.ok) {
       setIsAuthenticated(true);
     } else {
       setAuthError('Os 3 últimos dígitos do CPF não conferem.');
@@ -461,15 +382,10 @@ export const PatientAccess = () => {
     const toastId = toast.loading('Preparando seu plano alimentar para download...');
     
     try {
-      const q = query(
-        collection(db, 'meal_plan_items'),
-        where('access_token', '==', token)
-      );
-      const querySnapshot = await getDocs(q);
-      const items = querySnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as MealPlanItem))
-        .filter((item) => item.meal_plan_id === plan.id);
-      
+      const res = await fetch(`/api/portal/meal-plans/${plan.id}/items?token=${encodeURIComponent(token || '')}`);
+      if (!res.ok) throw new Error('Erro ao buscar itens do plano.');
+      const items: MealPlanItem[] = await res.json();
+
       if (items.length === 0) {
         toast.warning('Este plano alimentar parece estar vazio.', { id: toastId });
       } else {
@@ -490,56 +406,23 @@ export const PatientAccess = () => {
     const toastId = toast.loading('Buscando suas informações...');
 
     try {
-      // Consultas
-      const consultationsSnap = await getDocs(
-        query(
-          collection(db, 'consultations'), 
-          where('access_token', '==', token)
-        )
-      ).catch(err => {
-        handleFirestoreError(err, OperationType.LIST, 'consultations');
-        throw err;
-      });
-      
-      const consultationsData = consultationsSnap.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as Consultation))
-        .filter(c => c.patient_id === id);
-      
-      setConsultations(consultationsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      const encodedToken = encodeURIComponent(token);
 
-      // Planos Alimentares
-      const mealPlansSnap = await getDocs(
-        query(
-          collection(db, 'meal_plans'), 
-          where('access_token', '==', token)
-        )
-      ).catch(err => {
-        handleFirestoreError(err, OperationType.LIST, 'meal_plans');
-        throw err;
-      });
+      const [consultationsRes, mealPlansRes, examsRes] = await Promise.all([
+        fetch(`/api/portal/patients/${id}/consultations?token=${encodedToken}`),
+        fetch(`/api/portal/patients/${id}/meal-plans?token=${encodedToken}`),
+        fetch(`/api/portal/patients/${id}/lab-exams?token=${encodedToken}`),
+      ]);
 
-      const mealPlansData = mealPlansSnap.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as MealPlan))
-        .filter(p => p.patient_id === id);
-      
-      setMealPlans(mealPlansData.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      const [consultationsData, mealPlansData, examsData] = await Promise.all([
+        consultationsRes.ok ? consultationsRes.json() : [],
+        mealPlansRes.ok ? mealPlansRes.json() : [],
+        examsRes.ok ? examsRes.json() : [],
+      ]);
 
-      // Exames
-      const examsSnap = await getDocs(
-        query(
-          collection(db, 'lab_exams'), 
-          where('access_token', '==', token)
-        )
-      ).catch(err => {
-        handleFirestoreError(err, OperationType.LIST, 'lab_exams');
-        throw err;
-      });
-
-      const examsData = examsSnap.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as LabExam))
-        .filter(e => e.patient_id === id);
-      
-      setExams(examsData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      setConsultations((consultationsData as Consultation[]).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      setMealPlans((mealPlansData as MealPlan[]).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      setExams((examsData as LabExam[]).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
 
       toast.success('Informações carregadas com sucesso!', { id: toastId });
     } catch (error) {

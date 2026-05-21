@@ -1,21 +1,14 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { Layout } from './components/Layout';
+import { PageLoader } from './components/PageLoader';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { Landing } from './pages/Landing';
-import { Dashboard } from './pages/Dashboard';
-import { Patients } from './pages/Patients';
-import { PatientProfile } from './pages/PatientProfile';
-import { Schedule } from './pages/Schedule';
-import { Settings } from './pages/Settings';
-import { Financial } from './pages/Financial';
-import { AdminDashboard } from './pages/AdminDashboard';
 import { PatientAccess } from './pages/PatientAccess';
 import { SubscriptionSuccess } from './pages/SubscriptionSuccess';
-import { MealPlanEdit } from './pages/MealPlanEdit';
 import { Privacidade } from './pages/Privacidade';
 import { Termos } from './pages/Termos';
 import { Cookies } from './pages/Cookies';
@@ -26,10 +19,22 @@ import { ThemeProvider } from './components/theme-provider';
 import { InactivityWarningModal } from './components/InactivityWarningModal';
 import { TutorialProvider } from './contexts/TutorialContext';
 import { TutorialModal } from './components/TutorialModal';
+import { CookieConsentProvider } from './contexts/CookieConsentContext';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
+
+const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const Patients = lazy(() => import('./pages/Patients').then(m => ({ default: m.Patients })));
+const PatientProfile = lazy(() => import('./pages/PatientProfile').then(m => ({ default: m.PatientProfile })));
+const MealPlanEdit = lazy(() => import('./pages/MealPlanEdit').then(m => ({ default: m.MealPlanEdit })));
+const Schedule = lazy(() => import('./pages/Schedule').then(m => ({ default: m.Schedule })));
+const Financial = lazy(() => import('./pages/Financial').then(m => ({ default: m.Financial })));
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 
 export default function App() {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <CookieConsentProvider>
       <AuthProvider>
         <TutorialProvider>
         <TooltipProvider>
@@ -61,11 +66,13 @@ export default function App() {
 
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
+              <CookieConsentBanner />
               <Toaster position="top-right" />
             </BrowserRouter>
         </TooltipProvider>
         </TutorialProvider>
       </AuthProvider>
+      </CookieConsentProvider>
     </ThemeProvider>
   );
 }

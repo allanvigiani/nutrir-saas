@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { toast } from 'sonner';
-import { doc, updateDoc, getDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { logEvent } from '../lib/firebase';
+import { apiRequest } from './useApi';
 
 const PENDING_PAYMENT_KEY = 'nutrir_pending_payment';
 
@@ -84,15 +84,14 @@ export const useSubscription = () => {
       }
 
       if (data.plan) {
-        // Atualiza o Firestore com os dados reais do Asaas
+        // Atualiza a tabela subscriptions com os dados reais do Asaas
         const updateData: any = {
           plan: data.plan,
-          subscriptionId: data.subscriptionId || null,
-          subscriptionStatus: data.subscriptionStatus || null,
+          asaasSubscriptionId: data.subscriptionId || null,
+          asaasStatus: data.subscriptionStatus || null,
           cancelAtPeriodEnd: data.cancelAtPeriodEnd || false,
           currentPeriodEnd: data.currentPeriodEnd || null,
-          lastSubscriptionCheck: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          lastCheckedAt: new Date().toISOString(),
         };
 
         // Se for a primeira vez que identificamos uma assinatura, salva a data de criação
@@ -100,7 +99,7 @@ export const useSubscription = () => {
           updateData.firstSubscriptionDate = data.subscriptionCreatedAt;
         }
 
-        await updateDoc(doc(db, 'nutritionists', user.uid), updateData);
+        await apiRequest('/api/subscription', 'PUT', updateData);
 
         if (!silent) {
           if (data.plan === 'premium') {
@@ -135,8 +134,7 @@ export const useSubscription = () => {
     try {
       const token = await user.getIdToken();
       // Busca dados do nutricionista para ter o CPF/CNPJ se disponível
-      const nutritionistDoc = await getDoc(doc(db, 'nutritionists', user.uid));
-      const nutritionistData = nutritionistDoc.data();
+      const nutritionistData = await apiRequest<any>('/api/me', 'GET');
       const cpfCnpj = nutritionistData?.cpf || nutritionistData?.cnpj || nutritionistData?.cpfCnpj;
 
       if (!cpfCnpj) {
@@ -176,6 +174,7 @@ export const useSubscription = () => {
       if (session.url) {
         console.log("Redirecionando para:", session.url);
         // Marca pagamento pendente — ao voltar para a aba, verifica automaticamente
+        void logEvent('inicio_upgrade_premium');
         localStorage.setItem(PENDING_PAYMENT_KEY, 'true');
         const checkoutWindow = window.open(session.url, '_blank');
 
@@ -220,13 +219,12 @@ export const useSubscription = () => {
         // Se houve reembolso, remove o acesso imediatamente
         // Se NÃO houve reembolso, mantém o acesso até o fim do período (cancelAtPeriodEnd)
         const updateData: any = {
-          subscriptionStatus: 'cancelled',
-          updatedAt: new Date().toISOString(),
+          asaasStatus: 'cancelled',
         };
 
         if (data.refunded) {
           updateData.plan = 'free';
-          updateData.subscriptionId = null;
+          updateData.asaasSubscriptionId = null;
           updateData.currentPeriodEnd = null;
           updateData.hadRefundBefore = true;
           toast.success('Assinatura cancelada e reembolso solicitado!', { id: toastId });
@@ -235,7 +233,7 @@ export const useSubscription = () => {
           toast.success('Assinatura cancelada! Você manterá o acesso Premium até o final do período atual.', { id: toastId });
         }
 
-        await updateDoc(doc(db, 'nutritionists', user.uid), updateData);
+        await apiRequest('/api/subscription', 'PUT', updateData);
       } else {
         throw new Error(data.error || 'Erro ao processar cancelamento.');
       }

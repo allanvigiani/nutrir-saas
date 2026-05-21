@@ -1,0 +1,270 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Nutritionist {
+  id                      String    @id
+  name                    String
+  email                   String    @unique
+  crn                     String?
+  cpf                     String?
+  cnpj                    String?
+  cpfHash                 String? @unique
+  cnpjHash                String? @unique
+  phone                   String?
+  specialties             String[]
+  photoUrl                String?
+  role                    String    @default("nutritionist")
+  plan                    String    @default("free")
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  lastLogin               DateTime?
+  googleCalendarTokens    Json?
+  googleCalendarConnected Boolean?
+  hasSeenTutorial         Boolean?
+  welcomeEmailSentAt      DateTime?
+  planOverridedByAdmin    Boolean   @default(false)
+  gracePeriodEndAt        DateTime?
+
+  patients     Patient[]
+  appointments Appointment[]
+  payments     Payment[]
+  customFoods  CustomFood[]
+  subscription Subscription?
+
+  @@map("nutritionists")
+}
+
+model Subscription {
+  id                    String       @id @default(cuid())
+  nutritionistId        String       @unique
+  nutritionist          Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  plan                  String       @default("free")
+  asaasSubscriptionId   String?
+  asaasStatus           String?
+  cancelAtPeriodEnd     Boolean      @default(false)
+  currentPeriodEnd      DateTime?
+  firstSubscriptionDate DateTime?
+  hadRefundBefore       Boolean      @default(false)
+  lastCheckedAt         DateTime?
+  updatedAt             DateTime     @updatedAt
+
+  @@map("subscriptions")
+}
+
+model Patient {
+  id             String       @id @default(cuid())
+  nutritionistId String
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  name           String
+  birthDate      String
+  gender         String
+  cpf            String
+  phone          String
+  email          String
+  address        String
+  objective      String
+  activityLevel  String
+  diseases       String?
+  medications    String?
+  allergies      String?
+  photoUrl       String?
+  status         String       @default("active")
+  accessToken    String?
+  uid            String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+
+  consultations Consultation[]
+  mealPlans     MealPlan[]
+  labExams      LabExam[]
+  appointments  Appointment[]
+  calculations  NutritionCalculation[]
+
+  @@map("patients")
+}
+
+model Consultation {
+  id             String   @id @default(cuid())
+  patientId      String
+  patient        Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  nutritionistId String
+  date           String
+  weight         Float
+  height         Float
+  imc            Float
+  fatPercentage  Float?
+  waist          Float?
+  hip            Float?
+  abdomen        Float?
+  arm            Float?
+  anamnesis      String
+  observations   String?
+  complaints     String?
+  objectives     String?
+  status         String
+  accessToken    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  calculations NutritionCalculation[]
+
+  @@map("consultations")
+}
+
+model MealPlan {
+  id                  String   @id @default(cuid())
+  patientId           String
+  patient             Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  nutritionistId      String
+  name                String
+  generalInstructions String?
+  waterIntake         String?
+  mealObservations    Json?
+  status              String   @default("active")
+  accessToken         String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  deletedAt           DateTime?
+
+  items MealPlanItem[]
+
+  @@map("meal_plans")
+}
+
+model MealPlanItem {
+  id             String   @id @default(cuid())
+  mealPlanId     String
+  mealPlan       MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  nutritionistId String
+  meal           String
+  food           String
+  quantity       String
+  unit           String
+  kcal           Float?
+  protein        Float?
+  carbs          Float?
+  fat            Float?
+  baseKcal       Float?
+  baseProtein    Float?
+  baseCarbs      Float?
+  baseFat        Float?
+  baseQuantity   Float?
+  servingName    String?
+  servingWeight  Float?
+
+  @@map("meal_plan_items")
+}
+
+model LabExam {
+  id             String   @id @default(cuid())
+  patientId      String
+  patient        Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  nutritionistId String
+  date           String
+  title          String
+  observations   String?
+  markers        Json
+  reportUrl      String?
+  accessToken    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  @@map("lab_exams")
+}
+
+model Appointment {
+  id             String       @id @default(cuid())
+  patientId      String
+  patient        Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  nutritionistId String
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  date           DateTime
+  status         String
+  googleEventId  String?
+  meetLink       String?
+  accessToken    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+
+  @@map("appointments")
+}
+
+model Payment {
+  id             String       @id @default(cuid())
+  patientId      String
+  nutritionistId String
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  amount         Float
+  date           DateTime
+  method         String
+  status         String
+  description    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+
+  @@map("payments")
+}
+
+model NutritionCalculation {
+  id             String        @id @default(cuid())
+  patientId      String
+  patient        Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  consultationId String?
+  consultation   Consultation? @relation(fields: [consultationId], references: [id])
+  nutritionistId String
+  name           String
+  input          Json
+  result         Json
+  createdAt      DateTime      @default(now())
+  deletedAt      DateTime?
+
+  @@map("nutrition_calculations")
+}
+
+model CustomFood {
+  id             String       @id @default(cuid())
+  nutritionistId String
+  nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
+  name           String
+  kcal           Float
+  protein        Float
+  carbs          Float
+  fat            Float
+  baseUnit       String
+  baseQuantity   Float
+  serving        Json?
+  deletedAt      DateTime?
+
+  @@map("custom_foods")
+}
+
+model GlobalSettings {
+  id   String @id @default("global")
+  data Json
+
+  @@map("settings")
+}
+
+model AdminAuditLog {
+  id             String   @id @default(cuid())
+  adminId        String
+  adminEmail     String
+  action         String
+  targetId       String?
+  targetEmail    String?
+  previousValue  String?
+  newValue       String?
+  createdAt      DateTime @default(now())
+
+  @@map("admin_audit_logs")
+}

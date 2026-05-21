@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom';
+import { useCookieConsent } from '../contexts/CookieConsentContext';
 
 export function LandingFooter() {
   const navigate = useNavigate();
+  const { resetConsent } = useCookieConsent();
 
   return (
     <footer className="border-t bg-muted/30 py-12 px-4 sm:px-6 lg:px-8">
@@ -14,9 +16,8 @@ export function LandingFooter() {
               </div>
               <span className="font-bold">Nutrir</span>
             </div>
-            <p className="text-sm text-muted-foreground">Transformando a nutrição em resultados desde 2024.</p>
+            <p className="text-sm text-muted-foreground">Transformando a nutrição em resultados desde 2025.</p>
           </div>
-
           <div>
             <h4 className="font-semibold mb-4">Produto</h4>
             <ul className="space-y-2 text-sm text-muted-foreground">

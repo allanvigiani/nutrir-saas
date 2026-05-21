@@ -1,6 +1,6 @@
-import type { FirestoreHelpers } from "../types.ts";
+import { getDb } from "../lib/rls-context.ts";
 
-type GoogleCalendarServiceInput = FirestoreHelpers & {
+type GoogleCalendarServiceInput = {
   google: any;
   googleClientId: string;
   googleClientSecret: string;
@@ -10,9 +10,6 @@ export function createGoogleCalendarService({
   google,
   googleClientId,
   googleClientSecret,
-  getDocWithFallback,
-  updateDocWithFallback,
-  queryWithFallback,
 }: GoogleCalendarServiceInput) {
   function getAuthUrl(origin: string) {
     const scopes = (process.env.GOOGLE_OAUTH_SCOPES || "")
@@ -46,56 +43,61 @@ export function createGoogleCalendarService({
     const email = userInfo.data.email;
     if (!email) throw new Error("Could not get user email from Google");
 
-    const snapshot = await queryWithFallback("nutritionists", "email", "==", email);
-    if (snapshot.empty) {
-      return { found: false, email };
-    }
+    const nutritionist = await getDb().nutritionist.findFirst({ where: { email } });
+    if (!nutritionist) return { found: false, email };
 
-    const nutritionistDoc = snapshot.docs[0];
-    await updateDocWithFallback("nutritionists", nutritionistDoc.id, {
-      googleCalendarTokens: tokens,
-      googleCalendarConnected: true,
-      updatedAt: new Date().toISOString(),
+    await getDb().nutritionist.update({
+      where: { id: nutritionist.id },
+      data: {
+        googleCalendarTokens: tokens,
+        googleCalendarConnected: true,
+        updatedAt: new Date(),
+      },
     });
 
     return { found: true, email };
   }
 
   async function createCalendarEvent(params: { appointmentId: string; nutritionistId: string }) {
-    const nutritionist = await getDocWithFallback("nutritionists", params.nutritionistId);
-    const nutritionistData = nutritionist?.data;
-    if (!nutritionistData?.googleCalendarTokens) throw new Error("Google Calendar not connected");
+    const nutritionist = await getDb().nutritionist.findUnique({
+      where: { id: params.nutritionistId },
+    });
+    if (!nutritionist?.googleCalendarTokens) throw new Error("Google Calendar not connected");
 
-    const appointment = await getDocWithFallback("appointments", params.appointmentId);
-    const appointmentData = appointment?.data;
-    if (!appointmentData) throw new Error("Appointment not found");
+    const appointment = await getDb().appointment.findUnique({
+      where: { id: params.appointmentId },
+      include: { patient: true },
+    });
+    if (!appointment) throw new Error("Appointment not found");
 
-    const patient = await getDocWithFallback("patients", appointmentData.patient_id);
-    const patientData = patient?.data;
+    const patient = appointment.patient;
 
     const oauthClient = new google.auth.OAuth2(googleClientId, googleClientSecret);
-    oauthClient.setCredentials(nutritionistData.googleCalendarTokens);
+    oauthClient.setCredentials(nutritionist.googleCalendarTokens);
 
     oauthClient.on("tokens", async (tokens: any) => {
       if (tokens.refresh_token) {
-        await updateDocWithFallback("nutritionists", params.nutritionistId, {
-          googleCalendarTokens: { ...nutritionistData.googleCalendarTokens, ...tokens },
+        await getDb().nutritionist.update({
+          where: { id: params.nutritionistId },
+          data: {
+            googleCalendarTokens: { ...(nutritionist.googleCalendarTokens as object), ...tokens },
+          },
         });
       }
     });
 
     const calendar = google.calendar({ version: "v3", auth: oauthClient });
-    const startTime = new Date(appointmentData.date);
+    const startTime = new Date(appointment.date);
     const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
 
     const response = await calendar.events.insert({
       calendarId: "primary",
       requestBody: {
-        summary: `Consulta Nutricional - ${patientData?.name || "Paciente"}`,
-        description: `Consulta agendada via Nutrir App.\nPaciente: ${patientData?.name}\nE-mail: ${patientData?.email || "Não informado"}`,
+        summary: `Consulta Nutricional - ${patient?.name || "Paciente"}`,
+        description: `Consulta agendada via Nutrir App.\nPaciente: ${patient?.name}\nE-mail: ${patient?.email || "Não informado"}`,
         start: { dateTime: startTime.toISOString(), timeZone: "America/Sao_Paulo" },
         end: { dateTime: endTime.toISOString(), timeZone: "America/Sao_Paulo" },
-        attendees: patientData?.email ? [{ email: patientData.email }] : [],
+        attendees: patient?.email ? [{ email: patient.email }] : [],
         conferenceData: {
           createRequest: {
             requestId: `nutrir-${params.appointmentId}`,
@@ -106,10 +108,13 @@ export function createGoogleCalendarService({
       conferenceDataVersion: 1,
     });
 
-    await updateDocWithFallback("appointments", params.appointmentId, {
-      googleEventId: response.data.id,
-      meetLink: response.data.hangoutLink,
-      updatedAt: new Date().toISOString(),
+    await getDb().appointment.update({
+      where: { id: params.appointmentId },
+      data: {
+        googleEventId: response.data.id,
+        meetLink: response.data.hangoutLink,
+        updatedAt: new Date(),
+      },
     });
 
     return {

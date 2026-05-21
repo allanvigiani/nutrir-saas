@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  Calendar as CalendarIcon, 
-  Plus, 
-  Clock, 
-  User, 
+import {
+  Calendar as CalendarIcon,
+  Plus,
+  Clock,
+  User,
   MoreVertical,
   CheckCircle2,
   XCircle,
@@ -12,55 +12,54 @@ import {
   Trash2,
   Edit
 } from 'lucide-react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
+import {
+  Card,
+  CardContent,
+  CardHeader,
   CardTitle,
   CardDescription
 } from '../components/ui/card';
 import { Button, buttonVariants } from '../components/ui/button';
 import { Calendar } from '../components/ui/calendar';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
   DialogFooter
 } from '../components/ui/dialog';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import { Input } from '../components/ui/input';
-import { 
-  Tabs, 
-  TabsContent, 
-  TabsList, 
-  TabsTrigger 
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
 } from '../components/ui/tabs';
 import { useAuth } from '../contexts/AuthContext';
-import { collection, query, where, getDocs, addDoc, orderBy, updateDoc, doc, onSnapshot, deleteDoc } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { auth } from '../lib/firebase';
 import { Appointment, Patient } from '../types';
-import { 
-  format, 
-  isSameDay, 
-  parseISO, 
-  startOfMonth, 
-  endOfMonth, 
-  startOfWeek, 
-  endOfWeek, 
-  eachDayOfInterval, 
-  isSameMonth, 
-  isToday, 
-  addMonths, 
+import {
+  format,
+  isSameDay,
+  parseISO,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+  eachDayOfInterval,
+  isSameMonth,
+  isToday,
+  addMonths,
   subMonths,
   addDays,
   isSameHour,
@@ -68,74 +67,28 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
 import { cn } from '../lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { apiRequest } from '../hooks/useApi';
 
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
+// Tipo estendido para incluir o objeto patient retornado pela API
+type AppointmentWithPatient = Appointment & { patient?: { name: string } };
 
 export const Schedule = () => {
   const { user, isAuthReady, nutritionist } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentWithPatient[]>([]);
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<AppointmentWithPatient | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<string | null>(null);
   const [view, setView] = useState<'month' | 'week' | 'day'>('month');
   const [isDateLocked, setIsDateLocked] = useState(false);
-  
+
   // Form states
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [selectedTime, setSelectedTime] = useState('09:00');
@@ -151,57 +104,41 @@ export const Schedule = () => {
     return statuses[status] || status;
   };
 
-  const fetchAppointments = () => {
-    if (!user || !isAuthReady) return;
+  const refetchAppointments = useCallback(async () => {
+    if (!user) return;
     setLoading(true);
-    
-    // Fetch patients first to ensure they are available for the appointments list
-    const patientsQuery = query(
-      collection(db, 'patients'),
-      where('nutritionist_id', '==', user.uid),
-      orderBy('name', 'asc')
-    );
-
-    const unsubPatients = onSnapshot(patientsQuery, (snap) => {
-      setPatients(snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Patient)));
-    }, (error) => {
-      console.error("Error fetching patients:", error);
-      handleFirestoreError(error, OperationType.GET, 'patients');
-    });
-
-    const q = query(
-      collection(db, 'appointments'),
-      where('nutritionist_id', '==', user.uid),
-      orderBy('date', 'asc')
-    );
-    
-    const unsubAppointments = onSnapshot(q, (querySnapshot) => {
-      setAppointments(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Appointment)));
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching schedule data:", error);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/appointments', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setAppointments(await res.json());
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
       toast.error("Erro ao carregar agenda.");
+    } finally {
       setLoading(false);
-      handleFirestoreError(error, OperationType.GET, 'appointments');
-    });
+    }
+  }, [user]);
 
-    return () => {
-      unsubPatients();
-      unsubAppointments();
-    };
-  };
+  const refetchPatients = useCallback(async () => {
+    if (!user) return;
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/patients', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setPatients(await res.json());
+    } catch (error) {
+      console.error("Error fetching patients:", error);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!isAuthReady || !user) return;
-    const unsubscribe = fetchAppointments();
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+    refetchPatients();
+    refetchAppointments();
   }, [user, isAuthReady]);
 
   const handleAddAppointment = async () => {
     if (!user || !selectedDate || !selectedPatientId) return;
-    
+
     try {
       const appointmentDate = new Date(selectedDate);
       const [hours, minutes] = selectedTime.split(':');
@@ -219,25 +156,20 @@ export const Schedule = () => {
           toast.error('Não é possível alterar o agendamento para uma data no passado.');
           return;
         }
-        await updateDoc(doc(db, 'appointments', editingAppointment.id), {
-          patient_id: selectedPatientId,
+        await apiRequest(`/api/appointments/${editingAppointment.id}`, 'PATCH', {
+          patientId: selectedPatientId,
           date: appointmentDate.toISOString(),
           status: selectedStatus,
-          updatedAt: new Date().toISOString(),
         });
         toast.success('Agendamento atualizado com sucesso!');
       } else {
-        const patient = patients.find(p => p.id === selectedPatientId);
-        const docRef = await addDoc(collection(db, 'appointments'), {
-          patient_id: selectedPatientId,
-          nutritionist_id: user.uid,
-          access_token: patient?.access_token || null,
+        const newAppointment = await apiRequest<{ id: string }>('/api/appointments', 'POST', {
+          patientId: selectedPatientId,
           date: appointmentDate.toISOString(),
           status: 'pending',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
         });
-        
+
+        void logEvent('novo_agendamento');
         toast.success('Agendamento realizado com sucesso!');
 
         // Trigger Google Calendar integration if connected
@@ -245,12 +177,12 @@ export const Schedule = () => {
           user.getIdToken().then(token => {
             fetch('/api/create-calendar-event', {
               method: 'POST',
-              headers: { 
+              headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
               },
               body: JSON.stringify({
-                appointmentId: docRef.id,
+                appointmentId: newAppointment.id,
                 nutritionistId: user.uid
               })
             }).then(res => res.json())
@@ -265,7 +197,7 @@ export const Schedule = () => {
 
       setIsModalOpen(false);
       setEditingAppointment(null);
-      fetchAppointments();
+      await refetchAppointments();
     } catch (error) {
       console.error("Error saving appointment:", error);
       toast.error('Erro ao salvar agendamento.');
@@ -275,20 +207,22 @@ export const Schedule = () => {
   const handleDeleteAppointment = async () => {
     if (!appointmentToDelete) return;
     try {
-      await deleteDoc(doc(db, 'appointments', appointmentToDelete));
+      await apiRequest(`/api/appointments/${appointmentToDelete}`, 'DELETE');
       toast.success('Agendamento excluído com sucesso!');
       setIsDeleteModalOpen(false);
       setAppointmentToDelete(null);
-      fetchAppointments();
+      await refetchAppointments();
     } catch (error) {
       console.error("Error deleting appointment:", error);
       toast.error('Erro ao excluir agendamento.');
     }
   };
 
-  const openEditModal = (app: Appointment) => {
+  const openEditModal = (app: AppointmentWithPatient) => {
     setEditingAppointment(app);
-    setSelectedPatientId(app.patient_id);
+    // Suporte tanto ao campo legado patient_id quanto ao novo patientId
+    const patId = app.patient_id || (app as any).patientId || '';
+    setSelectedPatientId(patId);
     setSelectedDate(parseISO(app.date));
     setSelectedTime(format(parseISO(app.date), 'HH:mm'));
     setSelectedStatus(app.status);
@@ -312,20 +246,20 @@ export const Schedule = () => {
 
   const handleUpdateStatus = async (id: string, status: string) => {
     try {
-      await updateDoc(doc(db, 'appointments', id), {
-        status,
-        updatedAt: new Date().toISOString()
-      });
+      await apiRequest(`/api/appointments/${id}`, 'PATCH', { status });
       toast.success('Status atualizado!');
-      fetchAppointments();
+      await refetchAppointments();
     } catch (error) {
       console.error("Error updating appointment:", error);
       toast.error('Erro ao atualizar status.');
     }
   };
 
-  const getPatientName = (id: string) => {
-    return patients.find(p => p.id === id)?.name || 'Paciente não encontrado';
+  const getPatientName = (app: AppointmentWithPatient) => {
+    // Preferir nome incluído na resposta da API, senão buscar na lista local
+    if (app.patient?.name) return app.patient.name;
+    const patId = app.patient_id || (app as any).patientId || '';
+    return patients.find(p => p.id === patId)?.name || 'Paciente não encontrado';
   };
 
   const nextMonth = () => setCurrentDate(addMonths(currentDate, 1));
@@ -358,20 +292,20 @@ export const Schedule = () => {
         <div className="flex items-center gap-4">
           <Tabs value={view} onValueChange={(val: any) => setView(val)} className="w-auto">
             <TabsList className="flex items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto overflow-x-auto">
-              <TabsTrigger 
-                value="month" 
+              <TabsTrigger
+                value="month"
                 className="relative gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap text-sm font-medium"
               >
                 Mês
               </TabsTrigger>
-              <TabsTrigger 
-                value="week" 
+              <TabsTrigger
+                value="week"
                 className="relative gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap text-sm font-medium"
               >
                 Semana
               </TabsTrigger>
-              <TabsTrigger 
-                value="day" 
+              <TabsTrigger
+                value="day"
                 className="relative gap-2 px-4 py-3 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap text-sm font-medium"
               >
                 Dia
@@ -383,13 +317,13 @@ export const Schedule = () => {
             setIsModalOpen(open);
             if (!open) setEditingAppointment(null);
           }}>
-            <DialogTrigger 
+            <DialogTrigger
               render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" onClick={() => openNewModal()} />}
               nativeButton={true}
             >
               <Plus className="w-4 h-4" /> Novo Agendamento
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[700px]">
+            <DialogContent className="sm:max-w-xl rounded-2xl">
               <DialogHeader>
                 <DialogTitle>{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
                 <DialogDescription>
@@ -397,10 +331,10 @@ export const Schedule = () => {
                 </DialogDescription>
               </DialogHeader>
               <div key={editingAppointment?.id || 'new'} className="space-y-4 py-4">
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label>Paciente</Label>
                   <Select value={selectedPatientId} onValueChange={setSelectedPatientId} disabled={!!editingAppointment}>
-                    <SelectTrigger className="rounded-xl border-border h-11 bg-card w-full">
+                    <SelectTrigger className="bg-muted/30 rounded-lg w-full">
                       <SelectValue placeholder="Selecione o paciente">
                         {selectedPatientId ? (
                           <div className="flex items-center">
@@ -436,9 +370,9 @@ export const Schedule = () => {
                         {selectedDate ? format(selectedDate, 'dd/MM/yyyy') : 'Selecione no calendário'}
                       </div>
                     ) : (
-                      <Input 
-                        type="date" 
-                        className="rounded-xl border-border"
+                      <Input
+                        type="date"
+                        className="bg-muted/30 rounded-lg"
                         value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
                         onChange={(e) => {
                           const newDate = parseISO(e.target.value);
@@ -453,10 +387,11 @@ export const Schedule = () => {
                   </div>
                   <div className="space-y-2">
                     <Label>Horário</Label>
-                    <Input 
-                      type="time" 
-                      value={selectedTime} 
-                      onChange={(e) => setSelectedTime(e.target.value)} 
+                    <Input
+                      type="time"
+                      className="bg-muted/30 rounded-lg"
+                      value={selectedTime}
+                      onChange={(e) => setSelectedTime(e.target.value)}
                     />
                   </div>
                 </div>
@@ -466,9 +401,9 @@ export const Schedule = () => {
                     <Select value={selectedStatus} onValueChange={(val: any) => setSelectedStatus(val)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione o status">
-                          {selectedStatus === 'pending' ? 'Pendente' : 
-                           selectedStatus === 'confirmed' ? 'Confirmado' : 
-                           selectedStatus === 'realized' ? 'Realizado' : 
+                          {selectedStatus === 'pending' ? 'Pendente' :
+                           selectedStatus === 'confirmed' ? 'Confirmado' :
+                           selectedStatus === 'realized' ? 'Realizado' :
                            selectedStatus === 'cancelled' ? 'Cancelado' : undefined}
                         </SelectValue>
                       </SelectTrigger>
@@ -492,9 +427,9 @@ export const Schedule = () => {
                       </div>
                       <div>
                         <p className="text-xs font-bold text-secondary-foreground">Google Meet Gerado</p>
-                        <a 
-                          href={editingAppointment.meetLink} 
-                          target="_blank" 
+                        <a
+                          href={editingAppointment.meetLink}
+                          target="_blank"
                           rel="noopener noreferrer"
                           className="text-sm text-primary hover:underline break-all font-medium"
                         >
@@ -502,9 +437,9 @@ export const Schedule = () => {
                         </a>
                       </div>
                     </div>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="bg-card border-primary/30 text-primary hover:bg-primary/15 shrink-0"
                       onClick={() => {
                         navigator.clipboard.writeText(editingAppointment.meetLink!);
@@ -518,8 +453,8 @@ export const Schedule = () => {
               </div>
               <DialogFooter className="flex justify-between items-center">
                 {editingAppointment && (
-                  <Button 
-                    variant="destructive" 
+                  <Button
+                    variant="destructive"
                     onClick={() => {
                       setAppointmentToDelete(editingAppointment.id);
                       setIsDeleteModalOpen(true);
@@ -532,7 +467,7 @@ export const Schedule = () => {
                 )}
                 <div className="flex gap-2">
                   {editingAppointment && (
-                    <Button nativeButton={false} variant="outline" className="gap-2" render={<Link to={`/patients/${editingAppointment.patient_id}?edit=true`} />}>
+                    <Button nativeButton={false} variant="outline" className="gap-2" render={<Link to={`/patients/${editingAppointment.patient_id || (editingAppointment as any).patientId}?edit=true`} />}>
                       <Edit className="w-4 h-4" /> Editar Paciente
                     </Button>
                   )}
@@ -546,7 +481,7 @@ export const Schedule = () => {
           </Dialog>
 
           <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-            <DialogContent className="sm:max-w-[380px] p-6">
+            <DialogContent className="sm:max-w-sm p-6 rounded-2xl">
               <DialogHeader className="space-y-3">
                 <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-2">
                   <Trash2 className="w-6 h-6 text-red-600" />
@@ -596,10 +531,10 @@ export const Schedule = () => {
                 const dayAppointments = appointments.filter(app => isSameDay(parseISO(app.date), day));
                 const isCurrentMonth = isSameMonth(day, currentDate);
                 const isPast = !isToday(day) && day < new Date();
-                
+
                 return (
-                  <div 
-                    key={idx} 
+                  <div
+                    key={idx}
                     className={cn(
                       "min-h-[120px] p-2 border-r border-b border-border transition-colors",
                       !isCurrentMonth && "bg-muted/30/30 text-muted-foreground",
@@ -623,8 +558,8 @@ export const Schedule = () => {
                     </div>
                     <div className="space-y-1">
                       {dayAppointments.slice(0, 3).map(app => (
-                        <div 
-                          key={app.id} 
+                        <div
+                          key={app.id}
                           className={cn(
                             "text-[10px] p-1 rounded border truncate",
                             app.status === 'confirmed' ? "bg-blue-50 border-blue-100 text-blue-700" :
@@ -638,7 +573,7 @@ export const Schedule = () => {
                           }}
                         >
                           <span className="font-bold mr-1">{format(parseISO(app.date), 'HH:mm')}</span>
-                          {getPatientName(app.patient_id)}
+                          {getPatientName(app)}
                         </div>
                       ))}
                       {dayAppointments.length > 3 && (
@@ -698,9 +633,9 @@ export const Schedule = () => {
                         const hour = appDate.getHours();
                         const minutes = appDate.getMinutes();
                         const top = (hour - 7) * 80 + (minutes / 60) * 80;
-                        
+
                         return (
-                          <div 
+                          <div
                             key={app.id}
                             className={cn(
                               "absolute left-1 right-1 p-1 rounded border text-[10px] overflow-hidden z-0 cursor-pointer hover:brightness-95 transition-all",
@@ -716,7 +651,7 @@ export const Schedule = () => {
                             }}
                           >
                             <div className="font-bold">{format(appDate, 'HH:mm')}</div>
-                            <div className="truncate">{getPatientName(app.patient_id)}</div>
+                            <div className="truncate">{getPatientName(app)}</div>
                           </div>
                         );
                       })}
@@ -762,9 +697,9 @@ export const Schedule = () => {
                       const hour = appDate.getHours();
                       const minutes = appDate.getMinutes();
                       const top = (hour - 7) * 80 + (minutes / 60) * 80;
-                      
+
                       return (
-                        <div 
+                        <div
                           key={app.id}
                           className={cn(
                             "absolute left-2 right-2 p-2 rounded border text-xs overflow-hidden z-0 cursor-pointer hover:brightness-95 transition-all",
@@ -780,7 +715,7 @@ export const Schedule = () => {
                           }}
                         >
                           <div className="font-bold">{format(appDate, 'HH:mm')}</div>
-                          <div className="font-medium">{getPatientName(app.patient_id)}</div>
+                          <div className="font-medium">{getPatientName(app)}</div>
                           <div className="text-[10px] opacity-70">Status: {translateStatus(app.status)}</div>
                           {app.meetLink && (
                             <div className="mt-1 flex items-center gap-1 text-[10px] text-primary font-bold">
@@ -800,4 +735,3 @@ export const Schedule = () => {
     </div>
   );
 };
-

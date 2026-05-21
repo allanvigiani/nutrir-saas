@@ -1,23 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  getDocs, 
-  query, 
-  where,
-  addDoc,
-  updateDoc,
-  serverTimestamp,
-  deleteDoc,
-  writeBatch
-} from 'firebase/firestore';
-import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 import { Patient, MealPlan, MealPlanItem, NutritionCalculation } from '../types';
 import { MealPlanEditor } from '../components/MealPlanEditor';
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
+import { apiRequest } from '../hooks/useApi';
 import { Loader2 } from 'lucide-react';
 
 export function MealPlanEdit() {
@@ -41,11 +29,11 @@ export function MealPlanEdit() {
 
       try {
         setLoading(true);
-        
+
         // Fetch Patient
-        const patientDoc = await getDoc(doc(db, 'patients', patientId));
-        if (patientDoc.exists()) {
-          setPatient({ id: patientDoc.id, ...patientDoc.data() } as Patient);
+        const patientData = await apiRequest<Patient>(`/api/patients/${patientId}`, 'GET');
+        if (patientData) {
+          setPatient(patientData);
         } else {
           toast.error("Paciente não encontrado.");
           navigate('/patients');
@@ -54,19 +42,11 @@ export function MealPlanEdit() {
 
         // If editing, fetch Meal Plan and Items
         if (planId && planId !== 'new') {
-          const planDoc = await getDoc(doc(db, 'meal_plans', planId));
-          if (planDoc.exists()) {
-            const planData = { id: planDoc.id, ...planDoc.data() } as MealPlan;
-            setMealPlan(planData);
-
-            // Fetch Items
-            const itemsQuery = query(
-              collection(db, 'meal_plan_items'),
-              where('meal_plan_id', '==', planId)
-            );
-            const itemsSnapshot = await getDocs(itemsQuery);
-            const items = itemsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setMealItems(items);
+          const planData = await apiRequest<MealPlan & { items: any[] }>(`/api/meal-plans/${planId}`, 'GET');
+          if (planData) {
+            const { items, ...plan } = planData;
+            setMealPlan(plan as MealPlan);
+            setMealItems(items || []);
           }
         } else if (stateCalculation) {
           setCalculation(stateCalculation);
@@ -94,12 +74,7 @@ export function MealPlanEdit() {
     if (!user || !patientId) return;
 
     try {
-      const batch = writeBatch(db);
-      let currentPlanId = planId;
-
-      const planData = {
-        patient_id: patientId,
-        nutritionist_id: user.uid,
+      const planPayload = {
         name: data.name || '',
         generalInstructions: data.generalInstructions || '',
         waterIntake: data.waterIntake || '',
@@ -111,51 +86,30 @@ export function MealPlanEdit() {
         })),
         consultation_id: stateCalculation?.consultation_id || location.state?.consultationId || mealPlan?.consultation_id || null,
         calculation_id: stateCalculation?.id || mealPlan?.calculation_id || null,
-        updatedAt: serverTimestamp(),
       };
 
-      if (planId && planId !== 'new') {
-        // Update existing plan
-        const planRef = doc(db, 'meal_plans', planId);
-        batch.update(planRef, planData);
-
-        // Delete old items
-        const oldItemsQuery = query(collection(db, 'meal_plan_items'), where('meal_plan_id', '==', planId));
-        const oldItemsSnapshot = await getDocs(oldItemsQuery);
-        oldItemsSnapshot.docs.forEach(doc => batch.delete(doc.ref));
-      } else {
-        // Create new plan
-        const plansCol = collection(db, 'meal_plans');
-        const newPlanRef = doc(plansCol);
-        currentPlanId = newPlanRef.id;
-        batch.set(newPlanRef, {
-          ...planData,
-          createdAt: serverTimestamp(),
-        });
-      }
-
-      // Add new items
-      data.items.forEach(item => {
-        const itemRef = doc(collection(db, 'meal_plan_items'));
-        
-        // Remove undefined fields and the 'id' field if it exists
-        const { id, ...cleanItem } = item;
-        Object.keys(cleanItem).forEach(key => {
-          if (cleanItem[key] === undefined) {
-            cleanItem[key] = null;
-          }
-        });
-
-        batch.set(itemRef, {
-          ...cleanItem,
-          meal_plan_id: currentPlanId,
-          patient_id: patientId,
-          nutritionist_id: user.uid,
-          createdAt: serverTimestamp()
-        });
+      const cleanItems = data.items.map(({ id: _id, ...item }: any) => {
+        const clean: Record<string, any> = {};
+        Object.entries(item).forEach(([k, v]) => { clean[k] = v === undefined ? null : v; });
+        return clean;
       });
 
-      await batch.commit();
+      let currentPlanId: string | undefined = planId;
+
+      if (planId && planId !== 'new') {
+        // Update existing plan metadata, then replace items atomically
+        await apiRequest(`/api/meal-plans/${planId}`, 'PATCH', planPayload);
+        await apiRequest(`/api/meal-plans/${planId}/items`, 'PUT', cleanItems);
+      } else {
+        // Create new plan
+        const created = await apiRequest<{ id: string }>(`/api/patients/${patientId}/meal-plans`, 'POST', planPayload);
+        currentPlanId = created?.id;
+        if (currentPlanId) {
+          await apiRequest(`/api/meal-plans/${currentPlanId}/items`, 'PUT', cleanItems);
+        }
+      }
+
+      void logEvent(planId && planId !== 'new' ? 'plano_alimentar_atualizado' : 'novo_plano_alimentar');
       toast.success(planId && planId !== 'new' ? "Plano alimentar atualizado!" : "Plano alimentar criado!");
       navigate(`/patients/${patientId}`);
     } catch (error) {

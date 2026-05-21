@@ -1,4 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// Mock rls-context para que withAdminRLS execute o callback diretamente
+// (sem transação Prisma real) nos testes unitários do controller.
+vi.mock('../../server/lib/rls-context.ts', () => ({
+  withAdminRLS: (fn: () => Promise<any>) => fn(),
+  withNutritionistRLS: (_id: string, fn: () => Promise<any>) => fn(),
+  withPatientRLS: (_id: string, fn: () => Promise<any>) => fn(),
+  withPortalAuth: async (_id: string, _token: string, fn: (p: any) => Promise<any>) => fn({ id: _id }),
+  getDb: () => ({}),
+}));
+
 import { createAsaasController } from '../../server/controllers/asaas.controller.ts';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

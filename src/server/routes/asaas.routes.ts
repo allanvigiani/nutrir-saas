@@ -9,12 +9,7 @@ export function registerAsaasRoutes(deps: BaseRouteDeps & AsaasConfig) {
     asaasApiKey: deps.asaasApiKey,
   });
 
-  const asaasService = createAsaasService({
-    asaasClient,
-    getDocWithFallback: deps.getDocWithFallback,
-    updateDocWithFallback: deps.updateDocWithFallback,
-    queryWithFallback: deps.queryWithFallback,
-  });
+  const asaasService = createAsaasService({ asaasClient });
 
   const controller = createAsaasController({
     isSuperAdmin: deps.isSuperAdmin,

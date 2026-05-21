@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, signOut, User } from 'firebase/auth';
-import { auth, db } from '../lib/firebase';
-import { doc, onSnapshot, updateDoc, getDocFromServer } from 'firebase/firestore';
+import { auth } from '../lib/firebase';
 import { Nutritionist } from '../types';
 
 const SESSION_KEY = 'nutrir_session_start';
@@ -28,7 +27,7 @@ export function recordSessionStart() {
 
 function isSessionExpired(): boolean {
   const raw = localStorage.getItem(SESSION_KEY);
-  if (!raw) return true;
+  if (!raw) return false; // sem chave = login novo, não expirado
   return Date.now() - parseInt(raw, 10) > SESSION_MAX_MS;
 }
 
@@ -45,6 +44,7 @@ interface AuthContextType {
   showInactivityWarning: boolean;
   dismissInactivityWarning: () => void;
   confirmSignOut: () => void;
+  reloadNutritionist: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -55,6 +55,7 @@ const AuthContext = createContext<AuthContextType>({
   showInactivityWarning: false,
   dismissInactivityWarning: () => {},
   confirmSignOut: () => {},
+  reloadNutritionist: async () => {},
 });
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -74,26 +75,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     forceSignOut();
   }
 
+  const reloadNutritionist = async () => {
+    const firebaseUser = auth.currentUser;
+    if (!firebaseUser) return;
+    try {
+      const token = await firebaseUser.getIdToken();
+      const res = await fetch('/api/me', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setNutritionist(await res.json());
+    } catch (err) {
+      console.error('Error reloading nutritionist:', err);
+    }
+  };
+
   useEffect(() => {
-    const testConnection = async () => {
-      try {
-        await getDocFromServer(doc(db, '_connection_test_', 'ping'));
-      } catch (error: any) {
-        if (error.message?.includes('the client is offline')) {
-          console.error("Please check your Firebase configuration. The client is offline.");
-        }
-      }
-    };
-    testConnection();
-
-    let unsubNutritionist: (() => void) | null = null;
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (unsubNutritionist) {
-        unsubNutritionist();
-        unsubNutritionist = null;
-      }
-
       if (firebaseUser && isSessionExpired()) {
         await forceSignOut();
         setUser(null);
@@ -106,65 +101,80 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(firebaseUser);
 
       if (firebaseUser) {
-        unsubNutritionist = onSnapshot(doc(db, 'nutritionists', firebaseUser.uid), async (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data() as Nutritionist;
-            setNutritionist({ id: docSnap.id, ...data } as Nutritionist);
+      setLoading(true);
+      const loadNutritionist = async () => {
+        try {
+          const token = await firebaseUser.getIdToken();
+          const res = await fetch('/api/me', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setNutritionist(data);
 
-            const lastCheck = (data as any).lastSubscriptionCheck;
+            // Verifica assinatura se já passou 1 hora desde o último check
+            const lastCheck = data.subscription?.lastCheckedAt;
             const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
 
             if (!lastCheck || lastCheck < oneHourAgo) {
-              firebaseUser.getIdToken().then(token => {
-                fetch('/api/verify-subscription', {
+              try {
+                // Marca imediatamente para evitar chamadas duplicadas
+                await fetch('/api/subscription/check', {
                   method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                  },
-                  body: JSON.stringify({ email: firebaseUser.email }),
-                })
-                .then(res => res.json())
-                .then(async (asaasData) => {
-                  const planChanged = asaasData.plan && asaasData.plan !== data.plan;
-                  const cancelStatusChanged = asaasData.cancelAtPeriodEnd !== undefined && asaasData.cancelAtPeriodEnd !== data.cancelAtPeriodEnd;
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                });
 
-                  if (planChanged || cancelStatusChanged) {
-                    await updateDoc(doc(db, 'nutritionists', firebaseUser.uid), {
+                const subRes = await fetch('/api/verify-subscription', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                  body: JSON.stringify({ email: firebaseUser.email }),
+                });
+                const asaasData = await subRes.json();
+
+                const planChanged = asaasData.plan && asaasData.plan !== data.plan;
+                const cancelStatusChanged =
+                  asaasData.cancelAtPeriodEnd !== undefined &&
+                  asaasData.cancelAtPeriodEnd !== data.subscription?.cancelAtPeriodEnd;
+
+                if (planChanged || cancelStatusChanged) {
+                  const patchRes = await fetch('/api/subscription', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+                    body: JSON.stringify({
                       plan: asaasData.plan || 'free',
-                      subscriptionId: asaasData.subscriptionId || null,
-                      subscriptionStatus: asaasData.subscriptionStatus || null,
+                      asaasSubscriptionId: asaasData.subscriptionId || null,
+                      asaasStatus: asaasData.subscriptionStatus || null,
                       cancelAtPeriodEnd: asaasData.cancelAtPeriodEnd || false,
                       currentPeriodEnd: asaasData.currentPeriodEnd || null,
-                      lastSubscriptionCheck: new Date().toISOString(),
-                      updatedAt: new Date().toISOString(),
-                    });
-                  } else {
-                    await updateDoc(doc(db, 'nutritionists', firebaseUser.uid), {
-                      lastSubscriptionCheck: new Date().toISOString()
-                    });
+                    }),
+                  });
+                  if (patchRes.ok) {
+                    const meRes = await fetch('/api/me', { headers: { Authorization: `Bearer ${token}` } });
+                    if (meRes.ok) setNutritionist(await meRes.json());
                   }
-                })
-                .catch(err => console.error("Error in proactive subscription check:", err));
-              }).catch(err => console.error("Error getting token for subscription check:", err));
+                }
+              } catch (err) {
+                console.error('Error in proactive subscription check:', err);
+              }
             }
           } else {
             setNutritionist(null);
           }
-
-          setLoading(false);
-          setIsAuthReady(true);
-        }, (error) => {
-          console.error("Error fetching nutritionist data:", error);
+        } catch (err) {
+          console.error('Error fetching nutritionist data:', err);
           setNutritionist(null);
+        } finally {
           setLoading(false);
           setIsAuthReady(true);
-        });
-      } else {
-        setNutritionist(null);
-        setLoading(false);
-        setIsAuthReady(true);
-      }
+        }
+      };
+
+      loadNutritionist();
+    } else {
+      setNutritionist(null);
+      setLoading(false);
+      setIsAuthReady(true);
+    }
     });
 
     ACTIVITY_EVENTS.forEach(event => window.addEventListener(event, resetActivity, { passive: true }));
@@ -195,7 +205,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       unsubscribe();
-      if (unsubNutritionist) unsubNutritionist();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       clearInterval(sessionCheckInterval);
       ACTIVITY_EVENTS.forEach(event => window.removeEventListener(event, resetActivity));
@@ -211,6 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       showInactivityWarning,
       dismissInactivityWarning,
       confirmSignOut,
+      reloadNutritionist,
     }}>
       {children}
     </AuthContext.Provider>

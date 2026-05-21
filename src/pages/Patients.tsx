@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -44,19 +44,20 @@ import {
 } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import { useAuth } from '../contexts/AuthContext';
-import { FREE_PLAN_LIMITS } from '../lib/planLimits';
-import { collection, query, where, getDocs, addDoc, updateDoc, doc, orderBy, serverTimestamp, onSnapshot, writeBatch } from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
+import { FREE_PLAN_LIMITS, isAdminOrPremium } from '../lib/planLimits';
+import { auth } from '../lib/firebase';
 
 import { Patient } from '../types';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
 import { PremiumFeature } from '../components/PremiumFeature';
 import { PremiumBanner } from '../components/PremiumBanner';
 import { maskCPF, maskPhone } from '../lib/masks';
 import { generateSecureToken } from '../lib/utils';
+import { Skeleton } from '../components/ui/skeleton';
 
 enum OperationType {
   CREATE = 'create',
@@ -134,11 +135,22 @@ type PatientFormValues = z.infer<typeof patientSchema>;
 
 export const Patients = () => {
   const { user, nutritionist, isAuthReady } = useAuth();
-  const isPremium = nutritionist?.plan === 'premium';
+  const isPremium = isAdminOrPremium(nutritionist);
+  const gracePeriodEndAt = nutritionist?.gracePeriodEndAt
+    ? new Date(nutritionist.gracePeriodEndAt)
+    : null;
+  const now = new Date();
+  const isInGracePeriod = !isPremium && gracePeriodEndAt !== null && gracePeriodEndAt > now;
+  const isGracePeriodOver = !isPremium && gracePeriodEndAt !== null && gracePeriodEndAt <= now;
+  const gracePeriodDaysLeft = isInGracePeriod && gracePeriodEndAt
+    ? differenceInDays(gracePeriodEndAt, now)
+    : 0;
   const [patients, setPatients] = useState<Patient[]>([]);
+  const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [isGeneratingToken, setIsGeneratingToken] = useState<string | null>(null);
@@ -190,63 +202,50 @@ export const Patients = () => {
     setIsModalOpen(true);
   };
 
-  const fetchPatients = () => {
-    if (!user || !isAuthReady) return;
+  const refetchPatients = useCallback(async () => {
+    if (!user) return;
     setLoading(true);
-    
-    const q = query(
-      collection(db, 'patients'),
-      where('nutritionist_id', '==', user.uid),
-      orderBy('name', 'asc')
-    );
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const patientsData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Patient));
-      setPatients(patientsData);
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/patients', { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) setPatients(await res.json());
+      else toast.error('Erro ao carregar pacientes.');
+    } catch (err) {
+      console.error('Error loading patients:', err);
+      toast.error('Erro ao carregar pacientes.');
+    } finally {
       setLoading(false);
-    }, (error) => {
-      console.error("Error fetching patients:", error);
-      toast.error("Erro ao carregar pacientes.");
-      setLoading(false);
-      handleFirestoreError(error, OperationType.GET, 'patients');
-    });
-
-    return unsubscribe;
-  };
+    }
+  }, [user]);
 
   useEffect(() => {
     if (!isAuthReady || !user) return;
-    const unsubscribe = fetchPatients();
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [user, isAuthReady]);
+    refetchPatients();
+  }, [refetchPatients, isAuthReady]);
 
-  const togglePatientStatus = async (patient: Patient) => {
-    if (!user) return;
+  // Debounce da busca (300ms)
+  useEffect(() => {
+    const timer = setTimeout(() => setSearchTerm(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
 
-    const newStatus = patient.status === 'active' ? 'inactive' : 'active';
-
-    // If activating, check limit
-    if (newStatus === 'active' && !isPremium) {
-      const activePatients = patients.filter(p => p.status === 'active');
-      const maxPatients = FREE_PLAN_LIMITS.maxPatients;
-      if (activePatients.length >= maxPatients) {
-        toast.error(`O plano gratuito permite apenas ${maxPatients} pacientes ativos.`);
-        return;
-      }
-    }
-
+  const handleDeletePatient = async () => {
+    if (!user || !patientToDelete) return;
+    setIsDeleting(true);
     try {
-      await updateDoc(doc(db, 'patients', patient.id), {
-        status: newStatus,
-        updatedAt: new Date().toISOString()
+      const token = await auth.currentUser?.getIdToken();
+      await fetch(`/api/patients/${patientToDelete.id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
       });
-      toast.success(`Paciente ${newStatus === 'active' ? 'ativado' : 'desativado'} com sucesso!`);
+      toast.success('Paciente excluído com sucesso.');
+      setPatientToDelete(null);
+      await refetchPatients();
     } catch (error) {
-      console.error("Error toggling patient status:", error);
-      toast.error("Erro ao alterar status do paciente.");
-      handleFirestoreError(error, OperationType.UPDATE, 'patients');
+      console.error('Error deleting patient:', error);
+      toast.error('Erro ao excluir paciente.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -264,66 +263,40 @@ export const Patients = () => {
     }
 
     try {
-      // Duplicate check: CPF and Email must be unique for the same nutritionist
-      const patientsRef = collection(db, 'patients');
-      
-      // Check CPF
-      const cpfQuery = query(
-        patientsRef, 
-        where('nutritionist_id', '==', user.uid),
-        where('cpf', '==', data.cpf)
-      );
-      const cpfSnapshot = await getDocs(cpfQuery);
-      const duplicateCpf = cpfSnapshot.docs.find(doc => doc.id !== editingPatient?.id);
-      
-      if (duplicateCpf) {
+      // Verificação de duplicidade local
+      const cpfExists = patients.some(p => p.cpf === data.cpf && p.id !== editingPatient?.id);
+      if (cpfExists) {
         toast.error('Já existe um paciente cadastrado com este CPF.');
         return;
       }
 
-      // Check Email
-      const emailQuery = query(
-        patientsRef, 
-        where('nutritionist_id', '==', user.uid),
-        where('email', '==', data.email)
-      );
-      const emailSnapshot = await getDocs(emailQuery);
-      const duplicateEmail = emailSnapshot.docs.find(doc => doc.id !== editingPatient?.id);
-
-      if (duplicateEmail) {
+      const emailExists = patients.some(p => p.email === data.email && p.id !== editingPatient?.id);
+      if (emailExists) {
         toast.error('Já existe um paciente cadastrado com este E-mail.');
         return;
       }
 
+      const token = await auth.currentUser?.getIdToken();
       if (editingPatient) {
-        try {
-          await updateDoc(doc(db, 'patients', editingPatient.id), {
-            ...data,
-            updatedAt: new Date().toISOString(),
-          });
-          toast.success('Paciente atualizado com sucesso!');
-        } catch (error) {
-          handleFirestoreError(error, OperationType.UPDATE, `patients/${editingPatient.id}`);
-        }
+        await fetch(`/api/patients/${editingPatient.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(data),
+        });
+        toast.success('Paciente atualizado com sucesso!');
       } else {
-        try {
-          const docRef = await addDoc(collection(db, 'patients'), {
-            ...data,
-            nutritionist_id: user.uid,
-            status: 'active',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-          
-          toast.success('Paciente cadastrado com sucesso!');
-        } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, 'patients');
-        }
+        await fetch('/api/patients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify(data),
+        });
+        void logEvent('novo_paciente');
+        toast.success('Paciente cadastrado com sucesso!');
       }
       setIsModalOpen(false);
       setEditingPatient(null);
       reset();
-      fetchPatients();
+      await refetchPatients();
     } catch (error) {
       console.error("Error saving patient:", error);
       toast.error('Erro ao salvar paciente.');
@@ -338,47 +311,15 @@ export const Patients = () => {
       const token = generateSecureToken();
       
       // 1. Atualizar o paciente
-      await updateDoc(doc(db, 'patients', patient.id), {
-        access_token: token,
-        updatedAt: new Date().toISOString()
+      const authToken = await auth.currentUser?.getIdToken();
+      await fetch(`/api/patients/${patient.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ access_token: token }),
       });
 
-      // 2. Propagar o token para registros existentes (Consultas, Planos, Exames, Agendamentos)
-      const collectionsToUpdate = ['consultations', 'meal_plans', 'lab_exams', 'appointments'];
-      let totalUpdated = 0;
-      
-      for (const colName of collectionsToUpdate) {
-        const q = query(collection(db, colName), where('patient_id', '==', patient.id));
-        const snapshot = await getDocs(q);
-        
-        if (!snapshot.empty) {
-          const batch = writeBatch(db);
-          snapshot.docs.forEach((docSnap) => {
-            batch.update(doc(db, colName, docSnap.id), { access_token: token });
-            totalUpdated++;
-          });
-          await batch.commit();
-
-          // Se for plano alimentar, atualizar também os itens
-          if (colName === 'meal_plans') {
-            for (const planDoc of snapshot.docs) {
-              const itemsQ = query(collection(db, 'meal_plan_items'), where('meal_plan_id', '==', planDoc.id));
-              const itemsSnap = await getDocs(itemsQ);
-              if (!itemsSnap.empty) {
-                const itemsBatch = writeBatch(db);
-                itemsSnap.docs.forEach((itemDoc) => {
-                  itemsBatch.update(doc(db, 'meal_plan_items', itemDoc.id), { access_token: token });
-                  totalUpdated++;
-                });
-                await itemsBatch.commit();
-              }
-            }
-          }
-        }
-      }
-
-      toast.success(`Link gerado e ${totalUpdated} registros atualizados!`, { id: toastId });
-      fetchPatients();
+      toast.success('Link de acesso gerado com sucesso!', { id: toastId });
+      await refetchPatients();
     } catch (error) {
       console.error("Error generating access token:", error);
       toast.error('Erro ao gerar link de acesso ou atualizar registros.', { id: toastId });
@@ -404,18 +345,43 @@ export const Patients = () => {
     window.open(whatsappUrl, '_blank');
   };
 
-  const filteredPatients = patients.filter(patient => {
-    const matchesSearch = patient.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          patient.cpf.includes(searchTerm);
-    const matchesStatus = statusFilter === 'all' || patient.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredPatients = patients.filter(patient =>
+    patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    patient.cpf.includes(searchTerm)
+  );
 
-  const activePatientsCount = patients.filter(p => p.status === 'active').length;
-  const isLimitReached = !isPremium && activePatientsCount >= FREE_PLAN_LIMITS.maxPatients;
+  const isLimitReached = !isPremium && patients.length >= FREE_PLAN_LIMITS.maxPatients;
 
   return (
     <div className="space-y-8">
+      {isInGracePeriod && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-bold text-amber-800 dark:text-amber-300">Período de transição ativo</p>
+            <p className="text-amber-700 dark:text-amber-400 mt-0.5">
+              Você mudou para o plano gratuito. Todos os seus pacientes estão acessíveis por mais{' '}
+              <strong>{gracePeriodDaysLeft} {gracePeriodDaysLeft === 1 ? 'dia' : 'dias'}</strong>.
+              Após esse prazo, pacientes além do limite de {FREE_PLAN_LIMITS.maxPatients} ficarão em somente leitura.{' '}
+              <Link to="/settings" className="underline font-medium">Reativar Premium</Link>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {isGracePeriodOver && patients.length > FREE_PLAN_LIMITS.maxPatients && (
+        <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+          <div className="text-sm">
+            <p className="font-bold text-red-800 dark:text-red-300">Limite do plano gratuito atingido</p>
+            <p className="text-red-700 dark:text-red-400 mt-0.5">
+              {patients.length - FREE_PLAN_LIMITS.maxPatients} paciente(s) estão em somente leitura.
+              Faça <Link to="/settings" className="underline font-medium">upgrade para Premium</Link> para recuperar o acesso completo.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Pacientes</h1>
@@ -574,125 +540,127 @@ export const Patients = () => {
           <Input 
             placeholder="Buscar por nome ou CPF..." 
             className="pl-10"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Status">
-              {statusFilter === 'all' ? 'Todos' : statusFilter === 'active' ? 'Ativos' : statusFilter === 'inactive' ? 'Inativos' : undefined}
-            </SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="active">Ativos</SelectItem>
-            <SelectItem value="inactive">Inativos</SelectItem>
-          </SelectContent>
-        </Select>
       </div>
 
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <Skeleton className="w-12 h-12 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-36 rounded" />
+                    <Skeleton className="h-3 w-24 rounded" />
+                  </div>
+                </div>
+                <div className="space-y-2.5 mb-5">
+                  <Skeleton className="h-3 w-full rounded" />
+                  <Skeleton className="h-3 w-3/4 rounded" />
+                  <Skeleton className="h-3 w-1/2 rounded" />
+                </div>
+                <Skeleton className="h-8 w-full rounded-lg" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       ) : filteredPatients.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredPatients.map((patient) => (
-            <Card key={patient.id} className="hover:shadow-md transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4 gap-4">
+          {filteredPatients.map((patient) => {
+            const avatarColors = [
+              'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+              'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
+              'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300',
+              'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+              'bg-pink-100 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300',
+              'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300',
+              'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300',
+            ];
+            const avatarColor = avatarColors[patient.name.charCodeAt(0) % avatarColors.length];
+            const initials = patient.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase();
+
+            return (
+            <Card key={patient.id} className="hover:shadow-md transition-all duration-200 hover:border-border group">
+              <CardContent className="p-5">
+                <div className="flex items-start justify-between mb-4 gap-3">
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="w-12 h-12 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-lg shrink-0">
-                      {patient.name.charAt(0)}
+                    <div className={cn('w-11 h-11 rounded-full flex items-center justify-center font-bold text-base shrink-0', avatarColor)}>
+                      {initials}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-foreground truncate" title={patient.name}>{patient.name}</h3>
-                      <p className="text-xs text-muted-foreground">{patient.cpf}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h3 className="font-semibold text-foreground truncate text-sm" title={patient.name}>{patient.name}</h3>
+                        {patient.isReadOnly && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 shrink-0">
+                            Somente leitura
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">{patient.cpf || '—'}</p>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <div className={cn(
-                      "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border",
-                      patient.status === 'active' 
-                        ? "bg-primary/10 text-primary border-primary/30" 
-                        : "bg-muted/30 text-muted-foreground border-border"
-                    )}>
-                      {patient.status === 'active' ? 'Ativo' : 'Inativo'}
-                    </div>
-                    <Button 
-                      variant="ghost" 
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <Button
+                      variant="ghost"
                       size="icon"
-                      className={cn(
-                        "h-8 w-8 rounded-full",
-                        patient.status === 'active' ? "text-muted-foreground hover:text-red-500 hover:bg-red-50" : "text-muted-foreground hover:text-primary hover:bg-primary/10"
-                      )}
-                      onClick={() => togglePatientStatus(patient)}
-                      title={patient.status === 'active' ? 'Desativar Paciente' : 'Ativar Paciente'}
+                      className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
+                      onClick={() => setPatientToDelete(patient)}
+                      title="Excluir paciente"
                     >
-                      {patient.status === 'active' ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                      <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
                 </div>
-                
-                <div className="space-y-2 mb-6">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Mail className="w-4 h-4" />
+
+                <div className="space-y-1.5 mb-4 pl-0.5">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Mail className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{patient.email}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="w-4 h-4" />
-                    <span>{patient.phone}</span>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Phone className="w-3.5 h-3.5 shrink-0" />
+                    <span>{patient.phone || '—'}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <CalendarIcon className="w-4 h-4" />
-                    <span>Nasc: {format(parseISO(patient.birthDate), 'dd/MM/yyyy')}</span>
-                  </div>
+                  {patient.objective && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Activity className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{patient.objective}</span>
+                    </div>
+                  )}
+                  {!patient.objective && patient.birthDate && (
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
+                      <span>Nasc: {format(parseISO(patient.birthDate), 'dd/MM/yyyy')}</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex gap-2">
-                  <Button 
-                    nativeButton={false} 
-                    render={<Link to={`/patients/${patient.id}`} />} 
-                    className="flex-1 bg-muted text-foreground hover:bg-accent h-8 text-sm font-medium" 
+                  <Button
+                    nativeButton={false}
+                    render={<Link to={`/patients/${patient.id}`} />}
+                    className="flex-1 h-8 text-sm font-medium rounded-lg"
                     variant="secondary"
                   >
                     Ver Prontuário
                   </Button>
-                  {/* 
-                  {!patient.access_token ? (
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 h-8 text-[10px] font-bold border-primary/30 text-primary hover:bg-primary/10"
-                      onClick={() => generateAccessToken(patient)}
-                      disabled={isGeneratingToken === patient.id || patient.status === 'inactive'}
-                    >
-                      {isGeneratingToken === patient.id ? 'GERANDO...' : 'GERAR ACESSO'}
-                    </Button>
-                  ) : (
-                    <Button 
-                      variant="outline" 
-                      className="flex-1 h-8 text-[10px] font-bold border-primary/30 text-primary hover:bg-primary/10"
-                      onClick={() => shareAccessLink(patient)}
-                      disabled={patient.status === 'inactive'}
-                    >
-                      ENVIAR WHATSAPP
-                    </Button>
-                  )}
-                  */}
-                  <Button 
-                    variant="outline" 
-                    className="h-8 w-8 p-0" 
+                  <Button
+                    variant="outline"
+                    className="h-8 w-8 p-0 rounded-lg"
                     onClick={() => openEditModal(patient)}
-                    disabled={patient.status === 'inactive'}
                     title="Editar Paciente"
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-3.5 h-3.5" />
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          ))}
+          );
+          })}
         </div>
       ) : (
         <div className="text-center py-12 bg-card rounded-xl border border-dashed border-border">
@@ -701,6 +669,26 @@ export const Patients = () => {
           <p className="text-muted-foreground">Tente ajustar sua busca ou cadastrar um novo paciente.</p>
         </div>
       )}
+
+      {/* Dialog de confirmação de exclusão */}
+      <Dialog open={!!patientToDelete} onOpenChange={(open) => { if (!open) setPatientToDelete(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Excluir paciente</DialogTitle>
+            <DialogDescription>
+              Tem certeza que deseja excluir <strong>{patientToDelete?.name}</strong>? O prontuário ficará salvo por 30 dias antes da remoção permanente, conforme a LGPD.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPatientToDelete(null)} disabled={isDeleting}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleDeletePatient} disabled={isDeleting}>
+              {isDeleting ? 'Excluindo...' : 'Excluir'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

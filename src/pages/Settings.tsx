@@ -48,22 +48,26 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "../components/ui/dialog";
 import { cn, maskCPF, maskCNPJ, maskPhone } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
-import { FREE_PLAN_LIMITS } from '../lib/planLimits';
-import { doc, updateDoc, collection, query, where, onSnapshot, deleteDoc, getDocs, writeBatch } from 'firebase/firestore';
+import { FREE_PLAN_LIMITS, isAdminOrPremium } from '../lib/planLimits';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, auth, storage } from '../lib/firebase';
+import { auth, storage } from '../lib/firebase';
+import { apiRequest } from '../hooks/useApi';
 import { signOut, updatePassword } from 'firebase/auth';
+import { isStrongPassword } from '../lib/passwordStrength';
+import { PasswordStrengthBar } from '../components/ui/PasswordStrengthBar';
 import { toast } from 'sonner';
 import { remoteLogger } from '../lib/remote-logger';
 import { CustomFood } from '../types';
 import { CustomFoodDialog } from '../components/CustomFoodDialog';
 import { useSubscription } from '../hooks/useSubscription';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
+import { useCookieConsent } from '../contexts/CookieConsentContext';
 
 enum OperationType {
   CREATE = 'create',
@@ -132,6 +136,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export const Settings = () => {
   const { nutritionist, user } = useAuth();
+  const isPremiumOrAdmin = isAdminOrPremium(nutritionist);
   const [searchParams] = useSearchParams();
   const { 
     handleSubscribe, 
@@ -159,6 +164,9 @@ export const Settings = () => {
   const [editingFood, setEditingFood] = useState<CustomFood | null>(null);
   const [foodSearch, setFoodSearch] = useState('');
   const [isConnectingGoogle, setIsConnectingGoogle] = useState(false);
+  const [isDeleteAccountOpen, setIsDeleteAccountOpen] = useState(false);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('');
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   
   const defaultTab = searchParams.get('tab') || 'profile';
   
@@ -187,19 +195,35 @@ export const Settings = () => {
 
   useEffect(() => {
     if (!user) return;
-
-    const q = query(
-      collection(db, 'custom_foods'),
-      where('nutritionist_id', '==', user.uid)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const foods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomFood));
-      setCustomFoods(foods);
-    });
-
-    return () => unsubscribe();
+    const load = async () => {
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const res = await fetch('/api/custom-foods', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const foods = await res.json();
+          setCustomFoods(foods);
+        }
+      } catch (err) {
+        console.error('Error loading custom foods:', err);
+      }
+    };
+    load();
   }, [user]);
+
+  const refetchCustomFoods = async () => {
+    if (!user) return;
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch('/api/custom-foods', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) setCustomFoods(await res.json());
+    } catch (err) {
+      console.error('Error loading custom foods:', err);
+    }
+  };
 
   const handleResetAllUsers = async () => {
     if (!user?.email) return;
@@ -269,14 +293,7 @@ export const Settings = () => {
       const downloadURL = await getDownloadURL(storageRef);
 
       console.log("Updating nutritionist document with new photo URL...");
-      try {
-        await updateDoc(doc(db, 'nutritionists', user.uid), {
-          photoUrl: downloadURL,
-          updatedAt: new Date().toISOString(),
-        });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `nutritionists/${user.uid}`);
-      }
+      await apiRequest('/api/me', 'PATCH', { photoUrl: downloadURL });
 
       toast.success('Foto de perfil atualizada!', { id: toastId });
     } catch (error: any) {
@@ -295,13 +312,8 @@ export const Settings = () => {
     setIsSaving(true);
     try {
       // 1. Verificar duplicidade de CRN (excluindo o próprio usuário)
-      const crnQuery = query(
-        collection(db, 'nutritionists'), 
-        where('crn', '==', data.crn)
-      );
-      const crnSnapshot = await getDocs(crnQuery);
-      const isCrnDuplicate = crnSnapshot.docs.some(doc => doc.id !== user.uid);
-      if (isCrnDuplicate) {
+      const crnCheck = await apiRequest<{ isDuplicate: boolean }>(`/api/me/check-unique?field=crn&value=${encodeURIComponent(data.crn)}`, 'GET');
+      if (crnCheck?.isDuplicate) {
         toast.error('CRN já cadastrado: Este número já pertence a outro profissional.');
         setIsSaving(false);
         return;
@@ -309,13 +321,8 @@ export const Settings = () => {
 
       // 2. Verificar duplicidade de CPF (se preenchido e excluindo o próprio usuário)
       if (data.cpf) {
-        const cpfQuery = query(
-          collection(db, 'nutritionists'), 
-          where('cpf', '==', data.cpf)
-        );
-        const cpfSnapshot = await getDocs(cpfQuery);
-        const isCpfDuplicate = cpfSnapshot.docs.some(doc => doc.id !== user.uid);
-        if (isCpfDuplicate) {
+        const cpfCheck = await apiRequest<{ isDuplicate: boolean }>(`/api/me/check-unique?field=cpf&value=${encodeURIComponent(data.cpf)}`, 'GET');
+        if (cpfCheck?.isDuplicate) {
           toast.error('CPF já cadastrado: Este documento já está sendo utilizado.');
           setIsSaving(false);
           return;
@@ -324,36 +331,26 @@ export const Settings = () => {
 
       // 3. Verificar duplicidade de CNPJ (se preenchido e excluindo o próprio usuário)
       if (data.cnpj) {
-        const cnpjQuery = query(
-          collection(db, 'nutritionists'), 
-          where('cnpj', '==', data.cnpj)
-        );
-        const cnpjSnapshot = await getDocs(cnpjQuery);
-        const isCnpjDuplicate = cnpjSnapshot.docs.some(doc => doc.id !== user.uid);
-        if (isCnpjDuplicate) {
+        const cnpjCheck = await apiRequest<{ isDuplicate: boolean }>(`/api/me/check-unique?field=cnpj&value=${encodeURIComponent(data.cnpj)}`, 'GET');
+        if (cnpjCheck?.isDuplicate) {
           toast.error('CNPJ já cadastrado: Este documento já está sendo utilizado.');
           setIsSaving(false);
           return;
         }
       }
 
-      const specialtiesArray = data.specialties 
-        ? data.specialties.split(',').map(s => s.trim()) 
+      const specialtiesArray = data.specialties
+        ? data.specialties.split(',').map(s => s.trim())
         : [];
-        
-      try {
-        await updateDoc(doc(db, 'nutritionists', user.uid), {
-          name: data.name,
-          crn: data.crn,
-          cpf: data.cpf || null,
-          cnpj: data.cnpj || null,
-          phone: data.phone,
-          specialties: specialtiesArray,
-          updatedAt: new Date().toISOString(),
-        });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.UPDATE, `nutritionists/${user.uid}`);
-      }
+
+      await apiRequest('/api/me', 'PATCH', {
+        name: data.name,
+        crn: data.crn,
+        cpf: data.cpf || null,
+        cnpj: data.cnpj || null,
+        phone: data.phone,
+        specialties: specialtiesArray,
+      });
       toast.success('Perfil atualizado com sucesso!');
     } catch (error) {
       console.error("Error updating profile:", error);
@@ -411,10 +408,9 @@ export const Settings = () => {
     if (!user) return;
     const toastId = toast.loading('Desconectando Google Agenda...');
     try {
-      await updateDoc(doc(db, 'nutritionists', user.uid), {
+      await apiRequest('/api/me', 'PATCH', {
         googleCalendarConnected: false,
         googleCalendarTokens: null,
-        updatedAt: new Date().toISOString()
       });
       toast.success('Google Agenda desconectado.', { id: toastId });
     } catch (error) {
@@ -422,6 +418,34 @@ export const Settings = () => {
       toast.error('Erro ao desconectar Google Agenda.', { id: toastId });
     }
   };
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    const userEmail = user.email || '';
+    if (deleteConfirmEmail !== userEmail) {
+      toast.error('E-mail digitado não confere com o da conta.');
+      return;
+    }
+    setIsDeletingAccount(true);
+    const toastId = toast.loading('Excluindo conta e todos os dados...');
+    try {
+      const token = await user.getIdToken();
+      const res = await fetch('/api/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ confirmation: userEmail }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as any).error || 'Erro ao excluir conta. Tente novamente.');
+      }
+      toast.success('Conta excluída com sucesso.', { id: toastId });
+      await signOut(auth);
+    } catch (err: any) {
+      toast.error(err.message || 'Erro ao excluir conta.', { id: toastId });
+      setIsDeletingAccount(false);
+    }
+  };
+
   const handleUpdatePassword = async () => {
     if (!user) {
       toast.error('Usuário não autenticado.');
@@ -438,8 +462,8 @@ export const Settings = () => {
       return;
     }
 
-    if (newPassword.length < 6) {
-      toast.error('A senha deve ter pelo menos 6 caracteres.');
+    if (!isStrongPassword(newPassword)) {
+      toast.error('A senha não atende aos requisitos de segurança.');
       return;
     }
 
@@ -470,11 +494,17 @@ export const Settings = () => {
 
   const handleDeleteFood = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'custom_foods', id));
+      const token = await auth.currentUser?.getIdToken();
+      await fetch(`/api/custom-foods/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await refetchCustomFoods();
       toast.success('Alimento excluído com sucesso!');
       setFoodToDelete(null);
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `custom_foods/${id}`);
+      console.error('Error deleting custom food:', error);
+      toast.error('Erro ao excluir alimento.');
     }
   };
 
@@ -515,8 +545,14 @@ export const Settings = () => {
           >
             <Award className="w-4 h-4" /> Assinatura e Plano
           </TabsTrigger>
-          <TabsTrigger 
-            value="integrations" 
+          <TabsTrigger
+            value="privacy"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
+          >
+            <Shield className="w-4 h-4" /> Privacidade
+          </TabsTrigger>
+          <TabsTrigger
+            value="integrations"
             className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <RefreshCw className="w-4 h-4" /> Integrações
@@ -566,10 +602,10 @@ export const Settings = () => {
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-foreground">{nutritionist?.name}</h3>
                           <Badge 
-                            variant={nutritionist?.plan === 'premium' ? 'default' : 'secondary'} 
-                            className={nutritionist?.plan === 'premium' ? 'bg-primary/15 text-primary hover:bg-primary/15' : ''}
+                            variant={isPremiumOrAdmin ? 'default' : 'secondary'}
+                            className={isPremiumOrAdmin ? 'bg-primary/15 text-primary hover:bg-primary/15' : ''}
                           >
-                            {nutritionist?.plan === 'premium' ? 'Premium' : 'Gratuito'}
+                            {nutritionist?.role === 'admin' ? 'Admin' : isPremiumOrAdmin ? 'Premium' : 'Gratuito'}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">Nutricionista • CRN {nutritionist?.crn}</p>
@@ -582,62 +618,62 @@ export const Settings = () => {
                           <Input 
                             id="cpf" 
                             {...register('cpf')} 
-                            className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
+                            className="bg-muted/30 rounded-lg" 
                             onChange={(e) => {
                               const masked = maskCPF(e.target.value);
                               setValue('cpf', masked);
                             }}
                           />
-                          {errors.cpf && <p className="text-sm text-red-500">{errors.cpf.message}</p>}
+                          {errors.cpf && <p className="text-xs text-destructive mt-1">{errors.cpf.message}</p>}
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="cnpj">CNPJ</Label>
                           <Input 
                             id="cnpj" 
                             {...register('cnpj')} 
-                            className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
+                            className="bg-muted/30 rounded-lg" 
                             onChange={(e) => {
                               const masked = maskCNPJ(e.target.value);
                               setValue('cnpj', masked);
                             }}
                           />
-                          {errors.cnpj && <p className="text-sm text-red-500">{errors.cnpj.message}</p>}
+                          {errors.cnpj && <p className="text-xs text-destructive mt-1">{errors.cnpj.message}</p>}
                         </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="name">Nome Completo</Label>
-                        <Input id="name" {...register('name')} className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
-                        {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+                        <Input id="name" {...register('name')} className="bg-muted/30 rounded-lg" />
+                        {errors.name && <p className="text-xs text-destructive mt-1">{errors.name.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="crn">CRN</Label>
-                        <Input id="crn" {...register('crn')} className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
-                        {errors.crn && <p className="text-sm text-red-500">{errors.crn.message}</p>}
+                        <Input id="crn" {...register('crn')} className="bg-muted/30 rounded-lg" />
+                        {errors.crn && <p className="text-xs text-destructive mt-1">{errors.crn.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">E-mail (Não editável)</Label>
-                        <Input id="email" value={nutritionist?.email || ''} disabled className="bg-muted border-none rounded-xl h-8 text-sm" />
+                        <Input id="email" value={nutritionist?.email || ''} disabled className="bg-muted/50 rounded-lg" />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="phone">Telefone</Label>
                         <Input 
                           id="phone" 
                           {...register('phone')} 
-                          className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
+                          className="bg-muted/30 rounded-lg" 
                           onChange={(e) => {
                             const masked = maskPhone(e.target.value);
                             setValue('phone', masked);
                           }}
                         />
-                        {errors.phone && <p className="text-sm text-red-500">{errors.phone.message}</p>}
+                        {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone.message}</p>}
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="specialties">Especialidades (Separadas por vírgula)</Label>
-                      <Input id="specialties" placeholder="Ex: Nutrição Esportiva, Clínica, Funcional" {...register('specialties')} className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
+                      <Input id="specialties" placeholder="Ex: Nutrição Esportiva, Clínica, Funcional" {...register('specialties')} className="bg-muted/30 rounded-lg" />
                     </div>
                   </CardContent>
                   <CardFooter className="border-t border-border pt-6">
@@ -692,7 +728,7 @@ export const Settings = () => {
                   placeholder="Pesquisar em seus alimentos..." 
                   value={foodSearch}
                   onChange={(e) => setFoodSearch(e.target.value)}
-                  className="pl-10 bg-muted/30 border-none rounded-xl h-8 text-sm"
+                  className="pl-10 bg-muted/30 rounded-lg"
                 />
               </div>
             </CardHeader>
@@ -785,7 +821,7 @@ export const Settings = () => {
           />
 
           <Dialog open={!!foodToDelete} onOpenChange={(open) => !open && setFoodToDelete(null)}>
-            <DialogContent className="sm:max-w-[400px]">
+            <DialogContent className="sm:max-w-sm rounded-2xl">
               <DialogHeader>
                 <DialogTitle>Excluir Alimento</DialogTitle>
                 <DialogDescription>
@@ -801,73 +837,148 @@ export const Settings = () => {
         </TabsContent>
 
         <TabsContent value="security" className="space-y-6">
-          <div className="max-w-2xl">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-4xl">
             <Card className="border-none shadow-sm">
               <CardHeader>
-                <CardTitle className="text-lg font-bold">Segurança da Conta</CardTitle>
-                <CardDescription>Altere sua senha de acesso para manter sua conta segura.</CardDescription>
+                <CardTitle className="text-base font-bold">Segurança da Conta</CardTitle>
+                <CardDescription>Altere sua senha de acesso.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="newPassword">Nova Senha</Label>
-                    <Input 
-                      id="newPassword" 
-                      type="password" 
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="confirmNewPassword">Confirmar Nova Senha</Label>
-                    <Input 
-                      id="confirmNewPassword" 
-                      type="password" 
-                      value={confirmNewPassword}
-                      onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      className="bg-muted/30 border-none rounded-xl h-8 text-sm" 
-                    />
-                  </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="newPassword">Nova Senha</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="bg-muted/30 rounded-lg"
+                  />
+                  <PasswordStrengthBar password={newPassword} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="confirmNewPassword">Confirmar Nova Senha</Label>
+                  <Input
+                    id="confirmNewPassword"
+                    type="password"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    className="bg-muted/30 rounded-lg"
+                  />
                 </div>
               </CardContent>
-              <CardFooter className="border-t border-border pt-6">
-                <Button 
+              <CardFooter className="border-t border-border pt-5">
+                <Button
                   className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                   onClick={handleUpdatePassword}
-                  disabled={isUpdatingPassword}
+                  disabled={isUpdatingPassword || !isStrongPassword(newPassword) || newPassword !== confirmNewPassword}
                 >
                   <Lock className="w-4 h-4" /> {isUpdatingPassword ? 'Atualizando...' : 'Atualizar Senha'}
                 </Button>
               </CardFooter>
             </Card>
 
-
+            {/* Zona de Perigo */}
+            <Card className="border border-destructive/30 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base font-bold text-destructive flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4" /> Zona de Perigo
+                </CardTitle>
+                <CardDescription>
+                  Ações irreversíveis. Leia com atenção.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Remove permanentemente sua conta e <strong className="text-foreground">todos os dados</strong>:
+                  pacientes, consultas, planos, exames e financeiro.
+                  Conforme LGPD Art. 18.
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="self-start rounded-lg"
+                  onClick={() => { setDeleteConfirmEmail(''); setIsDeleteAccountOpen(true); }}
+                >
+                  Excluir Minha Conta
+                </Button>
+              </CardContent>
+            </Card>
           </div>
+
+            {/* Dialog de confirmação */}
+            <Dialog open={isDeleteAccountOpen} onOpenChange={setIsDeleteAccountOpen}>
+              <DialogContent className="sm:max-w-md rounded-2xl shadow-2xl">
+                <DialogHeader>
+                  <DialogTitle className="text-destructive flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5" /> Excluir Conta Permanentemente
+                  </DialogTitle>
+                  <DialogDescription>
+                    Esta ação é <strong>irreversível</strong>. Todos os dados abaixo serão excluídos imediatamente:
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-2">
+                  <ul className="text-sm text-muted-foreground space-y-1.5 bg-muted/30 rounded-lg p-3">
+                    {['Perfil e dados do nutricionista','Todos os pacientes cadastrados','Consultas e dados antropométricos','Planos alimentares','Exames laboratoriais','Agendamentos','Registros financeiros','Alimentos personalizados'].map(item => (
+                      <li key={item} className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-destructive shrink-0" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="deleteConfirmEmail" className="text-sm">
+                      Digite seu e-mail <strong className="text-foreground">{user?.email}</strong> para confirmar:
+                    </Label>
+                    <Input
+                      id="deleteConfirmEmail"
+                      placeholder={user?.email || 'seu@email.com'}
+                      value={deleteConfirmEmail}
+                      onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                      className="bg-muted/30 rounded-lg"
+                      autoComplete="off"
+                    />
+                  </div>
+                </div>
+                <DialogFooter className="gap-2 sm:gap-0">
+                  <Button variant="outline" className="rounded-xl" onClick={() => setIsDeleteAccountOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    className="rounded-xl"
+                    disabled={deleteConfirmEmail !== user?.email || isDeletingAccount}
+                    onClick={handleDeleteAccount}
+                  >
+                    {isDeletingAccount ? 'Excluindo...' : 'Excluir Minha Conta'}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
         </TabsContent>
 
         <TabsContent value="subscription" className="space-y-6">
           <div className="max-w-2xl">
             <Card className={cn(
               "border-none shadow-sm",
-              nutritionist?.plan === 'premium' ? "bg-primary/90 text-white" : "bg-card"
+              isPremiumOrAdmin ? "bg-primary/90 text-white" : "bg-card"
             )}>
               <CardHeader className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div className="space-y-1">
-                  <CardTitle className={cn("text-xl font-bold flex items-center gap-2", nutritionist?.plan === 'premium' ? "text-white" : "text-foreground")}>
-                    <Award className={cn("w-6 h-6", nutritionist?.plan === 'premium' ? "text-primary" : "text-primary")} />
-                    {nutritionist?.plan === 'premium' ? 'Plano Premium Ativo' : 'Plano Gratuito'}
+                  <CardTitle className={cn("text-xl font-bold flex items-center gap-2", isPremiumOrAdmin ? "text-white" : "text-foreground")}>
+                    <Award className={cn("w-6 h-6", "text-primary")} />
+                    {nutritionist?.role === 'admin' ? 'Acesso Admin' : isPremiumOrAdmin ? 'Plano Premium Ativo' : 'Plano Gratuito'}
                   </CardTitle>
-                  <CardDescription className={nutritionist?.plan === 'premium' ? "text-primary-foreground/80" : "text-muted-foreground"}>
-                    {nutritionist?.plan === 'premium' 
-                      ? 'Você está usando a versão completa do sistema com todos os recursos liberados.' 
+                  <CardDescription className={isPremiumOrAdmin ? "text-primary-foreground/80" : "text-muted-foreground"}>
+                    {isPremiumOrAdmin
+                      ? 'Você está usando a versão completa do sistema com todos os recursos liberados.'
                       : 'Você está usando a versão limitada do sistema. Faça o upgrade para remover limites.'}
                   </CardDescription>
                 </div>
 
-                {nutritionist?.plan === 'premium' && !nutritionist.cancelAtPeriodEnd && !nutritionist.hadRefundBefore && (
+                {nutritionist?.plan === 'premium' && !nutritionist.subscription?.cancelAtPeriodEnd && !nutritionist.subscription?.hadRefundBefore && (
                   (() => {
-                    const createdDate = nutritionist.firstSubscriptionDate ? new Date(nutritionist.firstSubscriptionDate) : new Date();
+                    const createdDate = nutritionist.subscription?.firstSubscriptionDate ? new Date(nutritionist.subscription.firstSubscriptionDate) : new Date();
                     const now = new Date();
                     const diffDays = Math.ceil((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
                     
@@ -901,41 +1012,41 @@ export const Settings = () => {
                 <div className="space-y-6">
                   <div className={cn(
                     "grid grid-cols-1 md:grid-cols-2 gap-4",
-                    nutritionist?.plan === 'premium' ? "text-primary-foreground" : "text-muted-foreground"
+                    isPremiumOrAdmin ? "text-primary-foreground" : "text-muted-foreground"
                   )}>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
                       <Users className="w-5 h-5 text-primary" />
                       <div>
                         <p className="text-xs font-medium text-primary-foreground/60">Pacientes</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxPatients} ativos`}</p>
+                        <p className="font-bold">{isPremiumOrAdmin ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxPatients} ativos`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
                       <Activity className="w-5 h-5 text-primary" />
                       <div>
                         <p className="text-xs font-medium text-primary-foreground/60">Planos Alimentares</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxMealPlans} ativos`}</p>
+                        <p className="font-bold">{isPremiumOrAdmin ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxMealPlans} ativos`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
                       <Shield className="w-5 h-5 text-primary" />
                       <div>
                         <p className="text-xs font-medium text-primary-foreground/60">Histórico</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Completo' : `${FREE_PLAN_LIMITS.historyMonths} meses`}</p>
+                        <p className="font-bold">{isPremiumOrAdmin ? 'Completo' : `${FREE_PLAN_LIMITS.historyMonths} meses`}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
                       <CreditCard className="w-5 h-5 text-primary" />
                       <div>
                         <p className="text-xs font-medium text-primary-foreground/60">Exames</p>
-                        <p className="font-bold">{nutritionist?.plan === 'premium' ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxExams} por paciente`}</p>
+                        <p className="font-bold">{isPremiumOrAdmin ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxExams} por paciente`}</p>
                       </div>
                     </div>
                   </div>
 
-                  {(nutritionist?.plan === 'premium' || nutritionist?.cancelAtPeriodEnd) && (
+                  {(nutritionist?.plan === 'premium' || nutritionist?.subscription?.cancelAtPeriodEnd) && (
                     <div className="pt-4 space-y-4">
-                      {!nutritionist.cancelAtPeriodEnd && nutritionist.currentPeriodEnd && (
+                      {!nutritionist.subscription?.cancelAtPeriodEnd && nutritionist.subscription?.currentPeriodEnd && (
                         <div className="bg-primary/40 border border-primary/50 rounded-xl p-4 flex items-start gap-3">
                           <Calendar className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                           <div className="space-y-1">
@@ -943,14 +1054,14 @@ export const Settings = () => {
                             <p className="text-xs text-primary-foreground">
                               Sua assinatura será renovada automaticamente em{' '}
                               <span className="font-bold">
-                                {new Date(nutritionist.currentPeriodEnd).toLocaleDateString('pt-BR')}
+                                {new Date(nutritionist.subscription.currentPeriodEnd).toLocaleDateString('pt-BR')}
                               </span>.
                             </p>
                           </div>
                         </div>
                       )}
 
-                      {nutritionist.cancelAtPeriodEnd && (
+                      {nutritionist.subscription?.cancelAtPeriodEnd && (
                         <div className="bg-amber-500/20 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
                           <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                           <div className="space-y-1">
@@ -958,7 +1069,7 @@ export const Settings = () => {
                             <p className="text-xs text-amber-100/80">
                               Seu acesso Premium continuará ativo até o dia{' '}
                               <span className="font-bold">
-                                {nutritionist.currentPeriodEnd ? new Date(nutritionist.currentPeriodEnd).toLocaleDateString('pt-BR') : 'fim do período'}
+                                {nutritionist.subscription?.currentPeriodEnd ? new Date(nutritionist.subscription.currentPeriodEnd).toLocaleDateString('pt-BR') : 'fim do período'}
                               </span>.
                             </p>
                             <Button 
@@ -982,7 +1093,7 @@ export const Settings = () => {
                       </Button>
                       
                       <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
-                        <DialogContent className="sm:max-w-[400px]">
+                        <DialogContent className="sm:max-w-sm rounded-2xl">
                           <DialogHeader>
                             <DialogTitle>
                               {showCancelConfirm ? 'Confirmar Cancelamento' : 'Gerenciar Assinatura'}
@@ -1063,7 +1174,7 @@ export const Settings = () => {
                     </div>
                   )}
 
-                  {nutritionist?.plan !== 'premium' && !nutritionist?.cancelAtPeriodEnd && (
+                  {!isPremiumOrAdmin && !nutritionist?.subscription?.cancelAtPeriodEnd && (
                     <div className="pt-4 space-y-4">
                       <Button 
                         className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-10 font-bold text-sm shadow-lg shadow-primary/10 transition-all active:scale-95" 
@@ -1118,7 +1229,7 @@ export const Settings = () => {
                               className="flex-1 text-[10px] h-8"
                               onClick={async () => {
                                 try {
-                                  await updateDoc(doc(db, 'nutritionists', user.uid), {
+                                  await apiRequest('/api/me', 'PATCH', {
                                     plan: 'free',
                                     subscriptionId: null,
                                     subscriptionStatus: null,
@@ -1127,7 +1238,6 @@ export const Settings = () => {
                                     firstSubscriptionDate: null,
                                     hadRefundBefore: false,
                                     lastSubscriptionCheck: null,
-                                    updatedAt: new Date().toISOString(),
                                   });
                                   toast.success('Seus dados foram resetados!');
                                   setTimeout(() => window.location.reload(), 1000);
@@ -1277,7 +1387,154 @@ export const Settings = () => {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {/* Privacidade & Cookies */}
+        <TabsContent value="privacy" className="space-y-6">
+          <PrivacyTab />
+        </TabsContent>
+
       </Tabs>
     </div>
   );
 };
+
+function PrivacyTab() {
+  const { consent, acceptAll, acceptEssentialOnly, resetConsent } = useCookieConsent();
+
+  async function handleExportData() {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const response = await fetch('/api/account/export', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Falha ao exportar dados');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'meus-dados-nutrir.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Não foi possível exportar os dados. Tente novamente.');
+    }
+  }
+
+  const statusLabel = consent === 'all'
+    ? 'Aceito — cookies essenciais e analíticos'
+    : consent === 'essential'
+    ? 'Parcial — somente cookies essenciais'
+    : 'Não definido';
+
+  const statusColor = consent === 'all'
+    ? 'text-emerald-600 dark:text-emerald-400'
+    : consent === 'essential'
+    ? 'text-amber-600 dark:text-amber-400'
+    : 'text-muted-foreground';
+
+  return (
+    <div className="max-w-2xl space-y-6">
+      <Card className="border-none shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-lg font-bold flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary" />
+            Cookies e Privacidade
+          </CardTitle>
+          <CardDescription>
+            Gerencie suas preferências de privacidade conforme a LGPD (Art. 18).
+            Você pode alterar ou revogar seu consentimento a qualquer momento.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+
+          {/* Status atual */}
+          <div className="rounded-xl border border-border bg-muted/30 p-4">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+              Preferência atual
+            </p>
+            <p className={`text-sm font-semibold ${statusColor}`}>{statusLabel}</p>
+          </div>
+
+          {/* Tipos de cookies */}
+          <div className="space-y-3">
+            <div className="flex items-start gap-3 p-3 rounded-lg border border-border">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold">Cookies Essenciais</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Necessários para autenticação, sessão e funcionamento do sistema.
+                  Não podem ser desativados.
+                </p>
+              </div>
+              <span className="ml-auto text-xs font-medium text-emerald-600 dark:text-emerald-400 shrink-0">
+                Sempre ativo
+              </span>
+            </div>
+
+            <div className="flex items-start gap-3 p-3 rounded-lg border border-border">
+              <Activity className="w-5 h-5 text-blue-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold">Cookies Analíticos</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Registros de uso enviados ao Axiom (eventos como login/logout)
+                  para nos ajudar a identificar erros e melhorar o serviço.
+                </p>
+              </div>
+              <span className={`ml-auto text-xs font-medium shrink-0 ${consent === 'all' ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                {consent === 'all' ? 'Ativo' : 'Inativo'}
+              </span>
+            </div>
+          </div>
+
+          {/* Ações */}
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-lg"
+              onClick={acceptEssentialOnly}
+              disabled={consent === 'essential'}
+            >
+              Somente Essenciais
+            </Button>
+            <Button
+              size="sm"
+              className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground"
+              onClick={acceptAll}
+              disabled={consent === 'all'}
+            >
+              Aceitar Todos
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="rounded-lg text-muted-foreground ml-auto"
+              onClick={resetConsent}
+            >
+              Redefinir preferências
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            Leia nossa{' '}
+            <Link to="/cookies" className="text-primary underline underline-offset-2 hover:text-primary/80">
+              Política de Cookies
+            </Link>{' '}
+            para mais detalhes sobre os dados coletados.
+          </p>
+
+          {/* Portabilidade de dados — LGPD Art. 20 */}
+          <div className="space-y-2 pt-4 border-t border-border">
+            <h3 className="text-sm font-medium">Portabilidade de dados</h3>
+            <p className="text-sm text-muted-foreground">
+              Conforme LGPD Art. 20, você pode exportar todos os seus dados em formato JSON.
+            </p>
+            <Button variant="outline" onClick={handleExportData}>
+              Exportar meus dados
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

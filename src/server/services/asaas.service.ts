@@ -1,13 +1,16 @@
 import { getPremiumWelcomeTemplate, sendEmail } from "../../lib/mail.ts";
 import { logger } from "../logger.ts";
 import type { AsaasClient } from "../integrations/asaas.client.ts";
-import type { FirestoreHelpers } from "../types.ts";
+import { getDb } from "../lib/rls-context.ts";
+import { createSubscriptionService } from "./subscription.service.ts";
 
-type AsaasServiceInput = FirestoreHelpers & {
+type AsaasServiceInput = {
   asaasClient: AsaasClient;
 };
 
-export function createAsaasService({ asaasClient, getDocWithFallback, updateDocWithFallback, queryWithFallback }: AsaasServiceInput) {
+export function createAsaasService({ asaasClient }: AsaasServiceInput) {
+  const subscriptionService = createSubscriptionService();
+
   async function handleWebhookEvent(event: any) {
     const payment = event.payment;
     const userId = payment?.externalReference || event.subscription?.externalReference;
@@ -16,40 +19,49 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
     }
 
     const updateUserData = async (data: any) => {
-      await updateDocWithFallback("nutritionists", userId, data);
+      await subscriptionService.upsert(userId, data);
     };
 
     switch (event.event) {
       case "PAYMENT_CREATED":
-        await updateUserData({ subscriptionStatus: "pending", updatedAt: new Date().toISOString() });
+        await updateUserData({ asaasStatus: "pending" });
         break;
 
       // Cartão de crédito: CONFIRMED chega imediatamente ao pagar;
       // RECEIVED chega 32 dias depois (liquidação). Premium liberado em CONFIRMED.
       case "PAYMENT_CONFIRMED":
-      case "PAYMENT_RECEIVED":
+      case "PAYMENT_RECEIVED": {
+        // dueDate é a data de vencimento do pagamento atual — o fim do período é dueDate + 1 mês
+        let nextPeriodEnd: string | null = null;
+        if (payment?.dueDate) {
+          const d = new Date(payment.dueDate);
+          d.setMonth(d.getMonth() + 1);
+          nextPeriodEnd = d.toISOString().split("T")[0];
+        }
         await updateUserData({
           plan: "premium",
-          subscriptionStatus: "active",
-          currentPeriodEnd: payment?.dueDate || null,
-          lastSubscriptionCheck: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          asaasStatus: "active",
+          currentPeriodEnd: nextPeriodEnd,
+          cancelAtPeriodEnd: false,
+          lastCheckedAt: new Date(),
         });
         // Email enviado no PAYMENT_CONFIRMED (primeiro evento que libera o acesso).
         // welcomeEmailSentAt garante que não duplica quando PAYMENT_RECEIVED chegar 32 dias depois.
         if (event.event === "PAYMENT_CONFIRMED") {
           try {
-            const userDoc = await getDocWithFallback("nutritionists", userId);
-            if (userDoc.exists) {
-              const userData = userDoc.data;
-              if (userData?.email && !userData?.welcomeEmailSentAt) {
-                logger.info(`[Asaas Service] Enviando email de boas-vindas Premium`, { userId, email: userData.email });
+            const nutritionist = await getDb().nutritionist.findUnique({ where: { id: userId } });
+            if (nutritionist) {
+              if (nutritionist.email && !nutritionist.welcomeEmailSentAt) {
+                logger.info(`[Asaas Service] Enviando email de boas-vindas Premium`, { userId, email: nutritionist.email });
                 await sendEmail({
-                  to: userData.email,
+                  to: nutritionist.email,
                   subject: "💎 Bem-vindo ao Plano Premium Nutrir!",
-                  html: getPremiumWelcomeTemplate(userData.name || "Nutricionista"),
+                  html: getPremiumWelcomeTemplate(nutritionist.name || "Nutricionista"),
                 });
-                await updateUserData({ welcomeEmailSentAt: new Date().toISOString() });
+                await getDb().nutritionist.update({
+                  where: { id: userId },
+                  data: { welcomeEmailSentAt: new Date() },
+                });
               }
             }
           } catch (error) {
@@ -57,14 +69,15 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           }
         }
         break;
+      }
 
       case "PAYMENT_OVERDUE":
-        await updateUserData({ subscriptionStatus: "overdue", updatedAt: new Date().toISOString() });
+        await updateUserData({ asaasStatus: "overdue" });
         break;
 
       // Análise de risco — específico de cartão de crédito
       case "PAYMENT_AWAITING_RISK_ANALYSIS":
-        await updateUserData({ subscriptionStatus: "pending_risk_analysis", updatedAt: new Date().toISOString() });
+        await updateUserData({ asaasStatus: "pending_risk_analysis" });
         break;
       case "PAYMENT_APPROVED_BY_RISK_ANALYSIS":
         // Aprovado pela análise — pagamento segue para CONFIRMED automaticamente; apenas loga
@@ -74,13 +87,12 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
         // Reprovado — cartão rejeitado, acesso não liberado
         await updateUserData({
           plan: "free",
-          subscriptionStatus: "payment_failed",
-          updatedAt: new Date().toISOString(),
+          asaasStatus: "payment_failed",
         });
         break;
       case "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED":
         // Falha na captura do cartão (ex: cartão sem limite, recusado pela operadora)
-        await updateUserData({ subscriptionStatus: "payment_failed", updatedAt: new Date().toISOString() });
+        await updateUserData({ asaasStatus: "payment_failed" });
         break;
 
       // Estornos e chargebacks
@@ -89,29 +101,26 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
       case "PAYMENT_CHARGEBACK_REQUESTED":
         await updateUserData({
           plan: "free",
-          subscriptionStatus: "refunded",
+          asaasStatus: "refunded",
           hadRefundBefore: true,
-          updatedAt: new Date().toISOString(),
         });
         break;
 
       // Cobrança deletada (PAYMENT_CANCELLED não é um evento válido do Asaas)
       case "PAYMENT_DELETED":
-        await updateUserData({ subscriptionStatus: "cancelled", updatedAt: new Date().toISOString() });
+        await updateUserData({ asaasStatus: "cancelled" });
         break;
       case "SUBSCRIPTION_CREATED":
         await updateUserData({
-          subscriptionId: event.subscription.id,
-          subscriptionStatus: "active",
-          updatedAt: new Date().toISOString(),
+          asaasSubscriptionId: event.subscription.id,
+          asaasStatus: "active",
         });
         break;
       case "SUBSCRIPTION_DELETED":
       case "SUBSCRIPTION_INACTIVATED":
         await updateUserData({
-          subscriptionStatus: "cancelled",
+          asaasStatus: "cancelled",
           cancelAtPeriodEnd: true,
-          updatedAt: new Date().toISOString(),
         });
         break;
       case "SUBSCRIPTION_UPDATED": {
@@ -120,9 +129,8 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
           const isSubActive = sub.status === "ACTIVE";
           await updateUserData({
             plan: isSubActive ? "premium" : "free",
-            subscriptionStatus: sub.status.toLowerCase(),
+            asaasStatus: sub.status.toLowerCase(),
             currentPeriodEnd: sub.nextDueDate || null,
-            updatedAt: new Date().toISOString(),
           });
         }
         break;
@@ -235,6 +243,19 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
     if (sub.status === "ACTIVE" && hasPaidPayment) plan = "premium";
     else if ((sub.status === "DELETED" || sub.deleted) && nextDueDate && nextDueDate >= now && hasPaidPayment) plan = "premium";
 
+    // Período cancelado expirou — sincroniza DB para evitar acesso premium residual
+    const isExpiredCancelled = (sub.status === "DELETED" || sub.deleted) && plan === "free";
+    if (isExpiredCancelled) {
+      const userId = customers.data[0].externalReference;
+      if (userId) {
+        subscriptionService.upsert(userId, {
+          plan: "free",
+          asaasStatus: "cancelled",
+          cancelAtPeriodEnd: false,
+        }).catch((err) => logger.error("[verifySubscription] Erro ao sincronizar plano expirado", err));
+      }
+    }
+
     return {
       status: sub.status,
       plan,
@@ -272,8 +293,11 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
     if (!activeSub) throw new Error("Nenhuma assinatura ativa encontrada.");
 
     let userDocId: string | null = null;
-    const nutritionists = await queryWithFallback("nutritionists", "email", "==", email);
-    if (!nutritionists.empty) userDocId = nutritionists.docs[0].id;
+    const nutritionist = await getDb().nutritionist.findUnique({
+      where: { email },
+      include: { subscription: true },
+    });
+    if (nutritionist) userDocId = nutritionist.id;
 
     const createdDate = activeSub.dateCreated ? new Date(activeSub.dateCreated) : new Date();
     const diffDays = (Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24);
@@ -282,9 +306,17 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
 
     if (isEligibleForRefund) {
       try {
-        const paymentsResponse = await asaasClient.request(`/payments?subscription=${activeSub.id}&status=CONFIRMED,RECEIVED`);
-        if (paymentsResponse.data?.length > 0) {
-          for (const payment of paymentsResponse.data) {
+        // Asaas não aceita múltiplos status num único parâmetro — consultas separadas
+        const [confirmedRes, receivedRes] = await Promise.all([
+          asaasClient.request(`/payments?subscription=${activeSub.id}&status=CONFIRMED`),
+          asaasClient.request(`/payments?subscription=${activeSub.id}&status=RECEIVED`),
+        ]);
+        const eligiblePayments = [
+          ...(confirmedRes.data || []),
+          ...(receivedRes.data || []),
+        ];
+        if (eligiblePayments.length > 0) {
+          for (const payment of eligiblePayments) {
             await asaasClient.request(`/payments/${payment.id}/refund`, { method: "POST" });
             refunded = true;
           }
@@ -299,20 +331,23 @@ export function createAsaasService({ asaasClient, getDocWithFallback, updateDocW
     if (userDocId) {
       try {
         const updateData: any = {
-          subscriptionStatus: refunded ? "refunded" : "cancelled",
+          asaasStatus: refunded ? "refunded" : "cancelled",
           cancelAtPeriodEnd: !refunded,
-          updatedAt: new Date().toISOString(),
         };
         if (refunded) {
           updateData.plan = "free";
-          updateData.subscriptionId = null;
+          updateData.asaasSubscriptionId = null;
           updateData.currentPeriodEnd = null;
           updateData.hadRefundBefore = true;
+        } else {
+          // Salva a data de expiração do acesso premium — sem ela não é possível
+          // fazer o downgrade automático após o período pago terminar.
+          updateData.currentPeriodEnd = activeSub.nextDueDate || null;
         }
-        await updateDocWithFallback("nutritionists", userDocId, updateData);
+        await subscriptionService.upsert(userDocId, updateData);
         logger.info(`[Asaas Service] Assinatura cancelada com sucesso`, { email, refunded });
       } catch (fsError) {
-        logger.error("Erro ao atualizar Firestore no cancelamento", fsError, { email });
+        logger.error("Erro ao atualizar subscription no cancelamento", fsError, { email });
       }
     }
 

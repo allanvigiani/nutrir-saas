@@ -1,7 +1,10 @@
 import { LandingNavbar } from '../components/LandingNavbar';
 import { LandingFooter } from '../components/LandingFooter';
+import { Button } from '../components/ui/button';
+import { useCookieConsent } from '../contexts/CookieConsentContext';
 
 export function Cookies() {
+  const { consent, resetConsent } = useCookieConsent();
   return (
     <div className="min-h-screen bg-background text-foreground">
       <LandingNavbar />
@@ -41,6 +44,24 @@ export function Cookies() {
             <p className="text-muted-foreground leading-relaxed">
               Você pode controlar e/ou excluir cookies pelas configurações do seu navegador. Desativar cookies essenciais pode impedir o funcionamento correto da plataforma.
             </p>
+            <div className="rounded-xl border border-border bg-muted/30 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <p className="text-sm font-medium text-foreground">Sua preferência atual</p>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {consent === 'all' && 'Você aceitou todos os cookies (essenciais + analíticos).'}
+                  {consent === 'essential' && 'Você aceitou apenas cookies essenciais.'}
+                  {consent === null && 'Nenhuma preferência definida ainda.'}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resetConsent}
+                className="shrink-0 rounded-lg"
+              >
+                Alterar preferências
+              </Button>
+            </div>
           </section>
 
           <section className="space-y-4">

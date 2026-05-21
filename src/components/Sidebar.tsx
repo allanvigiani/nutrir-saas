@@ -11,10 +11,14 @@ import {
   ChevronLeft,
   ChevronRight,
   Leaf,
-  BookOpen
+  BookOpen,
+  ArrowRightLeft,
+  Lock
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
+import { PageLoader } from './PageLoader';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { remoteLogger } from '../lib/remote-logger';
@@ -35,7 +39,7 @@ const SidebarItem = ({
     className={cn(
       "flex items-center gap-3 px-3 py-2.5 transition-all duration-200 group",
       active
-        ? "bg-primary text-primary-foreground shadow-sm rounded-full"
+        ? "bg-primary text-primary-foreground shadow-sm rounded-lg"
         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground rounded-lg"
     )}
   >
@@ -44,17 +48,46 @@ const SidebarItem = ({
   </Link>
 );
 
+const SidebarItemLocked = ({
+  icon: Icon,
+  label,
+  collapsed,
+}: { icon: React.ElementType; label: string; collapsed: boolean }) => (
+  <TooltipProvider delay={200}>
+    <Tooltip>
+      <TooltipTrigger
+        className={cn(
+          "flex w-full items-center gap-3 px-3 py-2.5 rounded-lg cursor-not-allowed opacity-50 select-none",
+          "text-muted-foreground"
+        )}
+      >
+        <Icon className={cn("w-4.5 h-4.5 shrink-0", collapsed && "w-5 h-5")} />
+        {!collapsed && (
+          <span className="font-medium text-sm flex-1 text-left">{label}</span>
+        )}
+        {!collapsed && <Lock className="w-3 h-3 shrink-0" />}
+      </TooltipTrigger>
+      <TooltipContent side="right">
+        Em Breve
+      </TooltipContent>
+    </Tooltip>
+  </TooltipProvider>
+);
+
 export const Sidebar = () => {
   const [collapsed, setCollapsed] = React.useState(false);
+  const [loggingOut, setLoggingOut] = React.useState(false);
   const location = useLocation();
   const { user, nutritionist } = useAuth();
   const { openTutorial } = useTutorial();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
     if (auth.currentUser) {
       remoteLogger.info("Logout realizado", { userId: auth.currentUser.uid, email: auth.currentUser.email });
     }
-    signOut(auth);
+    await signOut(auth);
   };
 
   const navItems = [];
@@ -71,10 +104,16 @@ export const Sidebar = () => {
     );
   }
 
+  const lockedNavItems = nutritionist ? [
+    { icon: ArrowRightLeft, label: 'Migração' },
+  ] : [];
+
   const userName = nutritionist?.name || user?.displayName || 'Usuário';
   const userEmail = nutritionist?.email || user?.email || '';
 
   return (
+    <>
+    {loggingOut && <PageLoader message="Saindo..." />}
     <aside
       className={cn(
         "flex flex-col h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300",
@@ -128,7 +167,15 @@ export const Sidebar = () => {
             label={item.label}
             to={item.to}
             collapsed={collapsed}
-            active={location.pathname === item.to}
+            active={location.pathname === item.to || (item.to !== '/dashboard' && location.pathname.startsWith(item.to + '/'))}
+          />
+        ))}
+        {lockedNavItems.map((item) => (
+          <SidebarItemLocked
+            key={item.label}
+            icon={item.icon}
+            label={item.label}
+            collapsed={collapsed}
           />
         ))}
       </nav>
@@ -163,17 +210,26 @@ export const Sidebar = () => {
           <Button
             variant="ghost"
             size={collapsed ? "icon" : "sm"}
+            disabled={loggingOut}
             className={cn(
               "text-muted-foreground hover:text-destructive hover:bg-destructive/10",
               !collapsed && "flex-1 justify-start gap-2"
             )}
             onClick={handleLogout}
           >
-            <LogOut className="w-4 h-4 shrink-0" />
-            {!collapsed && <span className="font-medium text-sm">Sair</span>}
+            {loggingOut
+              ? <span className="w-4 h-4 shrink-0 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+              : <LogOut className="w-4 h-4 shrink-0" />
+            }
+            {!collapsed && (
+              <span className="font-medium text-sm">
+                {loggingOut ? 'Saindo...' : 'Sair'}
+              </span>
+            )}
           </Button>
         </div>
       </div>
     </aside>
+    </>
   );
 };

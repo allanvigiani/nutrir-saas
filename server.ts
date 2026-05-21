@@ -3,9 +3,9 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import dotenv from "dotenv";
 import { createRequire } from "module";
-import { createFirestoreHelpers } from "./src/server/firestore-helpers.ts";
+import admin from "firebase-admin";
 import { registerApiRoutes } from "./src/server/register-api-routes.ts";
-import { createAuthenticateMiddleware } from "./src/server/middlewares/auth.ts";
+import { createAuthenticateMiddleware, requirePremiumOrAdmin } from "./src/server/middlewares/auth.ts";
 import { logger } from "./src/server/logger.ts";
 
 const require = createRequire(import.meta.url);
@@ -32,12 +32,13 @@ function isSuperAdmin(user: { email?: string | null }) {
 
 async function startServer() {
   const { google } = await import("googleapis");
-  const {
-    admin,
-    getDocWithFallback,
-    updateDocWithFallback,
-    queryWithFallback,
-  } = createFirestoreHelpers(firebaseConfig);
+
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.applicationDefault(),
+      projectId: firebaseConfig.projectId,
+    });
+  }
 
   const app = express();
   app.set("trust proxy", true);
@@ -83,16 +84,15 @@ async function startServer() {
   registerApiRoutes({
     app,
     authenticate,
+    requirePremiumOrAdmin,
     isSuperAdmin,
+    admin,
     google,
     googleClientId: GOOGLE_CALENDAR_CLIENT_ID,
     googleClientSecret: GOOGLE_CALENDAR_CLIENT_SECRET,
     asaasApiUrl: ASAAS_API_URL,
     asaasApiKey: ASAAS_API_KEY,
     asaasWebhookToken: ASAAS_WEBHOOK_TOKEN,
-    getDocWithFallback,
-    updateDocWithFallback,
-    queryWithFallback,
   });
 
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

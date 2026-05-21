@@ -4,13 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { createUserWithEmailAndPassword, updateProfile, signInWithPopup } from 'firebase/auth';
-import { doc, setDoc, getDocs, query, where, collection, getDoc } from 'firebase/firestore';
-import { auth, db, googleProvider } from '../lib/firebase';
+import { auth, googleProvider } from '../lib/firebase';
 import { Eye, EyeOff, ChevronLeft, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { maskCPF, maskCNPJ, maskPhone } from '../lib/utils';
 import { remoteLogger } from '../lib/remote-logger';
-import { recordSessionStart } from '../contexts/AuthContext';
+import { recordSessionStart, useAuth } from '../contexts/AuthContext';
 
 enum OperationType {
   CREATE = 'create',
@@ -66,6 +65,10 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
+import { strongPasswordSchema } from '../lib/passwordSchema';
+import { isStrongPassword } from '../lib/passwordStrength';
+import { PasswordStrengthBar } from '../components/ui/PasswordStrengthBar';
 
 const registerSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
@@ -74,7 +77,7 @@ const registerSchema = z.object({
   cnpj: z.string().optional(),
   email: z.string().email('E-mail inválido'),
   phone: z.string().min(10, 'Telefone inválido'),
-  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
+  password: strongPasswordSchema,
   confirmPassword: z.string()
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
@@ -90,9 +93,11 @@ export const Register = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, setTheme } = useTheme();
+  const { reloadNutritionist } = useAuth();
   const [showPassword, setShowPassword] = React.useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
   const registerHeroImageUrl = import.meta.env.VITE_LOGIN_HERO_IMAGE_URL || '';
-  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<RegisterFormValues>({
+  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
       email: location.state?.email || '',
@@ -110,9 +115,10 @@ export const Register = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
 
-      // Check if user already exists
-      const userDoc = await getDoc(doc(db, 'nutritionists', user.uid));
-      if (userDoc.exists()) {
+      // Check if user already exists in PostgreSQL
+      const idToken = await user.getIdToken();
+      const meRes = await fetch('/api/me', { headers: { Authorization: `Bearer ${idToken}` } });
+      if (meRes.ok) {
         toast.success('Você já possui uma conta. Entrando...');
         navigate('/');
         return;
@@ -132,18 +138,16 @@ export const Register = () => {
   const onSubmit = async (data: RegisterFormValues) => {
     try {
       // 1. Verificar duplicidade de CRN
-      const crnQuery = query(collection(db, 'nutritionists'), where('crn', '==', data.crn));
-      const crnSnapshot = await getDocs(crnQuery);
-      if (!crnSnapshot.empty) {
+      const crnCheck = await fetch(`/api/check-unique?field=crn&value=${encodeURIComponent(data.crn)}`).then(r => r.json());
+      if (crnCheck.isDuplicate) {
         toast.error('Ops! Este CRN já está em uso por outro profissional. Verifique se o número está correto.');
         return;
       }
 
       // 2. Verificar duplicidade de CPF (se preenchido)
       if (data.cpf) {
-        const cpfQuery = query(collection(db, 'nutritionists'), where('cpf', '==', data.cpf));
-        const cpfSnapshot = await getDocs(cpfQuery);
-        if (!cpfSnapshot.empty) {
+        const cpfCheck = await fetch(`/api/check-unique?field=cpf&value=${encodeURIComponent(data.cpf)}`).then(r => r.json());
+        if (cpfCheck.isDuplicate) {
           toast.error('Este CPF já está cadastrado. Você já possui uma conta com este documento.');
           return;
         }
@@ -151,9 +155,8 @@ export const Register = () => {
 
       // 3. Verificar duplicidade de CNPJ (se preenchido)
       if (data.cnpj) {
-        const cnpjQuery = query(collection(db, 'nutritionists'), where('cnpj', '==', data.cnpj));
-        const cnpjSnapshot = await getDocs(cnpjQuery);
-        if (!cnpjSnapshot.empty) {
+        const cnpjCheck = await fetch(`/api/check-unique?field=cnpj&value=${encodeURIComponent(data.cnpj)}`).then(r => r.json());
+        if (cnpjCheck.isDuplicate) {
           toast.error('Este CNPJ já está cadastrado. Verifique os dados da sua empresa.');
           return;
         }
@@ -166,26 +169,34 @@ export const Register = () => {
         displayName: data.name
       });
 
-      try {
-        await setDoc(doc(db, 'nutritionists', user.uid), {
+      const idToken = await user.getIdToken();
+
+      const profileRes = await fetch('/api/auth/register-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${idToken}`,
+        },
+        body: JSON.stringify({
           name: data.name,
           crn: data.crn,
           cpf: data.cpf || null,
           cnpj: data.cnpj || null,
           email: data.email,
           phone: data.phone,
-          role: 'nutritionist',
-          plan: 'free',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          lastLogin: new Date().toISOString(),
-        });
-        remoteLogger.info("Novo usuário cadastrado (Email/Senha)", { userId: user.uid, email: data.email });
-      } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, `nutritionists/${user.uid}`);
+        }),
+      });
+
+      if (!profileRes.ok) {
+        const err = await profileRes.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao salvar perfil.');
       }
 
+      remoteLogger.info("Novo usuário cadastrado (Email/Senha)", { userId: user.uid, email: data.email });
+
+      void logEvent('sign_up', { method: 'email' });
       recordSessionStart();
+      await reloadNutritionist();
       toast.success('Conta criada com sucesso!');
       navigate('/dashboard');
     } catch (error: any) {
@@ -250,7 +261,7 @@ export const Register = () => {
             <div className="space-y-1.5">
               <Label htmlFor="name" className="text-sm font-medium">Nome Completo</Label>
               <Input id="name" placeholder="Seu nome completo" className="h-11 rounded-xl" {...register('name')} />
-              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+              {errors.name && <p className="text-xs text-destructive mt-1">{errors.name.message}</p>}
             </div>
 
             {/* CPF / CNPJ */}
@@ -264,7 +275,7 @@ export const Register = () => {
                   {...register('cpf')}
                   onChange={(e) => setValue('cpf', maskCPF(e.target.value))}
                 />
-                {errors.cpf && <p className="text-xs text-destructive">{errors.cpf.message}</p>}
+                {errors.cpf && <p className="text-xs text-destructive mt-1">{errors.cpf.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cnpj" className="text-sm font-medium">CNPJ</Label>
@@ -275,7 +286,7 @@ export const Register = () => {
                   {...register('cnpj')}
                   onChange={(e) => setValue('cnpj', maskCNPJ(e.target.value))}
                 />
-                {errors.cnpj && <p className="text-xs text-destructive">{errors.cnpj.message}</p>}
+                {errors.cnpj && <p className="text-xs text-destructive mt-1">{errors.cnpj.message}</p>}
               </div>
             </div>
 
@@ -284,7 +295,7 @@ export const Register = () => {
               <div className="space-y-1.5">
                 <Label htmlFor="crn" className="text-sm font-medium">CRN</Label>
                 <Input id="crn" placeholder="Ex: 12345" className="h-11 rounded-xl" {...register('crn')} />
-                {errors.crn && <p className="text-xs text-destructive">{errors.crn.message}</p>}
+                {errors.crn && <p className="text-xs text-destructive mt-1">{errors.crn.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="phone" className="text-sm font-medium">Telefone</Label>
@@ -295,7 +306,7 @@ export const Register = () => {
                   {...register('phone')}
                   onChange={(e) => setValue('phone', maskPhone(e.target.value))}
                 />
-                {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
+                {errors.phone && <p className="text-xs text-destructive mt-1">{errors.phone.message}</p>}
               </div>
             </div>
 
@@ -303,56 +314,66 @@ export const Register = () => {
             <div className="space-y-1.5">
               <Label htmlFor="email" className="text-sm font-medium">E-mail</Label>
               <Input id="email" type="email" placeholder="exemplo@email.com" className="h-11 rounded-xl" {...register('email')} />
-              {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
+              {errors.email && <p className="text-xs text-destructive mt-1">{errors.email.message}</p>}
             </div>
 
-            {/* Senha / Confirmar */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="••••••••"
-                    className="h-11 rounded-xl pr-10"
-                    {...register('password')}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
+            {/* Senha */}
+            <div className="space-y-1.5">
+              <Label htmlFor="password" className="text-sm font-medium">Senha</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  className="h-11 rounded-xl pr-10"
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirmar</Label>
+              <PasswordStrengthBar password={watch('password') ?? ''} />
+              {errors.password && <p className="text-xs text-destructive mt-1">{errors.password.message}</p>}
+            </div>
+
+            {/* Confirmar Senha */}
+            <div className="space-y-1.5">
+              <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirmar Senha</Label>
+              <div className="relative">
                 <Input
                   id="confirmPassword"
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   placeholder="••••••••"
-                  className="h-11 rounded-xl"
+                  className="h-11 rounded-xl pr-10"
                   {...register('confirmPassword')}
                 />
-                {errors.confirmPassword && <p className="text-xs text-destructive">{errors.confirmPassword.message}</p>}
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
+              {errors.confirmPassword && <p className="text-xs text-destructive mt-1">{errors.confirmPassword.message}</p>}
             </div>
 
             {/* Submit */}
             <Button
               type="submit"
               className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl shadow-md shadow-primary/20 transition-all active:scale-[0.98]"
-              disabled={isSubmitting}
+              disabled={isSubmitting || !isStrongPassword(watch('password') ?? '')}
             >
               {isSubmitting ? (
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                   <span>Criando conta...</span>
                 </div>
-              ) : 'Criar conta grátis'}
+              ) : 'Cadastrar'}
             </Button>
 
             <div className="relative">

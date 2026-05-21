@@ -5,9 +5,8 @@ import { Search, Check, Plus } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { TacoFood, tacoData } from '../data/taco';
 import { TbcaFood, tbcaData } from '../data/tbca';
-import { db, auth } from '../lib/firebase';
-import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { CustomFood } from '../types';
+import { useApi } from '../hooks/useApi';
 
 interface FoodAutocompleteProps {
   value: string;
@@ -34,27 +33,11 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
 
   const [isOpen, setIsOpen] = useState(false);
   const [filteredFoods, setFilteredFoods] = useState<(TacoFood | TbcaFood | CustomFood)[]>([]);
-  const [customFoods, setCustomFoods] = useState<CustomFood[]>([]);
+  const { data: customFoods = [] } = useApi<CustomFood[]>('/api/custom-foods');
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
   const selectingFromListRef = useRef(false);
-
-  useEffect(() => {
-    if (!auth.currentUser) return;
-
-    const q = query(
-      collection(db, 'custom_foods'),
-      where('nutritionist_id', '==', auth.currentUser.uid)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const foods = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as CustomFood));
-      setCustomFoods(foods);
-    });
-
-    return () => unsubscribe();
-  }, []);
 
   useEffect(() => {
     if (value.length > 1) {

@@ -55,24 +55,9 @@ import {
 } from '../components/ui/card';
 import { Button, buttonVariants } from '../components/ui/button';
 import { useAuth } from '../contexts/AuthContext';
-import { FREE_PLAN_LIMITS } from '../lib/planLimits';
-import {
-  doc,
-  getDoc,
-  collection,
-  query,
-  where,
-  getDocs,
-  orderBy,
-  deleteDoc,
-  addDoc,
-  updateDoc,
-  serverTimestamp,
-  onSnapshot,
-  writeBatch
-} from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db, auth, storage } from '../lib/firebase';
+import { FREE_PLAN_LIMITS, isAdminOrPremium } from '../lib/planLimits';
+import { auth } from '../lib/firebase';
+import { apiRequest } from '../hooks/useApi';
 import { Patient, Consultation, MealPlan, MealPlanItem, LabExam, LabExamMarker, CustomFood, NutritionCalculation } from '../types';
 import { format, differenceInYears, parseISO, subMonths, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -159,10 +144,13 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
   throw new Error(JSON.stringify(errInfo));
 }
 import { toast } from 'sonner';
+import { logEvent } from '../lib/firebase';
 
 import {
   LineChart,
   Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -170,7 +158,8 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
-  Legend
+  Legend,
+  ReferenceLine,
 } from 'recharts';
 import {
   Dialog,
@@ -267,8 +256,6 @@ export const PatientProfile = () => {
   const [activeMealItemIndex, setActiveMealItemIndex] = useState<number | null>(null);
   const [isLabExamModalOpen, setIsLabExamModalOpen] = useState(false);
   const [isEditPatientModalOpen, setIsEditPatientModalOpen] = useState(false);
-  const [editCpf, setEditCpf] = useState('');
-  const [editPhone, setEditPhone] = useState('');
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -299,7 +286,8 @@ export const PatientProfile = () => {
   const [selectedMealPlan, setSelectedMealPlan] = useState<MealPlan | null>(null);
   const [selectedMealPlanItems, setSelectedMealPlanItems] = useState<MealPlanItem[]>([]);
 
-  const isPremium = nutritionist?.plan === 'premium';
+  const isPremium = isAdminOrPremium(nutritionist);
+  const isPatientReadOnly = !isPremium && !!(patient as any)?.isReadOnly;
   const isMealPlanLimitReached = !isPremium && mealPlans.filter(p => p.status === 'active').length >= FREE_PLAN_LIMITS.maxMealPlans;
   const isLabExamLimitReached = !isPremium && exams.length >= FREE_PLAN_LIMITS.maxExams;
   const {
@@ -572,19 +560,16 @@ export const PatientProfile = () => {
     const toastId = toast.loading("Preparando e-mail com plano alimentar...");
 
     try {
-      const q = query(
-        collection(db, 'meal_plan_items'),
-        where('meal_plan_id', '==', plan.id),
-        where('nutritionist_id', '==', user.uid)
-      );
-      const querySnapshot = await getDocs(q);
-      const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlanItem));
+      const token = await auth.currentUser?.getIdToken();
+      const itemsRes = await fetch(`/api/meal-plans/${plan.id}/items`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const items: MealPlanItem[] = itemsRes.ok ? await itemsRes.json() : [];
 
       const doc = generateMealPlanPDF(plan, items);
       const pdfBase64 = doc.output('datauristring').split(',')[1];
       const fileName = `Plano_Alimentar_${patient.name.replace(/\s+/g, '_')}.pdf`;
 
-      const token = await user.getIdToken();
       const response = await fetch('/api/send-meal-plan', {
         method: 'POST',
         headers: {
@@ -614,15 +599,14 @@ export const PatientProfile = () => {
     const toastId = toast.loading("Gerando PDF do plano alimentar...");
     setSelectedMealPlan(plan);
     try {
-      const q = query(
-        collection(db, 'meal_plan_items'),
-        where('meal_plan_id', '==', plan.id),
-        where('nutritionist_id', '==', user.uid)
-      );
-      const querySnapshot = await getDocs(q);
-      const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlanItem));
+      const token = await auth.currentUser?.getIdToken();
+      const itemsRes = await fetch(`/api/meal-plans/${plan.id}/items`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const items: MealPlanItem[] = itemsRes.ok ? await itemsRes.json() : [];
 
       handleExportPDF(plan, items);
+      void logEvent('exportar_pdf_plano_alimentar');
       toast.success("PDF gerado com sucesso!", { id: toastId });
     } catch (error) {
       console.error("Error generating PDF:", error);
@@ -680,77 +664,43 @@ export const PatientProfile = () => {
       });
 
       if (selectedConsultation) {
-        // Update existing
-        const updatePath = `consultations/${selectedConsultation.id}`;
-        try {
-          await updateDoc(doc(db, 'consultations', selectedConsultation.id), {
-            ...cleanData,
-            imc,
-            updatedAt: new Date().toISOString(),
-          });
-          toast.success('Consulta atualizada com sucesso!');
-        } catch (error) {
-          handleFirestoreError(error, OperationType.UPDATE, updatePath);
-        }
+        await apiRequest(`/api/consultations/${selectedConsultation.id}`, 'PATCH', {
+          ...cleanData,
+          imc,
+          updatedAt: new Date().toISOString(),
+        });
+        toast.success('Consulta atualizada com sucesso!');
       } else {
-        // Add new
-        const createPath = 'consultations';
-        try {
-          await addDoc(collection(db, 'consultations'), {
-            ...cleanData,
-            imc,
-            patient_id: id,
-            nutritionist_id: user.uid,
-            access_token: patient.access_token || null,
-            status: 'realized',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          });
-          toast.success('Consulta registrada com sucesso!');
-        } catch (error) {
-          handleFirestoreError(error, OperationType.CREATE, createPath);
-        }
+        await apiRequest(`/api/patients/${id}/consultations`, 'POST', {
+          ...cleanData,
+          imc,
+          patientId: id,
+          nutritionistId: user.uid,
+          accessToken: patient?.access_token || (patient as any)?.accessToken || null,
+          status: 'realized',
+        });
+        void logEvent('nova_consulta');
+        toast.success('Consulta registrada com sucesso!');
       }
 
       setIsConsultationModalOpen(false);
       setSelectedConsultation(null);
       resetConsultation();
-
-      // Refresh data
-      const consultationsQuery = query(
-        collection(db, 'consultations'),
-        where('patient_id', '==', id),
-        where('nutritionist_id', '==', user.uid),
-        orderBy('date', 'desc')
-      );
-      const consultationsSnap = await getDocs(consultationsQuery);
-      setConsultations(consultationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Consultation)).sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
+      await refetchPatientData();
     } catch (error) {
       console.error("Error saving consultation:", error);
-      // Error is already handled by handleFirestoreError inside the try blocks if it's a permission error
-      if (!(error instanceof Error && error.message.includes('operationType'))) {
-        toast.error('Erro ao salvar consulta.');
-      }
+      toast.error('Erro ao salvar consulta.');
     }
   };
 
   const onDeleteConsultation = async () => {
     if (!consultationToDelete) return;
     try {
-      await deleteDoc(doc(db, 'consultations', consultationToDelete));
+      await apiRequest(`/api/consultations/${consultationToDelete}`, 'DELETE');
       toast.success('Consulta excluída com sucesso!');
       setIsDeleteConsultationConfirmOpen(false);
       setConsultationToDelete(null);
-
-      // Refresh data
-      const consultationsQuery = query(
-        collection(db, 'consultations'),
-        where('patient_id', '==', id),
-        where('nutritionist_id', '==', user.uid),
-        orderBy('date', 'desc')
-      );
-      const consultationsSnap = await getDocs(consultationsQuery);
-      setConsultations(consultationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Consultation)).sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
+      await refetchPatientData();
     } catch (error) {
       console.error("Error deleting consultation:", error);
       toast.error('Erro ao excluir consulta.');
@@ -762,19 +712,16 @@ export const PatientProfile = () => {
     if (!user) return;
     setSelectedMealPlan(plan);
     try {
-      const q = query(
-        collection(db, 'meal_plan_items'),
-        where('meal_plan_id', '==', plan.id),
-        where('nutritionist_id', '==', user.uid)
-      );
-      const querySnapshot = await getDocs(q);
-      const items = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlanItem));
+      const token = await auth.currentUser?.getIdToken();
+      const res = await fetch(`/api/meal-plans/${plan.id}/items`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const items: MealPlanItem[] = res.ok ? await res.json() : [];
       setSelectedMealPlanItems(items);
       setIsViewMealPlanModalOpen(true);
     } catch (error) {
       console.error("Error fetching meal plan items:", error);
       toast.error("Erro ao carregar itens do plano alimentar.");
-      handleFirestoreError(error, OperationType.GET, `meal_plan_items`);
     }
   };
 
@@ -791,27 +738,14 @@ export const PatientProfile = () => {
   const confirmDeleteMealPlan = async () => {
     if (!user || !mealPlanToDelete) return;
     try {
-      // Delete items first
-      const itemsQuery = query(
-        collection(db, 'meal_plan_items'),
-        where('meal_plan_id', '==', mealPlanToDelete),
-        where('nutritionist_id', '==', user.uid)
-      );
-      const itemsSnap = await getDocs(itemsQuery);
-      for (const itemDoc of itemsSnap.docs) {
-        await deleteDoc(doc(db, 'meal_plan_items', itemDoc.id));
-      }
-      // Delete plan
-      await deleteDoc(doc(db, 'meal_plans', mealPlanToDelete));
+      await apiRequest(`/api/meal-plans/${mealPlanToDelete}`, 'DELETE');
       toast.success('Plano alimentar excluído!');
-      // Refresh meal plans
       setMealPlans(mealPlans.filter(p => p.id !== mealPlanToDelete));
       setIsDeleteMealPlanConfirmOpen(false);
       setMealPlanToDelete(null);
     } catch (error) {
       console.error("Error deleting meal plan:", error);
       toast.error('Erro ao excluir plano alimentar.');
-      handleFirestoreError(error, OperationType.DELETE, `meal_plans/${mealPlanToDelete}`);
     }
   };
 
@@ -855,45 +789,31 @@ export const PatientProfile = () => {
     const formData = new FormData(e.currentTarget);
 
     try {
-      const examData = {
+      const examPayload = {
         date: formData.get('date') as string,
         title: formData.get('title') as string,
         observations: formData.get('observations') as string,
         markers: examMarkers,
-
-        patient_id: id,
-        nutritionist_id: user.uid,
-        access_token: patient.access_token || null,
-        createdAt: selectedExam ? selectedExam.createdAt : new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        patientId: id,
+        nutritionistId: user.uid,
+        accessToken: patient?.access_token || (patient as any)?.accessToken || null,
       };
 
       if (selectedExam) {
-        await updateDoc(doc(db, 'lab_exams', selectedExam.id), examData);
+        await apiRequest(`/api/lab-exams/${selectedExam.id}`, 'PATCH', examPayload);
         toast.success('Exame atualizado com sucesso!');
       } else {
-        await addDoc(collection(db, 'lab_exams'), examData);
+        await apiRequest(`/api/patients/${id}/lab-exams`, 'POST', examPayload);
         toast.success('Exame registrado com sucesso!');
       }
 
       setIsLabExamModalOpen(false);
       setExamMarkers([]);
       setSelectedExam(null);
-
-
-      // Refresh exams
-      const examsQuery = query(
-        collection(db, 'lab_exams'),
-        where('patient_id', '==', id),
-        where('nutritionist_id', '==', user.uid),
-        orderBy('date', 'desc')
-      );
-      const examsSnap = await getDocs(examsQuery);
-      setExams(examsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as LabExam)));
+      await refetchPatientData();
     } catch (error) {
       console.error("Error saving exam:", error);
       toast.error('Erro ao salvar exame.');
-      handleFirestoreError(error, OperationType.WRITE, 'lab_exams');
     }
   };
 
@@ -907,7 +827,7 @@ export const PatientProfile = () => {
     if (!user || !labExamToDelete) return;
 
     try {
-      await deleteDoc(doc(db, 'lab_exams', labExamToDelete));
+      await apiRequest(`/api/lab-exams/${labExamToDelete}`, 'DELETE');
       toast.success('Exame excluído com sucesso!');
       setExams(exams.filter(e => e.id !== labExamToDelete));
       setIsDeleteLabExamConfirmOpen(false);
@@ -915,24 +835,21 @@ export const PatientProfile = () => {
     } catch (error) {
       console.error("Error deleting exam:", error);
       toast.error('Erro ao excluir exame.');
-      handleFirestoreError(error, OperationType.DELETE, `lab_exams/${labExamToDelete}`);
     }
   };
 
   const handleSaveCalculation = async (input: any, result: any, name: string) => {
     if (!selectedConsultationForCalc || !user || !id) return;
     try {
-      const newCalc = {
-        patient_id: id,
-        consultation_id: selectedConsultationForCalc.id,
-        nutritionist_id: user.uid,
+      const created = await apiRequest<NutritionCalculation>(`/api/patients/${id}/calculations`, 'POST', {
+        patientId: id,
+        consultationId: selectedConsultationForCalc.id,
+        nutritionistId: user.uid,
         name,
         input,
         result,
-        createdAt: new Date().toISOString()
-      };
-      const docRef = await addDoc(collection(db, 'nutrition_calculations'), newCalc);
-      setCalculations(prev => [{ id: docRef.id, ...newCalc } as NutritionCalculation, ...prev]);
+      });
+      setCalculations(prev => [created, ...prev]);
       setIsCalculatorModalOpen(false);
     } catch (error) {
       console.error(error);
@@ -940,12 +857,7 @@ export const PatientProfile = () => {
     }
   };
 
-  useEffect(() => {
-    if (isEditPatientModalOpen && patient) {
-      setEditCpf(maskCPF(patient.cpf));
-      setEditPhone(maskPhone(patient.phone));
-    }
-  }, [isEditPatientModalOpen, patient]);
+  // editPhone e editCpf removidos — inputs usam defaultValue + masking direto no DOM
 
   const onEditPatientSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -986,38 +898,7 @@ export const PatientProfile = () => {
     };
 
     try {
-      // Duplicate check: CPF and Email must be unique for the same nutritionist
-      const patientsRef = collection(db, 'patients');
-
-      // Check CPF
-      const cpfQuery = query(
-        patientsRef,
-        where('nutritionist_id', '==', user.uid),
-        where('cpf', '==', cpf)
-      );
-      const cpfSnapshot = await getDocs(cpfQuery);
-      const duplicateCpf = cpfSnapshot.docs.find(doc => doc.id !== id);
-
-      if (duplicateCpf) {
-        toast.error('Já existe um paciente cadastrado com este CPF.');
-        return;
-      }
-
-      // Check Email
-      const emailQuery = query(
-        patientsRef,
-        where('nutritionist_id', '==', user.uid),
-        where('email', '==', email)
-      );
-      const emailSnapshot = await getDocs(emailQuery);
-      const duplicateEmail = emailSnapshot.docs.find(doc => doc.id !== id);
-
-      if (duplicateEmail) {
-        toast.error('Já existe um paciente cadastrado com este E-mail.');
-        return;
-      }
-
-      await updateDoc(doc(db, 'patients', id), data);
+      await apiRequest(`/api/patients/${id}`, 'PATCH', data);
       toast.success('Dados do paciente atualizados com sucesso!');
       setIsEditPatientModalOpen(false);
       setPatient({ ...patient, ...data });
@@ -1027,178 +908,117 @@ export const PatientProfile = () => {
     }
   };
 
+  const refetchPatientData = async () => {
+    if (!id || !user) return;
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      const headers = { Authorization: `Bearer ${token}` };
+      const [consultationsRes, mealPlansRes, examsRes, calculationsRes] = await Promise.all([
+        fetch(`/api/patients/${id}/consultations`, { headers }),
+        fetch(`/api/patients/${id}/meal-plans`, { headers }),
+        fetch(`/api/patients/${id}/lab-exams`, { headers }),
+        fetch(`/api/patients/${id}/calculations`, { headers }),
+      ]);
+      if (consultationsRes.ok) setConsultations((await consultationsRes.json()).sort((a: Consultation, b: Consultation) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
+      if (mealPlansRes.ok) setMealPlans((await mealPlansRes.json()).sort((a: MealPlan, b: MealPlan) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      if (examsRes.ok) setExams(await examsRes.json());
+      if (calculationsRes.ok) setCalculations(await calculationsRes.json());
+    } catch (err) {
+      console.error('Error refetching patient data:', err);
+    }
+  };
+
   useEffect(() => {
     if (!isAuthReady || !id || !user) return;
 
-    const fetchPatientData = () => {
+    const loadPatientData = async () => {
       setLoading(true);
-      const docRef = doc(db, 'patients', id);
+      try {
+        const token = await auth.currentUser?.getIdToken();
+        const headers = { Authorization: `Bearer ${token}` };
 
-      const unsubscribe = onSnapshot(docRef, async (docSnap) => {
-        if (docSnap.exists()) {
-          const data = { id: docSnap.id, ...docSnap.data() } as Patient;
-          setPatient(data);
-          setGender(data.gender);
+        const [patientRes, consultationsRes, mealPlansRes, examsRes, calculationsRes] = await Promise.all([
+          fetch(`/api/patients/${id}`, { headers }),
+          fetch(`/api/patients/${id}/consultations`, { headers }),
+          fetch(`/api/patients/${id}/meal-plans`, { headers }),
+          fetch(`/api/patients/${id}/lab-exams`, { headers }),
+          fetch(`/api/patients/${id}/calculations`, { headers }),
+        ]);
 
-          try {
-            // Fetch consultations
-            const consultationsQuery = query(
-              collection(db, 'consultations'),
-              where('patient_id', '==', id),
-              where('nutritionist_id', '==', user.uid)
-            );
-            const consultationsSnap = await getDocs(consultationsQuery);
-            let fetchedConsultations = consultationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Consultation));
-
-            // Fetch meal plans
-            const mealPlansQuery = query(
-              collection(db, 'meal_plans'),
-              where('patient_id', '==', id),
-              where('nutritionist_id', '==', user.uid)
-            );
-            const mealPlansSnap = await getDocs(mealPlansQuery);
-            const fetchedPlans = mealPlansSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as MealPlan));
-            setMealPlans(fetchedPlans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-
-            // Fetch exams
-            const examsQuery = query(
-              collection(db, 'lab_exams'),
-              where('patient_id', '==', id),
-              where('nutritionist_id', '==', user.uid)
-            );
-            const examsSnap = await getDocs(examsQuery);
-            let fetchedExams = examsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as LabExam));
-
-            // Fetch calculations
-            try {
-              const calculationsQuery = query(
-                collection(db, 'nutrition_calculations'),
-                where('patient_id', '==', id),
-                where('nutritionist_id', '==', user.uid)
-              );
-              const calculationsSnap = await getDocs(calculationsQuery);
-              const fetchedCalculations = calculationsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as NutritionCalculation));
-              setCalculations(fetchedCalculations.sort((a, b) => {
-                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                return dateB - dateA;
-              }));
-            } catch (calcError) {
-              console.error("Erro ao buscar cálculos:", calcError);
-              // We don't toast here to avoid spamming if it's just a missing index, 
-              // the main catch block will handle the loading state.
-            }
-
-            // Apply premium restrictions: history limit for free plan
-            if (nutritionist?.plan === 'free') {
-              const historyMonths = FREE_PLAN_LIMITS.historyMonths;
-              const historyLimitDate = subMonths(new Date(), historyMonths);
-
-              const originalConsultationsCount = fetchedConsultations.length;
-              const originalExamsCount = fetchedExams.length;
-
-              fetchedConsultations = fetchedConsultations.filter(c => {
-                return isAfter(new Date(c.date), historyLimitDate);
-              });
-
-              fetchedExams = fetchedExams.filter(e => {
-                return isAfter(new Date(e.date), historyLimitDate);
-              });
-
-              if (fetchedConsultations.length < originalConsultationsCount || fetchedExams.length < originalExamsCount) {
-                setHasHiddenHistory(true);
-              }
-            }
-
-            setConsultations(fetchedConsultations.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
-            setExams(fetchedExams.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
-          } catch (error) {
-            console.error("Error fetching related patient data:", error);
-            setLoading(false);
-            toast.error("Alguns dados (consultas/planos) podem não ter sido carregados.");
-            handleFirestoreError(error, OperationType.GET, 'related_data');
-          }
-        } else {
-          toast.error("Paciente não encontrado.");
+        if (!patientRes.ok) {
+          toast.error('Paciente não encontrado.');
           navigate('/patients');
+          return;
         }
-        setLoading(false);
-      }, (error) => {
-        console.error("Error fetching patient data:", error);
-        toast.error("Erro ao carregar dados do paciente.");
-        setLoading(false);
-        handleFirestoreError(error, OperationType.GET, `patients/${id}`);
-      });
 
-      return unsubscribe;
+        const patientData: Patient = await patientRes.json();
+        setPatient(patientData);
+        setGender(patientData.gender);
+
+        let fetchedConsultations: Consultation[] = consultationsRes.ok ? await consultationsRes.json() : [];
+        let fetchedExams: LabExam[] = examsRes.ok ? await examsRes.json() : [];
+        const fetchedPlans: MealPlan[] = mealPlansRes.ok ? await mealPlansRes.json() : [];
+        const fetchedCalculations: NutritionCalculation[] = calculationsRes.ok ? await calculationsRes.json() : [];
+
+        setMealPlans(fetchedPlans.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+        setCalculations(fetchedCalculations.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
+        }));
+
+        // Apply premium restrictions: history limit for free plan
+        if (nutritionist?.plan === 'free') {
+          const historyMonths = FREE_PLAN_LIMITS.historyMonths;
+          const historyLimitDate = subMonths(new Date(), historyMonths);
+
+          const originalConsultationsCount = fetchedConsultations.length;
+          const originalExamsCount = fetchedExams.length;
+
+          fetchedConsultations = fetchedConsultations.filter(c => isAfter(new Date(c.date), historyLimitDate));
+          fetchedExams = fetchedExams.filter(e => isAfter(new Date(e.date), historyLimitDate));
+
+          if (fetchedConsultations.length < originalConsultationsCount || fetchedExams.length < originalExamsCount) {
+            setHasHiddenHistory(true);
+          }
+        }
+
+        setConsultations(fetchedConsultations.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
+        setExams(fetchedExams.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
+      } catch (error) {
+        console.error('Error fetching patient data:', error);
+        toast.error('Erro ao carregar dados do paciente.');
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const unsubscribe = fetchPatientData();
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [id, user, navigate, isAuthReady]);
+    loadPatientData();
+  }, [id, user, navigate, isAuthReady, nutritionist?.plan]);
 
   const generateAccessToken = async () => {
     if (!patient || !id) return;
-
     setIsGeneratingToken(true);
-    const toastId = toast.loading('Gerando link de acesso e atualizando registros...');
-
+    const toastId = toast.loading('Gerando link de acesso...');
     try {
       const token = generateSecureToken();
-
-      // 1. Atualizar o paciente
-      await updateDoc(doc(db, 'patients', id), {
-        access_token: token,
-        updatedAt: new Date().toISOString()
+      await apiRequest(`/api/patients/${id}`, 'PATCH', {
+        accessToken: token,
+        updatedAt: new Date().toISOString(),
       });
-
-      // 2. Propagar o token para registros existentes (Consultas, Planos, Exames, Agendamentos)
-      const collectionsToUpdate = ['consultations', 'meal_plans', 'lab_exams', 'appointments'];
-      let totalUpdated = 0;
-
-      for (const colName of collectionsToUpdate) {
-        const q = query(collection(db, colName), where('patient_id', '==', id));
-        const snapshot = await getDocs(q);
-
-        if (!snapshot.empty) {
-          const batch = writeBatch(db);
-          snapshot.docs.forEach((docSnap) => {
-            batch.update(doc(db, colName, docSnap.id), { access_token: token });
-            totalUpdated++;
-          });
-          await batch.commit();
-
-          // Se for plano alimentar, atualizar também os itens
-          if (colName === 'meal_plans') {
-            for (const planDoc of snapshot.docs) {
-              const itemsQ = query(collection(db, 'meal_plan_items'), where('meal_plan_id', '==', planDoc.id));
-              const itemsSnap = await getDocs(itemsQ);
-              if (!itemsSnap.empty) {
-                const itemsBatch = writeBatch(db);
-                itemsSnap.docs.forEach((itemDoc) => {
-                  itemsBatch.update(doc(db, 'meal_plan_items', itemDoc.id), { access_token: token });
-                  totalUpdated++;
-                });
-                await itemsBatch.commit();
-              }
-            }
-          }
-        }
-      }
-
-      toast.success(`Link gerado e ${totalUpdated} registros atualizados!`, { id: toastId });
+      setPatient(prev => prev ? { ...prev, access_token: token } : prev);
+      toast.success('Link de acesso gerado com sucesso!', { id: toastId });
     } catch (error) {
-      console.error("Error generating access token:", error);
-      toast.error('Erro ao gerar link de acesso ou atualizar registros.', { id: toastId });
+      console.error('Error generating access token:', error);
+      toast.error('Erro ao gerar link de acesso.', { id: toastId });
     } finally {
       setIsGeneratingToken(false);
     }
   };
 
   const shareAccessLink = () => {
-    if (!patient?.access_token) return;
+    const accessToken = patient?.access_token || (patient as any)?.accessToken;
+    if (!accessToken) return;
     const whatsappBaseUrl = import.meta.env.VITE_WHATSAPP_BASE_URL || '';
     if (!whatsappBaseUrl) {
       toast.error('VITE_WHATSAPP_BASE_URL não configurada.');
@@ -1206,7 +1026,7 @@ export const PatientProfile = () => {
     }
 
     const baseUrl = window.location.origin;
-    const accessUrl = `${baseUrl}/patient-access/${id}?token=${patient.access_token}`;
+    const accessUrl = `${baseUrl}/patient-access/${id}?token=${accessToken}`;
 
     const message = `Olá ${patient.name}! Aqui está seu link exclusivo para acessar seu plano alimentar e evolução no Nutrir: ${accessUrl}\n\nPara sua segurança, ao acessar, digite os 3 últimos dígitos do seu CPF.`;
 
@@ -1228,12 +1048,16 @@ export const PatientProfile = () => {
 
   return (
     <div className="space-y-8">
-      {patient.status === 'inactive' && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3 text-amber-800 shadow-sm">
-          <AlertCircle className="w-5 h-5 shrink-0" />
+
+      {isPatientReadOnly && (
+        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
           <div className="text-sm">
-            <p className="font-bold">Paciente Inativo</p>
-            <p>Este paciente está desativado. Edições e novos registros estão bloqueados até que o paciente seja reativado na lista de pacientes.</p>
+            <p className="font-bold text-amber-800 dark:text-amber-300">Paciente em somente leitura</p>
+            <p className="text-amber-700 dark:text-amber-400 mt-0.5">
+              Este paciente excede o limite do plano gratuito. Você pode visualizar o histórico, mas novas consultas, planos e exames estão bloqueados.{' '}
+              <Link to="/settings" className="underline font-medium">Fazer upgrade</Link>
+            </p>
           </div>
         </div>
       )}
@@ -1255,8 +1079,7 @@ export const PatientProfile = () => {
                   size="icon-sm"
                   className="text-muted-foreground hover:text-primary hover:bg-primary/10"
                   onClick={() => setIsEditPatientModalOpen(true)}
-                  disabled={patient.status === 'inactive'}
-                  title="Editar dados cadastrais"
+                                   title="Editar dados cadastrais"
                 >
                   <Edit className="w-4 h-4" />
                 </Button>
@@ -1266,12 +1089,6 @@ export const PatientProfile = () => {
                 <span>•</span>
                 <span>{patient.cpf}</span>
                 <span>•</span>
-                <span className={cn(
-                  "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase",
-                  patient.status === 'active' ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
-                )}>
-                  {patient.status === 'active' ? 'Ativo' : 'Inativo'}
-                </span>
               </div>
             </div>
           </div>
@@ -1283,7 +1100,7 @@ export const PatientProfile = () => {
               variant="outline" 
               className="h-8 text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 px-4"
               onClick={generateAccessToken}
-              disabled={isGeneratingToken || patient.status === 'inactive'}
+              disabled={isGeneratingToken}
             >
               {isGeneratingToken ? 'GERANDO...' : 'GERAR LINK DE ACESSO'}
             </Button>
@@ -1292,8 +1109,7 @@ export const PatientProfile = () => {
               variant="outline" 
               className="h-8 text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 px-4"
               onClick={shareAccessLink}
-              disabled={patient.status === 'inactive'}
-            >
+                         >
               ENVIAR ACESSO WHATSAPP
             </Button>
           )}
@@ -1319,7 +1135,7 @@ export const PatientProfile = () => {
             }
           }}>
             <DialogTrigger
-              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" disabled={patient.status === 'inactive'} onClick={() => {
+              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" onClick={() => {
                 setSelectedConsultation(null);
                 resetConsultation({
                   date: new Date().toISOString().split('T')[0],
@@ -1340,49 +1156,70 @@ export const PatientProfile = () => {
             >
               <Plus className="w-4 h-4" /> Nova Consulta
             </DialogTrigger>
-            <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl">
+            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl">
               <DialogHeader>
                 <DialogTitle>{selectedConsultation ? 'Editar Consulta' : 'Registrar Nova Consulta'}</DialogTitle>
                 <DialogDescription>Preencha os dados antropométricos e clínicos do atendimento.</DialogDescription>
               </DialogHeader>
               <form key={isConsultationModalOpen ? 'open' : 'closed'} onSubmit={handleConsultationSubmit(onConsultationSubmit)} className="space-y-6 py-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <Label htmlFor="date">Data da Consulta</Label>
-                    <Input id="date" type="date" {...regConsultation('date')} className="h-8 text-sm" />
+                    <Input id="date" type="date" {...regConsultation('date')} className="bg-muted/30 rounded-lg" />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="weight">Peso (kg)</Label>
-                    <Input id="weight" type="number" step="0.1" {...regConsultation('weight')} className="h-8 text-sm" />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="weight">Peso</Label>
+                    <div className="relative">
+                      <Input id="weight" type="number" step="0.1" {...regConsultation('weight')} className="bg-muted/30 rounded-lg pr-10" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">kg</span>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="height">Altura (cm)</Label>
-                    <Input id="height" type="number" {...regConsultation('height')} className="h-8 text-sm" />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="height">Altura</Label>
+                    <div className="relative">
+                      <Input id="height" type="number" step="0.1" {...regConsultation('height')} className="bg-muted/30 rounded-lg pr-10" />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">cm</span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="border-t pt-4">
-                  <h3 className="font-semibold mb-4">Medidas e Circunferências (cm)</h3>
+                  <h3 className="font-semibold mb-4">Medidas e Circunferências</h3>
                   <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="fatPercentage">% Gordura</Label>
-                      <Input id="fatPercentage" type="number" step="0.1" {...regConsultation('fatPercentage')} className="h-8 text-sm" />
+                    <div className="space-y-1.5">
+                      <Label htmlFor="fatPercentage">Gordura Corp.</Label>
+                      <div className="relative">
+                        <Input id="fatPercentage" type="number" step="0.1" {...regConsultation('fatPercentage')} className="bg-muted/30 rounded-lg pr-7" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">%</span>
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <Label htmlFor="waist">Cintura</Label>
-                      <Input id="waist" type="number" step="0.1" {...regConsultation('waist')} className="h-8 text-sm" />
+                      <div className="relative">
+                        <Input id="waist" type="number" step="0.1" {...regConsultation('waist')} className="bg-muted/30 rounded-lg pr-10" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">cm</span>
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <Label htmlFor="hip">Quadril</Label>
-                      <Input id="hip" type="number" step="0.1" {...regConsultation('hip')} className="h-8 text-sm" />
+                      <div className="relative">
+                        <Input id="hip" type="number" step="0.1" {...regConsultation('hip')} className="bg-muted/30 rounded-lg pr-10" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">cm</span>
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <Label htmlFor="abdomen">Abdômen</Label>
-                      <Input id="abdomen" type="number" step="0.1" {...regConsultation('abdomen')} className="h-8 text-sm" />
+                      <div className="relative">
+                        <Input id="abdomen" type="number" step="0.1" {...regConsultation('abdomen')} className="bg-muted/30 rounded-lg pr-10" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">cm</span>
+                      </div>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <Label htmlFor="arm">Braço</Label>
-                      <Input id="arm" type="number" step="0.1" {...regConsultation('arm')} className="h-8 text-sm" />
+                      <div className="relative">
+                        <Input id="arm" type="number" step="0.1" {...regConsultation('arm')} className="bg-muted/30 rounded-lg pr-10" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">cm</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1541,10 +1378,7 @@ export const PatientProfile = () => {
                 size="sm"
                 className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
                 onClick={() => setIsConsultationModalOpen(true)}
-                disabled={
-                  patient.status === 'inactive' ||
-                  (!isPremium && (limitsLoading || !canAddConsultation || patientAlreadyHasConsultationThisMonth))
-                }
+                disabled={isPatientReadOnly || (!isPremium && (limitsLoading || !canAddConsultation || patientAlreadyHasConsultationThisMonth))}
               >
                 <Plus className="w-4 h-4" /> Nova Consulta
               </Button>
@@ -1598,8 +1432,7 @@ export const PatientProfile = () => {
                               variant="ghost"
                               size="icon-sm"
                               className="text-muted-foreground hover:text-primary disabled:opacity-30"
-                              disabled={patient.status === 'inactive'}
-                              onClick={(e) => {
+                                                           onClick={(e) => {
                                 e.stopPropagation();
                                 setSelectedConsultationForCalc(consultation);
                                 setIsCalculatorModalOpen(true);
@@ -1608,7 +1441,7 @@ export const PatientProfile = () => {
                             >
                               <Calculator className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-primary disabled:opacity-30" disabled={patient.status === 'inactive'} title="Editar consulta" onClick={(e) => {
+                            <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-primary disabled:opacity-30" title="Editar consulta" onClick={(e) => {
                               e.stopPropagation();
                               setSelectedConsultation(consultation);
                               resetConsultation({
@@ -1629,7 +1462,7 @@ export const PatientProfile = () => {
                             }}>
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 disabled:opacity-30" disabled={patient.status === 'inactive'} title="Excluir consulta" onClick={(e) => {
+                            <Button variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 disabled:opacity-30" title="Excluir consulta" onClick={(e) => {
                               e.stopPropagation();
                               setConsultationToDelete(consultation.id);
                               setIsDeleteConsultationConfirmOpen(true);
@@ -1719,6 +1552,7 @@ export const PatientProfile = () => {
                                     size="sm"
                                     variant="outline"
                                     className="text-primary border-primary/30 hover:bg-primary/10 h-8 text-xs"
+                                    disabled={isPatientReadOnly}
                                     onClick={() => navigate(`/patients/${id}/meal-plan/new`, { state: { consultationId: consultation.id } })}
                                   >
                                     <Plus className="w-3.5 h-3.5 mr-1" /> Criar Plano
@@ -1809,6 +1643,7 @@ export const PatientProfile = () => {
                                       <Button
                                         size="sm"
                                         className="bg-primary hover:bg-primary/90 text-white rounded-lg shadow-sm text-xs h-8"
+                                        disabled={isPatientReadOnly}
                                         onClick={() => navigate(`/patients/${id}/meal-plan/new`, { state: { calculation: calc } })}
                                       >
                                         Criar Plano Alimentar
@@ -1888,7 +1723,7 @@ export const PatientProfile = () => {
                       </div>
                       <div className="flex gap-2">
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => viewMealPlan(plan)}>Visualizar</Button>
-                        <Button variant="outline" size="sm" className="flex-1 disabled:opacity-50" onClick={() => editMealPlan(plan)} disabled={patient.status === 'inactive'}>Editar</Button>
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => editMealPlan(plan)}>Editar</Button>
 
                         <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => sendMealPlanByEmail(plan)} title="Enviar por E-mail">
                           <Mail className="w-4 h-4" />
@@ -1896,7 +1731,7 @@ export const PatientProfile = () => {
                         <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => exportMealPlanPDF(plan)} title="Imprimir PDF">
                           <Printer className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="px-2 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30" onClick={() => deleteMealPlan(plan.id)} disabled={patient.status === 'inactive'} title="Excluir plano">
+                        <Button variant="ghost" size="sm" className="px-2 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30" onClick={() => deleteMealPlan(plan.id)} title="Excluir plano">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -2132,7 +1967,7 @@ export const PatientProfile = () => {
         </Dialog>
 
         <Dialog open={isDeleteMealPlanConfirmOpen} onOpenChange={setIsDeleteMealPlanConfirmOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Excluir Plano Alimentar</DialogTitle>
               <DialogDescription>
@@ -2147,7 +1982,7 @@ export const PatientProfile = () => {
         </Dialog>
 
         <Dialog open={isDeleteLabExamConfirmOpen} onOpenChange={setIsDeleteLabExamConfirmOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Excluir Exame Laboratorial</DialogTitle>
               <DialogDescription>
@@ -2162,7 +1997,7 @@ export const PatientProfile = () => {
         </Dialog>
 
         <Dialog open={isDeleteConsultationConfirmOpen} onOpenChange={setIsDeleteConsultationConfirmOpen}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Excluir Consulta</DialogTitle>
               <DialogDescription>
@@ -2307,15 +2142,15 @@ export const PatientProfile = () => {
 
                 }
               }}>
-                <PremiumFeature active={isLabExamLimitReached}>
+                <PremiumFeature active={isLabExamLimitReached || isPatientReadOnly}>
                   <DialogTrigger
-                    render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" disabled={patient.status === 'inactive'} />}
+                    render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" disabled={isPatientReadOnly} />}
                     nativeButton={true}
                   >
                     <Plus className="w-4 h-4" /> Registrar Exame
                   </DialogTrigger>
                 </PremiumFeature>
-                <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl border-none shadow-2xl">
+                <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl shadow-2xl">
                   <DialogHeader className="p-6 pb-0">
                     <DialogTitle>{selectedExam ? 'Editar Exame' : 'Novo Exame'}</DialogTitle>
                     <DialogDescription>Insira os dados do exame laboratorial e seus marcadores.</DialogDescription>
@@ -2512,8 +2347,7 @@ export const PatientProfile = () => {
                               setExamMarkers(exam.markers || []);
                               setIsLabExamModalOpen(true);
                             }}
-                            disabled={patient.status === 'inactive'}
-                          >
+                                                     >
                             <Edit className="w-4 h-4" />
                           </Button>
                           <Button
@@ -2525,8 +2359,7 @@ export const PatientProfile = () => {
                               e.stopPropagation();
                               deleteLabExam(exam.id);
                             }}
-                            disabled={patient.status === 'inactive'}
-                          >
+                                                     >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -2618,166 +2451,462 @@ export const PatientProfile = () => {
         <TabsContent value="evolution" className="mt-6">
           <PremiumFeature>
             <div className="grid grid-cols-1 gap-6">
-              <Card>
-                <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <CardTitle className="text-lg">Acompanhamento de Evolução</CardTitle>
-                    <CardDescription>Visualize o progresso do paciente ao longo do tempo.</CardDescription>
+
+              {/* Resumo Geral do Acompanhamento */}
+              {consultations.length > 0 && (() => {
+                const sorted = [...consultations].sort((a, b) =>
+                  new Date(a.date).getTime() - new Date(b.date).getTime()
+                );
+                const first = sorted[0];
+                const latest = sorted[sorted.length - 1];
+                const isMultiple = sorted.length > 1;
+
+                const days = Math.floor(
+                  (new Date(latest.date).getTime() - new Date(first.date).getTime()) / (1000 * 60 * 60 * 24)
+                );
+                const months = Math.floor(days / 30);
+                const durationLabel = !isMultiple
+                  ? '1 consulta'
+                  : months >= 1
+                  ? `${months} ${months === 1 ? 'mês' : 'meses'} de acompanhamento`
+                  : `${days} dias de acompanhamento`;
+
+                const totalDelta = (a?: number, b?: number, unit = '') => {
+                  if (a == null || b == null || !isMultiple) return null;
+                  const diff = +(b - a).toFixed(1);
+                  if (diff === 0) return { label: 'sem variação', neutral: true };
+                  return { label: `${diff > 0 ? '+' : ''}${diff}${unit}`, positive: diff > 0 };
+                };
+
+                const stats = [
+                  { label: 'Peso', d: totalDelta(first.weight, latest.weight, ' kg') },
+                  { label: 'IMC', d: totalDelta(first.imc, latest.imc) },
+                  ...(first.fatPercentage != null && latest.fatPercentage != null
+                    ? [{ label: 'Gordura', d: totalDelta(first.fatPercentage, latest.fatPercentage, '%') }]
+                    : []),
+                  ...(first.waist != null && latest.waist != null
+                    ? [{ label: 'Cintura', d: totalDelta(first.waist, latest.waist, ' cm') }]
+                    : []),
+                ];
+
+                return (
+                  <Card className="bg-muted/30 border-0 shadow-none">
+                    <CardContent className="pt-5 pb-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                          <p className="font-semibold text-sm">{durationLabel}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {sorted.length} consulta{sorted.length !== 1 ? 's' : ''} registrada{sorted.length !== 1 ? 's' : ''}
+                            {isMultiple && (
+                              <> · {formatDateSafely(first.date, 'dd/MM/yyyy')} → {formatDateSafely(latest.date, 'dd/MM/yyyy')}</>
+                            )}
+                          </p>
+                        </div>
+                        {isMultiple && stats.length > 0 && (
+                          <div className="flex flex-wrap gap-3">
+                            {stats.map((s) => s.d && (
+                              <div key={s.label} className="text-center">
+                                <p className="text-xs text-muted-foreground">{s.label}</p>
+                                <p className={cn(
+                                  'text-sm font-bold',
+                                  s.d.neutral ? 'text-muted-foreground' : 'text-foreground'
+                                )}>
+                                  {s.d.label}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">total</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {/* KPI Cards (6 métricas) */}
+              {consultations.length > 0 && (() => {
+                const sorted = [...consultations].sort((a, b) =>
+                  new Date(a.date).getTime() - new Date(b.date).getTime()
+                );
+                const latest = sorted[sorted.length - 1];
+                const prev = sorted.length > 1 ? sorted[sorted.length - 2] : null;
+
+                const imcInfo = (imc: number) => {
+                  if (imc < 18.5) return { label: 'Abaixo do peso', cls: 'text-blue-600 bg-blue-50 dark:bg-blue-950/50' };
+                  if (imc < 25) return { label: 'Normal', cls: 'text-green-600 bg-green-50 dark:bg-green-950/50' };
+                  if (imc < 30) return { label: 'Sobrepeso', cls: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/50' };
+                  return { label: 'Obesidade', cls: 'text-red-600 bg-red-50 dark:bg-red-950/50' };
+                };
+
+                const fmtDelta = (curr?: number, prevVal?: number, unit = '') => {
+                  if (curr == null || prevVal == null) return null;
+                  const diff = curr - prevVal;
+                  if (diff === 0) return null;
+                  const sign = diff > 0 ? '+' : '';
+                  return `${sign}${diff.toFixed(1)}${unit} desde última`;
+                };
+
+                const imc = imcInfo(latest.imc);
+                const h = latest.height;
+                const idealMin = h ? (18.5 * h * h).toFixed(1) : null;
+                const idealMax = h ? (24.9 * h * h).toFixed(1) : null;
+
+                const cards = [
+                  {
+                    label: 'Peso atual',
+                    value: `${latest.weight} kg`,
+                    sub: idealMin && idealMax ? `Ideal: ${idealMin}–${idealMax} kg` : null,
+                    delta: fmtDelta(latest.weight, prev?.weight, ' kg'),
+                    accent: 'border-emerald-500',
+                    valueColor: 'text-emerald-600 dark:text-emerald-400',
+                    bg: 'bg-card',
+                  },
+                  {
+                    label: 'IMC',
+                    value: latest.imc.toFixed(1),
+                    badge: imc,
+                    sub: h ? `Altura: ${(h * 100).toFixed(0)} cm` : null,
+                    delta: fmtDelta(latest.imc, prev?.imc),
+                    accent: 'border-blue-500',
+                    valueColor: 'text-blue-600 dark:text-blue-400',
+                    bg: 'bg-card',
+                  },
+                  {
+                    label: 'Gordura corporal',
+                    value: latest.fatPercentage != null ? `${latest.fatPercentage}%` : '—',
+                    delta: fmtDelta(latest.fatPercentage, prev?.fatPercentage, '%'),
+                    accent: 'border-amber-500',
+                    valueColor: 'text-amber-600 dark:text-amber-400',
+                    bg: 'bg-card',
+                  },
+                  {
+                    label: 'Cintura',
+                    value: latest.waist != null ? `${latest.waist} cm` : '—',
+                    delta: fmtDelta(latest.waist, prev?.waist, ' cm'),
+                    accent: 'border-violet-500',
+                    valueColor: 'text-violet-600 dark:text-violet-400',
+                    bg: 'bg-card',
+                  },
+                  {
+                    label: 'Quadril',
+                    value: latest.hip != null ? `${latest.hip} cm` : '—',
+                    delta: fmtDelta(latest.hip, prev?.hip, ' cm'),
+                    accent: 'border-pink-500',
+                    valueColor: 'text-pink-600 dark:text-pink-400',
+                    bg: 'bg-card',
+                  },
+                  {
+                    label: 'Braço',
+                    value: latest.arm != null ? `${latest.arm} cm` : '—',
+                    delta: fmtDelta(latest.arm, prev?.arm, ' cm'),
+                    accent: 'border-cyan-500',
+                    valueColor: 'text-cyan-600 dark:text-cyan-400',
+                    bg: 'bg-card',
+                  },
+                ];
+
+                return (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {cards.map((card) => (
+                      <div key={card.label} className={cn(
+                        'rounded-xl p-4 border border-border border-l-4 shadow-sm',
+                        card.accent,
+                        card.bg,
+                      )}>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{card.label}</p>
+                        <p className={cn('text-2xl font-bold leading-tight', card.valueColor)}>{card.value}</p>
+                        {card.badge && (
+                          <span className={cn('inline-block text-xs font-semibold px-2 py-0.5 rounded-md mt-1.5', card.badge.cls)}>
+                            {card.badge.label}
+                          </span>
+                        )}
+                        {card.sub && !card.badge && (
+                          <p className="text-xs text-muted-foreground mt-1.5">{card.sub}</p>
+                        )}
+                        {card.delta && (
+                          <p className="text-xs text-muted-foreground/80 mt-1.5 leading-snug">{card.delta}</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Select value={evolutionMetric} onValueChange={(val: any) => setEvolutionMetric(val)}>
-                      <SelectTrigger className="w-[200px]">
-                        <SelectValue>
-                          {evolutionMetric === 'weight' ? 'Peso (kg)' :
-                            evolutionMetric === 'fatPercentage' ? 'Gordura Corporal (%)' :
-                              evolutionMetric === 'imc' ? 'IMC' :
-                                evolutionMetric === 'measurements' ? 'Medidas (cm)' : undefined}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="weight">Peso (kg)</SelectItem>
-                        <SelectItem value="fatPercentage">Gordura Corporal (%)</SelectItem>
-                        <SelectItem value="imc">IMC</SelectItem>
-                        <SelectItem value="measurements">Medidas (cm)</SelectItem>
-                      </SelectContent>
-                    </Select>
+                );
+              })()}
+
+              {/* Chart Card */}
+              <Card>
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="text-lg">Evolução ao Longo do Tempo</CardTitle>
+                    <CardDescription>
+                      {consultations.length} consulta{consultations.length !== 1 ? 's' : ''} registrada{consultations.length !== 1 ? 's' : ''}.
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(
+                      [
+                        ['weight', 'Peso'],
+                        ['imc', 'IMC'],
+                        ['fatPercentage', 'Composição'],
+                        ['measurements', 'Medidas'],
+                      ] as const
+                    ).map(([val, label]) => (
+                      <button
+                        key={val}
+                        onClick={() => setEvolutionMetric(val)}
+                        className={cn(
+                          'px-3 py-1.5 text-xs font-medium rounded-full transition-all border',
+                          evolutionMetric === val
+                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                            : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[400px] w-full min-w-0">
+                  <div className="h-[380px] w-full">
                     {consultations.length > 0 && activeTab === 'evolution' ? (
                       <ResponsiveContainer width="100%" height="100%" debounce={100}>
-                        <LineChart data={[...consultations].reverse()}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <AreaChart
+                          data={[...consultations].sort(
+                            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+                          )}
+                          margin={{ top: 10, right: 10, left: -10, bottom: 0 }}
+                        >
+                          <defs>
+                            <linearGradient id="evGradWeight" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.18} />
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="evGradFat" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.18} />
+                              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="evGradIMC" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.18} />
+                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                            </linearGradient>
+                            <linearGradient id="evGradWaist" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.12} />
+                              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.4} />
                           <XAxis
                             dataKey="date"
                             tickFormatter={(date) => formatDateSafely(date, 'dd/MM')}
-                            stroke="#94a3b8"
-                            fontSize={12}
+                            fontSize={11}
+                            tickLine={false}
+                            axisLine={false}
+                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
                           />
-                          <YAxis stroke="#94a3b8" fontSize={12} />
+                          <YAxis
+                            fontSize={11}
+                            tickLine={false}
+                            axisLine={false}
+                            width={38}
+                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                          />
                           <Tooltip
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            contentStyle={{
+                              borderRadius: '10px',
+                              border: '1px solid hsl(var(--border))',
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
+                              fontSize: '13px',
+                            }}
                             labelFormatter={(date) => formatDateSafely(date, 'dd/MM/yyyy')}
                           />
-                          <Legend verticalAlign="top" height={36} />
+                          <Legend verticalAlign="top" height={32} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '12px' }} />
 
                           {evolutionMetric === 'weight' && (
-                            <Line
+                            <Area
                               name="Peso (kg)"
                               type="monotone"
                               dataKey="weight"
                               stroke="#10b981"
-                              strokeWidth={3}
+                              strokeWidth={2.5}
+                              fill="url(#evGradWeight)"
                               dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
                               activeDot={{ r: 6, strokeWidth: 0 }}
                             />
                           )}
 
                           {evolutionMetric === 'fatPercentage' && (
-                            <Line
+                            <Area
                               name="Gordura (%)"
                               type="monotone"
                               dataKey="fatPercentage"
                               stroke="#f59e0b"
-                              strokeWidth={3}
+                              strokeWidth={2.5}
+                              fill="url(#evGradFat)"
                               dot={{ r: 4, fill: '#f59e0b', strokeWidth: 2, stroke: '#fff' }}
                               activeDot={{ r: 6, strokeWidth: 0 }}
                             />
                           )}
 
                           {evolutionMetric === 'imc' && (
-                            <Line
-                              name="IMC"
-                              type="monotone"
-                              dataKey="imc"
-                              stroke="#3b82f6"
-                              strokeWidth={3}
-                              dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-                              activeDot={{ r: 6, strokeWidth: 0 }}
-                            />
+                            <>
+                              <ReferenceLine y={18.5} stroke="#94a3b8" strokeDasharray="4 3" label={{ value: 'Baixo peso  ', position: 'insideTopRight', fontSize: 10, fill: '#94a3b8' }} />
+                              <ReferenceLine y={25} stroke="#f59e0b" strokeDasharray="4 3" label={{ value: 'Sobrepeso  ', position: 'insideTopRight', fontSize: 10, fill: '#f59e0b' }} />
+                              <ReferenceLine y={30} stroke="#ef4444" strokeDasharray="4 3" label={{ value: 'Obesidade  ', position: 'insideTopRight', fontSize: 10, fill: '#ef4444' }} />
+                              <Area
+                                name="IMC"
+                                type="monotone"
+                                dataKey="imc"
+                                stroke="#3b82f6"
+                                strokeWidth={2.5}
+                                fill="url(#evGradIMC)"
+                                dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                                activeDot={{ r: 6, strokeWidth: 0 }}
+                              />
+                            </>
                           )}
 
                           {evolutionMetric === 'measurements' && (
                             <>
-                              <Line
-                                name="Cintura (cm)"
-                                type="monotone"
-                                dataKey="waist"
-                                stroke="#6366f1"
-                                strokeWidth={2}
-                                dot={{ r: 3, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }}
-                              />
-                              <Line
-                                name="Quadril (cm)"
-                                type="monotone"
-                                dataKey="hip"
-                                stroke="#ec4899"
-                                strokeWidth={2}
-                                dot={{ r: 3, fill: '#ec4899', strokeWidth: 2, stroke: '#fff' }}
-                              />
-                              <Line
-                                name="Abdômen (cm)"
-                                type="monotone"
-                                dataKey="abdomen"
-                                stroke="#8b5cf6"
-                                strokeWidth={2}
-                                dot={{ r: 3, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }}
-                              />
-                              <Line
-                                name="Braço (cm)"
-                                type="monotone"
-                                dataKey="arm"
-                                stroke="#06b6d4"
-                                strokeWidth={2}
-                                dot={{ r: 3, fill: '#06b6d4', strokeWidth: 2, stroke: '#fff' }}
-                              />
+                              <Area name="Cintura (cm)" type="monotone" dataKey="waist" stroke="#6366f1" strokeWidth={2} fill="url(#evGradWaist)" dot={{ r: 3, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} />
+                              <Area name="Quadril (cm)" type="monotone" dataKey="hip" stroke="#ec4899" strokeWidth={2} fill="none" dot={{ r: 3, fill: '#ec4899', strokeWidth: 2, stroke: '#fff' }} />
+                              <Area name="Abdômen (cm)" type="monotone" dataKey="abdomen" stroke="#8b5cf6" strokeWidth={2} fill="none" dot={{ r: 3, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }} />
+                              <Area name="Braço (cm)" type="monotone" dataKey="arm" stroke="#06b6d4" strokeWidth={2} fill="none" dot={{ r: 3, fill: '#06b6d4', strokeWidth: 2, stroke: '#fff' }} />
                             </>
                           )}
-                        </LineChart>
+                        </AreaChart>
                       </ResponsiveContainer>
                     ) : (
-                      <div className="h-full flex items-center justify-center text-muted-foreground">
-                        Dados insuficientes para gerar o gráfico.
+                      <div className="h-full flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                        <TrendingUp className="w-10 h-10 opacity-20" />
+                        <div className="text-center">
+                          <p className="font-medium text-sm">Sem dados de evolução ainda</p>
+                          <p className="text-xs mt-1 max-w-[260px]">
+                            Registre consultas com medidas para visualizar o progresso do paciente aqui.
+                          </p>
+                        </div>
                       </div>
                     )}
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Tabela Comparativa</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                      <thead className="text-xs text-muted-foreground uppercase bg-muted/30">
-                        <tr>
-                          <th className="px-4 py-3">Data</th>
-                          <th className="px-4 py-3">Peso</th>
-                          <th className="px-4 py-3">IMC</th>
-                          <th className="px-4 py-3">% Gordura</th>
-                          <th className="px-4 py-3">Cintura</th>
-                          <th className="px-4 py-3">Abdômen</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border">
-                        {consultations.map((c) => (
-                          <tr key={c.id} className="hover:bg-muted/30">
-                            <td className="px-4 py-3 font-medium">{formatDateSafely(c.date, 'dd/MM/yyyy')}</td>
-                            <td className="px-4 py-3">{c.weight}kg</td>
-                            <td className="px-4 py-3">{c.imc.toFixed(1)}</td>
-                            <td className="px-4 py-3">{c.fatPercentage || '-'}%</td>
-                            <td className="px-4 py-3">{c.waist || '-'}cm</td>
-                            <td className="px-4 py-3">{c.abdomen || '-'}cm</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
+              {/* Tabela Completa */}
+              {consultations.length > 0 && (() => {
+                const imcLabel = (imc: number) => {
+                  if (imc < 18.5) return { text: 'Abaixo', cls: 'text-blue-600' };
+                  if (imc < 25) return { text: 'Normal', cls: 'text-green-600' };
+                  if (imc < 30) return { text: 'Sobrepeso', cls: 'text-yellow-600' };
+                  if (imc < 35) return { text: 'Obesidade I', cls: 'text-orange-600' };
+                  if (imc < 40) return { text: 'Obesidade II', cls: 'text-red-500' };
+                  return { text: 'Obesidade III', cls: 'text-red-700' };
+                };
+
+                const deltaTag = (curr?: number, prevVal?: number, unit = '') => {
+                  if (curr == null || prevVal == null) return null;
+                  const diff = +(curr - prevVal).toFixed(1);
+                  if (diff === 0) return null;
+                  return (
+                    <span className="ml-1 text-[11px] text-muted-foreground whitespace-nowrap">
+                      {diff > 0 ? '↑' : '↓'}{Math.abs(diff)}{unit}
+                    </span>
+                  );
+                };
+
+                const rows = [...consultations].sort(
+                  (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+                );
+
+                const cols = [
+                  'Data', 'Altura', 'Peso', 'IMC', 'Classif.', '% Gordura',
+                  'Cintura', 'Quadril', 'Abdômen', 'Braço',
+                ];
+
+                return (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-lg">Histórico Completo de Medidas</CardTitle>
+                      <CardDescription>
+                        Todas as consultas com variação em relação à consulta anterior. {rows.length} registro{rows.length !== 1 ? 's' : ''}.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="px-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm min-w-[760px]">
+                          <thead>
+                            <tr className="border-b border-border bg-muted/30">
+                              {cols.map((h) => (
+                                <th
+                                  key={h}
+                                  className={cn(
+                                    'py-2.5 px-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap',
+                                    h === 'Data' || h === 'Classif.' ? 'text-left' : 'text-right'
+                                  )}
+                                >
+                                  {h}
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {rows.map((c, idx, arr) => {
+                              const prev = arr[idx + 1];
+                              const cl = imcLabel(c.imc);
+                              return (
+                                <tr
+                                  key={c.id}
+                                  className={cn(
+                                    'border-b border-border/40 transition-colors hover:bg-muted/30',
+                                    idx === 0 && 'bg-muted/20'
+                                  )}
+                                >
+                                  <td className="px-3 py-2.5">
+                                    <div className="font-medium whitespace-nowrap">{formatDateSafely(c.date, 'dd/MM/yyyy')}</div>
+                                    {idx === 0 && <span className="text-[11px] text-primary font-medium">Mais recente</span>}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                    {c.height ? `${(c.height * 100).toFixed(0)} cm` : '—'}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                    <span className="font-medium">{c.weight} kg</span>
+                                    {deltaTag(c.weight, prev?.weight, ' kg')}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                                    <span className="font-medium">{c.imc.toFixed(1)}</span>
+                                    {deltaTag(c.imc, prev?.imc)}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-left">
+                                    <span className={cn('text-xs font-medium whitespace-nowrap', cl.cls)}>{cl.text}</span>
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                    {c.fatPercentage != null ? `${c.fatPercentage}%` : '—'}
+                                    {deltaTag(c.fatPercentage, prev?.fatPercentage, '%')}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                    {c.waist != null ? `${c.waist} cm` : '—'}
+                                    {deltaTag(c.waist, prev?.waist, ' cm')}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                    {c.hip != null ? `${c.hip} cm` : '—'}
+                                    {deltaTag(c.hip, prev?.hip, ' cm')}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                    {c.abdomen != null ? `${c.abdomen} cm` : '—'}
+                                    {deltaTag(c.abdomen, prev?.abdomen, ' cm')}
+                                  </td>
+                                  <td className="px-3 py-2.5 text-right text-muted-foreground whitespace-nowrap">
+                                    {c.arm != null ? `${c.arm} cm` : '—'}
+                                    {deltaTag(c.arm, prev?.arm, ' cm')}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })()}
             </div>
           </PremiumFeature>
         </TabsContent>
@@ -2785,7 +2914,7 @@ export const PatientProfile = () => {
 
       {/* Modals */}
       <Dialog open={isCalculatorModalOpen} onOpenChange={setIsCalculatorModalOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] p-0 overflow-hidden flex flex-col bg-muted/30">
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden flex flex-col bg-muted/30 rounded-2xl shadow-2xl">
           <div className="bg-card px-6 py-4 border-b flex justify-between items-center shadow-sm z-10 shrink-0">
             <div>
               <h2 className="text-xl font-black text-foreground">Cálculo Nutricional</h2>
@@ -2817,7 +2946,7 @@ export const PatientProfile = () => {
 
       {/* Edit Patient Modal */}
       <Dialog open={isEditPatientModalOpen} onOpenChange={setIsEditPatientModalOpen}>
-        <DialogContent className="sm:max-w-3xl rounded-2xl border-none shadow-2xl">
+        <DialogContent className="sm:max-w-2xl rounded-2xl shadow-2xl">
           <DialogHeader>
             <DialogTitle>Editar Perfil do Paciente</DialogTitle>
             <DialogDescription>Atualize as informações cadastrais do paciente.</DialogDescription>
@@ -2826,21 +2955,21 @@ export const PatientProfile = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome Completo</Label>
-                <Input id="name" name="name" defaultValue={patient.name} required className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
+                <Input id="name" name="name" defaultValue={patient.name} required className="bg-muted/30 rounded-lg" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
-                <Input id="email" name="email" type="email" defaultValue={patient.email} required className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
+                <Input id="email" name="email" type="email" defaultValue={patient.email} required className="bg-muted/30 rounded-lg" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="phone">Telefone</Label>
                 <Input
                   id="phone"
                   name="phone"
-                  value={editPhone}
-                  onChange={(e) => setEditPhone(maskPhone(e.target.value))}
+                  defaultValue={maskPhone(patient.phone)}
+                  onChange={(e) => { e.target.value = maskPhone(e.target.value); }}
                   required
-                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 rounded-lg"
                 />
               </div>
               <div className="space-y-2">
@@ -2848,20 +2977,20 @@ export const PatientProfile = () => {
                 <Input
                   id="cpf"
                   name="cpf"
-                  value={editCpf}
-                  onChange={(e) => setEditCpf(maskCPF(e.target.value))}
+                  defaultValue={maskCPF(patient.cpf)}
+                  onChange={(e) => { e.target.value = maskCPF(e.target.value); }}
                   required
-                  className="bg-muted/30 border-none rounded-xl h-8 text-sm"
+                  className="bg-muted/30 rounded-lg"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="birthDate">Data de Nascimento</Label>
-                <Input id="birthDate" name="birthDate" type="date" defaultValue={patient.birthDate} required className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
+                <Input id="birthDate" name="birthDate" type="date" defaultValue={patient.birthDate} required className="bg-muted/30 rounded-lg" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="gender">Gênero</Label>
                 <Select name="gender" value={gender} onValueChange={(v: any) => setGender(v)}>
-                  <SelectTrigger className="bg-muted/30 border-none rounded-xl h-8 text-sm">
+                  <SelectTrigger className="bg-muted/30 rounded-lg">
                     <SelectValue placeholder="Selecione o gênero">
                       {gender === 'male' ? 'Masculino' :
                         gender === 'female' ? 'Feminino' :
@@ -2878,20 +3007,20 @@ export const PatientProfile = () => {
             </div>
             <div className="space-y-2">
               <Label htmlFor="address">Endereço</Label>
-              <Input id="address" name="address" defaultValue={patient.address} className="bg-muted/30 border-none rounded-xl h-8 text-sm" />
+              <Input id="address" name="address" defaultValue={patient.address} className="bg-muted/30 rounded-lg" />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="diseases">Doenças</Label>
-                <Textarea id="diseases" name="diseases" defaultValue={patient.diseases} placeholder="Ex: Diabetes, Hipertensão..." className="bg-muted/30 border-none rounded-xl text-sm" />
+                <Textarea id="diseases" name="diseases" defaultValue={patient.diseases} placeholder="Ex: Diabetes, Hipertensão..." className="bg-muted/30 rounded-lg" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="medications">Medicamentos</Label>
-                <Textarea id="medications" name="medications" defaultValue={patient.medications} placeholder="Ex: Metformina, Losartana..." className="bg-muted/30 border-none rounded-xl text-sm" />
+                <Textarea id="medications" name="medications" defaultValue={patient.medications} placeholder="Ex: Metformina, Losartana..." className="bg-muted/30 rounded-lg" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="allergies">Alergias</Label>
-                <Textarea id="allergies" name="allergies" defaultValue={patient.allergies} placeholder="Ex: Lactose, Glúten, Amendoim..." className="bg-muted/30 border-none rounded-xl text-sm" />
+                <Textarea id="allergies" name="allergies" defaultValue={patient.allergies} placeholder="Ex: Lactose, Glúten, Amendoim..." className="bg-muted/30 rounded-lg" />
               </div>
             </div>
             <DialogFooter className="mt-6 gap-2 sm:gap-0">

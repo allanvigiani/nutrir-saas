@@ -1,15 +1,13 @@
 import type { BaseRouteDeps, GoogleConfig } from "../types.ts";
 import { createGoogleCalendarService } from "../services/google-calendar.service.ts";
 import { createGoogleController } from "../controllers/google.controller.ts";
+import { withNutritionistRLS } from "../lib/rls-context.ts";
 
 export function registerGoogleRoutes(deps: BaseRouteDeps & GoogleConfig) {
   const googleService = createGoogleCalendarService({
     google: deps.google,
     googleClientId: deps.googleClientId,
     googleClientSecret: deps.googleClientSecret,
-    getDocWithFallback: deps.getDocWithFallback,
-    updateDocWithFallback: deps.updateDocWithFallback,
-    queryWithFallback: deps.queryWithFallback,
   });
 
   const controller = createGoogleController({
@@ -19,5 +17,13 @@ export function registerGoogleRoutes(deps: BaseRouteDeps & GoogleConfig) {
 
   deps.app.get("/api/auth/google/url", controller.getAuthUrl);
   deps.app.get("/api/auth/google/callback", controller.callback);
-  deps.app.post("/api/create-calendar-event", deps.authenticate, controller.createCalendarEvent);
+  deps.app.post("/api/create-calendar-event", deps.authenticate, async (req: any, res: any) => {
+    try {
+      await withNutritionistRLS(req.user.uid, async () => {
+        await controller.createCalendarEvent(req, res);
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
 }
