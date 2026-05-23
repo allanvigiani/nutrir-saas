@@ -6,6 +6,7 @@ import { createRequire } from "module";
 import admin from "firebase-admin";
 import { registerApiRoutes } from "./src/server/register-api-routes.ts";
 import { createAuthenticateMiddleware, requirePremiumOrAdmin } from "./src/server/middlewares/auth.ts";
+import { createSubscriptionExpiryMiddleware } from "./src/server/middlewares/subscription-expiry.ts";
 import { logger } from "./src/server/logger.ts";
 
 const require = createRequire(import.meta.url);
@@ -72,7 +73,18 @@ async function startServer() {
     next();
   });
 
-  const authenticate = createAuthenticateMiddleware({ admin });
+  const rawAuthenticate = createAuthenticateMiddleware({ admin });
+  const checkSubscriptionExpiry = createSubscriptionExpiryMiddleware();
+
+  async function authenticate(req: any, res: any, next: any): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      rawAuthenticate(req, res, (err?: any) => {
+        if (err) return reject(err);
+        resolve();
+      });
+    }).then(() => checkSubscriptionExpiry(req, res, next))
+      .catch((err) => next(err));
+  }
 
   app.use((req, res, next) => {
     if (req.path.startsWith("/api/asaas-webhook")) {
