@@ -103,12 +103,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (firebaseUser) {
       setLoading(true);
       const loadNutritionist = async () => {
-        try {
-          const token = await firebaseUser.getIdToken();
-          const res = await fetch('/api/me', {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
+        const MAX_ATTEMPTS = 2;
+        for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+          if (attempt > 0) {
+            await new Promise(r => setTimeout(r, 1500));
+          }
+          try {
+            // Força refresh do token na segunda tentativa para descartar token expirado
+            const token = await firebaseUser.getIdToken(attempt > 0);
+            const res = await fetch('/api/me', {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (!res.ok) continue; // tenta novamente na próxima iteração
+
             const data = await res.json();
             setNutritionist(data);
 
@@ -157,16 +164,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.error('Error in proactive subscription check:', err);
               }
             }
-          } else {
-            setNutritionist(null);
+
+            // Sucesso — sai do loop sem passar pelo fallback de erro
+            setLoading(false);
+            setIsAuthReady(true);
+            return;
+          } catch (err) {
+            console.error(`Error fetching nutritionist data (attempt ${attempt + 1}):`, err);
           }
-        } catch (err) {
-          console.error('Error fetching nutritionist data:', err);
-          setNutritionist(null);
-        } finally {
-          setLoading(false);
-          setIsAuthReady(true);
         }
+
+        // Todas as tentativas falharam
+        setNutritionist(null);
+        setLoading(false);
+        setIsAuthReady(true);
       };
 
       loadNutritionist();
