@@ -221,7 +221,7 @@ export const Register = () => {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Left Side - Register Form */}
-      <div className="flex-1 flex flex-col justify-center px-8 sm:px-12 lg:px-20 py-16 bg-card relative overflow-y-auto">
+      <div className="flex-1 flex flex-col justify-center px-5 sm:px-12 lg:px-20 py-16 bg-card relative overflow-y-auto">
         <div className="max-w-md w-full mx-auto space-y-6">
           {/* Top controls */}
           <div className="absolute left-6 top-6">

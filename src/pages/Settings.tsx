@@ -158,8 +158,7 @@ export const Settings = () => {
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [showResetAllConfirm, setShowResetAllConfirm] = useState(false);
-  const [isResettingAll, setIsResettingAll] = useState(false);
+  const [showDevTools, setShowDevTools] = useState(false);
   const [foodToDelete, setFoodToDelete] = useState<string | null>(null);
   const [editingFood, setEditingFood] = useState<CustomFood | null>(null);
   const [foodSearch, setFoodSearch] = useState('');
@@ -225,38 +224,6 @@ export const Settings = () => {
     }
   };
 
-  const handleResetAllUsers = async () => {
-    if (!user?.email) return;
-    setIsResettingAll(true);
-    const toastId = toast.loading('Resetando todos os usuários...');
-
-    try {
-      const response = await fetch('/api/admin/reset-all-users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          adminEmail: user.email,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        toast.success(data.message, { id: toastId });
-        setShowResetAllConfirm(false);
-        setTimeout(() => window.location.reload(), 2000);
-      } else {
-        throw new Error(data.error || 'Erro ao resetar usuários.');
-      }
-    } catch (error: any) {
-      console.error('Erro no reset global:', error);
-      toast.error('Erro: ' + (error.message || 'Tente novamente.'), { id: toastId });
-    } finally {
-      setIsResettingAll(false);
-    }
-  };
 
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -523,37 +490,37 @@ export const Settings = () => {
         <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto mb-8 overflow-x-auto">
           <TabsTrigger 
             value="profile" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
+            className="relative gap-2 px-3 py-3 md:px-4 md:py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <User className="w-4 h-4" /> Perfil Profissional
           </TabsTrigger>
           <TabsTrigger 
             value="foods" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
+            className="relative gap-2 px-3 py-3 md:px-4 md:py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Utensils className="w-4 h-4" /> Alimentos Próprios
           </TabsTrigger>
           <TabsTrigger 
             value="security" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
+            className="relative gap-2 px-3 py-3 md:px-4 md:py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Shield className="w-4 h-4" /> Segurança
           </TabsTrigger>
           <TabsTrigger 
             value="subscription" 
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
+            className="relative gap-2 px-3 py-3 md:px-4 md:py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Award className="w-4 h-4" /> Assinatura e Plano
           </TabsTrigger>
           <TabsTrigger
             value="privacy"
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
+            className="relative gap-2 px-3 py-3 md:px-4 md:py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Shield className="w-4 h-4" /> Privacidade
           </TabsTrigger>
           <TabsTrigger
             value="integrations"
-            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
+            className="relative gap-2 px-3 py-3 md:px-4 md:py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <RefreshCw className="w-4 h-4" /> Integrações
           </TabsTrigger>
@@ -677,7 +644,7 @@ export const Settings = () => {
                     </div>
                   </CardContent>
                   <CardFooter className="border-t border-border pt-6">
-                    <Button type="submit" className="bg-primary hover:bg-primary/90 gap-2 rounded-xl h-8 px-6 font-bold text-sm" disabled={isSaving}>
+                    <Button type="submit" className="bg-primary hover:bg-primary/90 gap-2 rounded-xl h-8 px-6 font-bold text-sm w-full md:w-auto" disabled={isSaving}>
                       <Save className="w-4 h-4" /> {isSaving ? 'Salvando...' : 'Salvar Alterações'}
                     </Button>
                   </CardFooter>
@@ -868,7 +835,7 @@ export const Settings = () => {
               </CardContent>
               <CardFooter className="border-t border-border pt-5">
                 <Button
-                  className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50"
+                  className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50 w-full md:w-auto"
                   onClick={handleUpdatePassword}
                   disabled={isUpdatingPassword || !isStrongPassword(newPassword) || newPassword !== confirmNewPassword}
                 >
@@ -959,339 +926,342 @@ export const Settings = () => {
 
         <TabsContent value="subscription" className="space-y-6">
           <div className="max-w-2xl">
-            <Card className={cn(
-              "border-none shadow-sm",
-              isPremiumOrAdmin ? "bg-primary/90 text-white" : "bg-card"
-            )}>
-              <CardHeader className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                <div className="space-y-1">
-                  <CardTitle className={cn("text-xl font-bold flex items-center gap-2", isPremiumOrAdmin ? "text-white" : "text-foreground")}>
-                    <Award className={cn("w-6 h-6", "text-primary")} />
-                    {nutritionist?.role === 'admin' ? 'Acesso Admin' : isPremiumOrAdmin ? 'Plano Premium Ativo' : 'Plano Gratuito'}
-                  </CardTitle>
-                  <CardDescription className={isPremiumOrAdmin ? "text-primary-foreground/80" : "text-muted-foreground"}>
-                    {isPremiumOrAdmin
-                      ? 'Você está usando a versão completa do sistema com todos os recursos liberados.'
-                      : 'Você está usando a versão limitada do sistema. Faça o upgrade para remover limites.'}
-                  </CardDescription>
+            <Card className="border-none shadow-sm pt-0 gap-0">
+
+              {/* Header colorido por estado */}
+              <div className={cn(
+                "px-6 py-5",
+                nutritionist?.role === 'admin'
+                  ? "bg-slate-800"
+                  : nutritionist?.plan === 'premium'
+                  ? "bg-gradient-to-br from-primary to-primary/80"
+                  : "bg-card border-b border-border"
+              )}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <h3 className={cn(
+                      "text-xl font-bold flex items-center gap-2",
+                      nutritionist?.role === 'admin' || nutritionist?.plan === 'premium'
+                        ? "text-white"
+                        : "text-foreground"
+                    )}>
+                      <Award className={cn(
+                        "w-6 h-6",
+                        nutritionist?.role === 'admin' || nutritionist?.plan === 'premium'
+                          ? "text-white/90"
+                          : "text-muted-foreground"
+                      )} />
+                      {nutritionist?.role === 'admin'
+                        ? 'Acesso Administrativo'
+                        : nutritionist?.plan === 'premium'
+                        ? 'Plano Premium Ativo'
+                        : 'Plano Gratuito'}
+                    </h3>
+                    <p className={cn(
+                      "text-sm",
+                      nutritionist?.role === 'admin' || nutritionist?.plan === 'premium'
+                        ? "text-white/65"
+                        : "text-muted-foreground"
+                    )}>
+                      {nutritionist?.role === 'admin'
+                        ? 'Acesso completo ao sistema sem restrições.'
+                        : nutritionist?.plan === 'premium'
+                        ? 'Você está usando a versão completa com todos os recursos liberados.'
+                        : 'Versão limitada. Faça upgrade para remover os limites.'}
+                    </p>
+                  </div>
+                  <Badge className={cn(
+                    "shrink-0 text-[10px] font-bold px-2.5 py-1",
+                    nutritionist?.role === 'admin'
+                      ? "bg-white/15 text-white border-white/20"
+                      : nutritionist?.plan === 'premium'
+                      ? "bg-white/20 text-white border-white/30"
+                      : "bg-muted text-muted-foreground border-border"
+                  )}>
+                    {nutritionist?.role === 'admin' ? 'ADMIN' : nutritionist?.plan === 'premium' ? 'PREMIUM' : 'GRATUITO'}
+                  </Badge>
                 </div>
 
+                {/* Data de renovação no header (premium ativo) */}
+                {nutritionist?.plan === 'premium' && !nutritionist.subscription?.cancelAtPeriodEnd && nutritionist.subscription?.currentPeriodEnd && (
+                  <div className="mt-3 bg-black/20 rounded-lg px-3 py-2 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-white/70 shrink-0" />
+                    <span className="text-xs text-white/70">Próxima renovação:</span>
+                    <span className="text-xs text-white font-bold">
+                      {new Date(nutritionist.subscription.currentPeriodEnd).toLocaleDateString('pt-BR')}
+                    </span>
+                  </div>
+                )}
+
+                {/* Banner de garantia (primeiros 7 dias) */}
                 {nutritionist?.plan === 'premium' && !nutritionist.subscription?.cancelAtPeriodEnd && !nutritionist.subscription?.hadRefundBefore && (
                   (() => {
-                    const createdDate = nutritionist.subscription?.firstSubscriptionDate ? new Date(nutritionist.subscription.firstSubscriptionDate) : new Date();
-                    const now = new Date();
-                    const diffDays = Math.ceil((now.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-                    
-                    if (diffDays <= 7) {
-                      const refundDeadline = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
-                      return (
-                        <div className="bg-primary/10 border border-primary/20 rounded-xl p-3 flex items-start gap-2 max-w-xs">
-                          <ShieldCheck className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                          <div className="space-y-1">
-                            <p className="text-[10px] font-bold text-primary/70 uppercase tracking-wider">Garantia Ativa</p>
-                            <p className="text-[11px] text-primary-foreground leading-tight">
-                              Reembolso integral disponível até{' '}
-                              <span className="font-bold text-white">{refundDeadline.toLocaleDateString('pt-BR')}</span>.
-                            </p>
-                            <button 
-                              className="text-[10px] text-primary font-bold underline hover:text-primary-foreground transition-colors"
-                              onClick={handleCancelSubscription}
-                              disabled={isManaging}
-                            >
-                              Solicitar reembolso agora
-                            </button>
-                          </div>
+                    const createdDate = nutritionist.subscription?.firstSubscriptionDate
+                      ? new Date(nutritionist.subscription.firstSubscriptionDate)
+                      : new Date();
+                    const diffDays = Math.ceil((Date.now() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+                    if (diffDays > 7) return null;
+                    const refundDeadline = new Date(createdDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+                    return (
+                      <div className="mt-3 bg-white/10 border border-white/20 rounded-xl p-3 flex items-start gap-2">
+                        <ShieldCheck className="w-4 h-4 text-white/80 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Garantia Ativa</p>
+                          <p className="text-[11px] text-white/85 leading-tight">
+                            Reembolso integral disponível até{' '}
+                            <span className="font-bold text-white">{refundDeadline.toLocaleDateString('pt-BR')}</span>.
+                          </p>
+                          <button
+                            className="text-[10px] text-white/80 font-bold underline hover:text-white transition-colors"
+                            onClick={handleCancelSubscription}
+                            disabled={isManaging}
+                          >
+                            Solicitar reembolso agora
+                          </button>
                         </div>
-                      );
-                    }
-                    return null;
+                      </div>
+                    );
                   })()
                 )}
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <div className={cn(
-                    "grid grid-cols-1 md:grid-cols-2 gap-4",
-                    isPremiumOrAdmin ? "text-primary-foreground" : "text-muted-foreground"
-                  )}>
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
-                      <Users className="w-5 h-5 text-primary" />
-                      <div>
-                        <p className="text-xs font-medium text-primary-foreground/60">Pacientes</p>
-                        <p className="font-bold">{isPremiumOrAdmin ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxPatients} ativos`}</p>
+              </div>
+
+              <CardContent className="pt-5 space-y-5">
+                {/* Grid de limites/benefícios */}
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { icon: Users, label: 'Pacientes', value: isPremiumOrAdmin ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxPatients} ativos` },
+                    { icon: Activity, label: 'Planos Alimentares', value: isPremiumOrAdmin ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxMealPlans} ativos` },
+                    { icon: Shield, label: 'Histórico', value: isPremiumOrAdmin ? 'Completo' : `${FREE_PLAN_LIMITS.historyMonths} meses` },
+                    { icon: CreditCard, label: 'Exames', value: isPremiumOrAdmin ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxExams} por paciente` },
+                  ].map(({ icon: Icon, label, value }) => (
+                    <div key={label} className={cn(
+                      "flex items-center gap-3 p-3.5 rounded-xl border",
+                      nutritionist?.role === 'admin'
+                        ? "bg-slate-50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700"
+                        : isPremiumOrAdmin
+                        ? "bg-primary/5 border-primary/20"
+                        : "bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/30"
+                    )}>
+                      <Icon className={cn(
+                        "w-4 h-4 shrink-0",
+                        nutritionist?.role === 'admin'
+                          ? "text-slate-400"
+                          : isPremiumOrAdmin
+                          ? "text-primary"
+                          : "text-red-400"
+                      )} />
+                      <div className="min-w-0">
+                        <p className={cn(
+                          "text-[10px] font-semibold uppercase tracking-wide",
+                          nutritionist?.role === 'admin'
+                            ? "text-slate-400"
+                            : isPremiumOrAdmin
+                            ? "text-primary/70"
+                            : "text-red-400"
+                        )}>{label}</p>
+                        <p className="text-sm font-bold text-foreground truncate">{value}</p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
-                      <Activity className="w-5 h-5 text-primary" />
-                      <div>
-                        <p className="text-xs font-medium text-primary-foreground/60">Planos Alimentares</p>
-                        <p className="font-bold">{isPremiumOrAdmin ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxMealPlans} ativos`}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
-                      <Shield className="w-5 h-5 text-primary" />
-                      <div>
-                        <p className="text-xs font-medium text-primary-foreground/60">Histórico</p>
-                        <p className="font-bold">{isPremiumOrAdmin ? 'Completo' : `${FREE_PLAN_LIMITS.historyMonths} meses`}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-4 rounded-xl bg-black/5">
-                      <CreditCard className="w-5 h-5 text-primary" />
-                      <div>
-                        <p className="text-xs font-medium text-primary-foreground/60">Exames</p>
-                        <p className="font-bold">{isPremiumOrAdmin ? 'Ilimitados' : `${FREE_PLAN_LIMITS.maxExams} por paciente`}</p>
-                      </div>
-                    </div>
-                  </div>
+                  ))}
+                </div>
 
-                  {(nutritionist?.plan === 'premium' || nutritionist?.subscription?.cancelAtPeriodEnd) && (
-                    <div className="pt-4 space-y-4">
-                      {!nutritionist.subscription?.cancelAtPeriodEnd && nutritionist.subscription?.currentPeriodEnd && (
-                        <div className="bg-primary/40 border border-primary/50 rounded-xl p-4 flex items-start gap-3">
-                          <Calendar className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                          <div className="space-y-1">
-                            <p className="text-sm font-bold text-primary-foreground/80">Próxima Renovação</p>
-                            <p className="text-xs text-primary-foreground">
-                              Sua assinatura será renovada automaticamente em{' '}
-                              <span className="font-bold">
-                                {new Date(nutritionist.subscription.currentPeriodEnd).toLocaleDateString('pt-BR')}
-                              </span>.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {nutritionist.subscription?.cancelAtPeriodEnd && (
-                        <div className="bg-amber-500/20 border border-amber-500/30 rounded-xl p-4 flex items-start gap-3">
-                          <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                          <div className="space-y-1">
-                            <p className="text-sm font-bold text-amber-200">Assinatura Cancelada</p>
-                            <p className="text-xs text-amber-100/80">
-                              Seu acesso Premium continuará ativo até o dia{' '}
-                              <span className="font-bold">
-                                {nutritionist.subscription?.currentPeriodEnd ? new Date(nutritionist.subscription.currentPeriodEnd).toLocaleDateString('pt-BR') : 'fim do período'}
-                              </span>.
-                            </p>
-                            <Button 
-                              variant="link" 
-                              className="p-0 h-auto text-xs text-white font-bold underline decoration-white/30 hover:decoration-white gap-1"
-                              onClick={handleSubscribe}
-                              disabled={isSubscribing}
-                            >
-                              <RefreshCw className="w-3 h-3" /> Reativar assinatura agora
-                            </Button>
-                          </div>
-                        </div>
-                      )}
-
-                      <Button 
-                        className="w-full bg-card text-primary hover:bg-primary/10 border-none rounded-xl h-10 font-bold text-sm transition-all active:scale-95 shadow-sm" 
-                        onClick={() => setIsManageDialogOpen(true)}
-                        disabled={isManaging}
-                      >
-                        {isManaging ? 'Carregando...' : 'Gerenciar ou Cancelar Assinatura'}
-                      </Button>
-                      
-                      <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
-                        <DialogContent className="sm:max-w-sm rounded-2xl">
-                          <DialogHeader>
-                            <DialogTitle>
-                              {showCancelConfirm ? 'Confirmar Cancelamento' : 'Gerenciar Assinatura'}
-                            </DialogTitle>
-                            <DialogDescription>
-                              {showCancelConfirm 
-                                ? 'Tem certeza que deseja cancelar sua assinatura? Você manterá o acesso Premium até o final do período já pago.' 
-                                : 'Escolha o que você deseja fazer com sua assinatura Premium.'}
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="grid gap-4 py-4">
-                            {!showCancelConfirm ? (
-                              <>
-                                <Button 
-                                  variant="outline" 
-                                  className="w-full justify-start gap-3 h-12 rounded-xl"
-                                  onClick={() => {
-                                    handleManageSubscription();
-                                    setIsManageDialogOpen(false);
-                                  }}
-                                >
-                                  <CreditCard className="w-5 h-5 text-primary" />
-                                  <div className="text-left">
-                                    <p className="font-bold text-sm">Ver Faturas e Pagamentos</p>
-                                    <p className="text-[10px] text-muted-foreground">Acesse seu histórico de cobranças no Asaas</p>
-                                  </div>
-                                </Button>
-
-                                <Button 
-                                  variant="outline" 
-                                  className="w-full justify-start gap-3 h-12 rounded-xl border-red-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
-                                  onClick={() => setShowCancelConfirm(true)}
-                                >
-                                  <Trash2 className="w-5 h-5 text-red-500" />
-                                  <div className="text-left">
-                                    <p className="font-bold text-sm">Cancelar Assinatura</p>
-                                    <p className="text-[10px] text-muted-foreground">Interromper renovações automáticas</p>
-                                  </div>
-                                </Button>
-                              </>
-                            ) : (
-                              <div className="flex flex-col gap-3">
-                                <Button 
-                                  variant="destructive" 
-                                  className="w-full h-10 rounded-xl font-bold"
-                                  onClick={() => {
-                                    handleCancelSubscription();
-                                    setIsManageDialogOpen(false);
-                                    setShowCancelConfirm(false);
-                                  }}
-                                >
-                                  Sim, cancelar assinatura
-                                </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  className="w-full h-10 rounded-xl"
-                                  onClick={() => setShowCancelConfirm(false)}
-                                >
-                                  Voltar
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                      
-                      <button 
-                        onClick={() => verifySubscription(false)}
-                        disabled={isVerifying}
-                        className="w-full text-[10px] text-center mt-2 opacity-40 hover:opacity-100 transition-opacity text-primary-foreground/60 underline"
-                      >
-                        {isVerifying ? 'Sincronizando...' : 'Sincronizar status da assinatura'}
-                      </button>
-
-                      <p className="text-[10px] text-center mt-2 opacity-60 text-primary-foreground/60">
-                        Você será redirecionado para o portal de faturamento do Asaas em uma nova aba.
+                {/* Aviso cancelamento pendente */}
+                {nutritionist?.subscription?.cancelAtPeriodEnd && (
+                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-amber-700 dark:text-amber-400">Assinatura Cancelada</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-500">
+                        Seu acesso Premium continua ativo até{' '}
+                        <span className="font-bold">
+                          {nutritionist.subscription?.currentPeriodEnd
+                            ? new Date(nutritionist.subscription.currentPeriodEnd).toLocaleDateString('pt-BR')
+                            : 'fim do período'}
+                        </span>.
                       </p>
-                    </div>
-                  )}
-
-                  {!isPremiumOrAdmin && !nutritionist?.subscription?.cancelAtPeriodEnd && (
-                    <div className="pt-4 space-y-4">
-                      <Button 
-                        className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-10 font-bold text-sm shadow-lg shadow-primary/10 transition-all active:scale-95" 
+                      <Button
+                        variant="link"
+                        className="p-0 h-auto text-xs text-amber-700 dark:text-amber-400 font-bold underline gap-1"
                         onClick={handleSubscribe}
                         disabled={isSubscribing}
                       >
-                        {isSubscribing ? 'Carregando...' : 'Assinar Plano Premium - R$ 39,90/mês'}
+                        <RefreshCw className="w-3 h-3" /> Reativar assinatura agora
                       </Button>
-                      
-                      <button 
-                        onClick={() => verifySubscription(false)}
-                        disabled={isVerifying}
-                        className="w-full text-[10px] text-center mt-2 opacity-40 hover:opacity-100 transition-opacity text-muted-foreground underline"
-                      >
-                        {isVerifying ? 'Sincronizando...' : 'Já assinou? Clique aqui para sincronizar status'}
-                      </button>
-
-                      <p className="text-[10px] text-center mt-2 opacity-60">
-                        Pagamento processado com segurança pelo{' '}
-                        <a
-                          href="https://www.asaas.com/sobre-nos"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity"
-                        >
-                          Asaas
-                        </a>. Cancele a qualquer momento.
-                      </p>
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {/* Ferramenta de Desenvolvedor - Visível apenas para o Admin principal */}
-                  {nutritionist?.role === 'admin' && (
-                    <div className="mt-8 pt-6 border-t border-border">
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Ferramentas de Desenvolvedor</p>
-                      {!showResetConfirm ? (
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="w-full border-dashed border-border text-muted-foreground hover:bg-muted/30 text-[10px] h-8"
-                          onClick={() => setShowResetConfirm(true)}
-                        >
-                          Resetar MEU Status (Teste)
-                        </Button>
-                      ) : (
-                        <div className="flex flex-col gap-2">
-                          <p className="text-[10px] text-red-500 font-bold text-center">Confirmar reset dos SEUS dados?</p>
-                          <div className="flex gap-2">
-                            <Button 
-                              variant="destructive" 
-                              size="sm"
-                              className="flex-1 text-[10px] h-8"
-                              onClick={async () => {
-                                try {
-                                  await apiRequest('/api/me', 'PATCH', {
-                                    plan: 'free',
-                                    subscriptionId: null,
-                                    subscriptionStatus: null,
-                                    cancelAtPeriodEnd: false,
-                                    currentPeriodEnd: null,
-                                    firstSubscriptionDate: null,
-                                    hadRefundBefore: false,
-                                    lastSubscriptionCheck: null,
-                                  });
-                                  toast.success('Seus dados foram resetados!');
-                                  setTimeout(() => window.location.reload(), 1000);
-                                } catch (error) {
-                                  toast.error('Erro ao resetar dados.');
-                                }
-                              }}
-                            >
-                              Sim, Resetar
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="flex-1 text-[10px] h-8"
-                              onClick={() => setShowResetConfirm(false)}
-                            >
-                              Cancelar
-                            </Button>
-                          </div>
+                {/* Ações premium: gerenciar */}
+                {(nutritionist?.plan === 'premium' || nutritionist?.subscription?.cancelAtPeriodEnd) && (
+                  <div className="space-y-3">
+                    <Button
+                      variant="outline"
+                      className="w-full rounded-xl h-10 font-bold text-sm border-border hover:bg-muted/50"
+                      onClick={() => setIsManageDialogOpen(true)}
+                      disabled={isManaging}
+                    >
+                      {isManaging ? 'Carregando...' : 'Gerenciar ou Cancelar Assinatura'}
+                    </Button>
+
+                    <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
+                      <DialogContent className="sm:max-w-sm rounded-2xl">
+                        <DialogHeader>
+                          <DialogTitle>
+                            {showCancelConfirm ? 'Confirmar Cancelamento' : 'Gerenciar Assinatura'}
+                          </DialogTitle>
+                          <DialogDescription>
+                            {showCancelConfirm
+                              ? 'Tem certeza que deseja cancelar sua assinatura? Você manterá o acesso Premium até o final do período já pago.'
+                              : 'Escolha o que você deseja fazer com sua assinatura Premium.'}
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          {!showCancelConfirm ? (
+                            <>
+                              <Button
+                                variant="outline"
+                                className="w-full justify-start gap-3 h-12 rounded-xl"
+                                onClick={() => { handleManageSubscription(); setIsManageDialogOpen(false); }}
+                              >
+                                <CreditCard className="w-5 h-5 text-primary" />
+                                <div className="text-left">
+                                  <p className="font-bold text-sm">Ver Faturas e Pagamentos</p>
+                                  <p className="text-[10px] text-muted-foreground">Acesse seu histórico de cobranças no Asaas</p>
+                                </div>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                className="w-full justify-start gap-3 h-12 rounded-xl border-red-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                                onClick={() => setShowCancelConfirm(true)}
+                              >
+                                <Trash2 className="w-5 h-5 text-red-500" />
+                                <div className="text-left">
+                                  <p className="font-bold text-sm">Cancelar Assinatura</p>
+                                  <p className="text-[10px] text-muted-foreground">Interromper renovações automáticas</p>
+                                </div>
+                              </Button>
+                            </>
+                          ) : (
+                            <div className="flex flex-col gap-3">
+                              <Button
+                                variant="destructive"
+                                className="w-full h-10 rounded-xl font-bold"
+                                onClick={() => { handleCancelSubscription(); setIsManageDialogOpen(false); setShowCancelConfirm(false); }}
+                              >
+                                Sim, cancelar assinatura
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                className="w-full h-10 rounded-xl"
+                                onClick={() => setShowCancelConfirm(false)}
+                              >
+                                Voltar
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                      )}
+                      </DialogContent>
+                    </Dialog>
 
-                      {/* Reset Global */}
-                      <div className="mt-4">
-                        {!showResetAllConfirm ? (
-                          <Button 
-                            variant="outline" 
+                    <button
+                      onClick={() => verifySubscription(false)}
+                      disabled={isVerifying}
+                      className="w-full text-[10px] text-center opacity-40 hover:opacity-80 transition-opacity text-muted-foreground underline"
+                    >
+                      {isVerifying ? 'Sincronizando...' : 'Sincronizar status da assinatura'}
+                    </button>
+                    <p className="text-[10px] text-center opacity-50 text-muted-foreground">
+                      Você será redirecionado para o portal de faturamento do Asaas em uma nova aba.
+                    </p>
+                  </div>
+                )}
+
+                {/* CTA para plano gratuito */}
+                {!isPremiumOrAdmin && !nutritionist?.subscription?.cancelAtPeriodEnd && (
+                  <div className="space-y-3 pt-1">
+                    <Button
+                      className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-11 font-bold text-sm shadow-md shadow-primary/20 transition-all active:scale-95"
+                      onClick={handleSubscribe}
+                      disabled={isSubscribing}
+                    >
+                      {isSubscribing ? 'Carregando...' : '🚀 Assinar Plano Premium — R$ 39,90/mês'}
+                    </Button>
+                    <button
+                      onClick={() => verifySubscription(false)}
+                      disabled={isVerifying}
+                      className="w-full text-[10px] text-center opacity-40 hover:opacity-80 transition-opacity text-muted-foreground underline"
+                    >
+                      {isVerifying ? 'Sincronizando...' : 'Já assinou? Clique aqui para sincronizar status'}
+                    </button>
+                    <p className="text-[10px] text-center opacity-50">
+                      Pagamento processado com segurança pelo{' '}
+                      <a
+                        href="https://www.asaas.com/sobre-nos"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold underline underline-offset-2 hover:opacity-80 transition-opacity"
+                      >
+                        Asaas
+                      </a>. Cancele a qualquer momento.
+                    </p>
+                  </div>
+                )}
+
+                {/* Ferramentas de desenvolvedor (admin, colapsável) */}
+                {nutritionist?.role === 'admin' && (
+                  <div className="pt-4 border-t border-border">
+                    <button
+                      className="w-full flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
+                      onClick={() => setShowDevTools(v => !v)}
+                    >
+                      <span>🔧 Ferramentas de Desenvolvedor</span>
+                      <span>{showDevTools ? '▲' : '▼'}</span>
+                    </button>
+                    {showDevTools && (
+                      <div className="mt-3">
+                        {!showResetConfirm ? (
+                          <Button
+                            variant="outline"
                             size="sm"
-                            className="w-full border-red-200 text-red-500 hover:bg-red-50 text-[10px] h-8 font-bold"
-                            onClick={() => setShowResetAllConfirm(true)}
+                            className="w-full border-dashed border-border text-muted-foreground hover:bg-muted/30 text-[10px] h-8"
+                            onClick={() => setShowResetConfirm(true)}
                           >
-                            RESETAR TODOS OS USUÁRIOS (LIMPA GERAL)
+                            Resetar MEU Status (Teste)
                           </Button>
                         ) : (
-                          <div className="flex flex-col gap-2 p-2 border border-red-200 rounded-lg bg-red-50">
-                            <p className="text-[10px] text-red-600 font-bold text-center">
-                              ATENÇÃO: Isso voltará TODOS os usuários para o plano gratuito. Confirmar?
-                            </p>
+                          <div className="flex flex-col gap-2">
+                            <p className="text-[10px] text-red-500 font-bold text-center">Confirmar reset dos SEUS dados?</p>
                             <div className="flex gap-2">
-                              <Button 
-                                variant="destructive" 
+                              <Button
+                                variant="destructive"
                                 size="sm"
                                 className="flex-1 text-[10px] h-8"
-                                onClick={handleResetAllUsers}
-                                disabled={isResettingAll}
+                                onClick={async () => {
+                                  try {
+                                    await apiRequest('/api/me', 'PATCH', {
+                                      plan: 'free',
+                                      subscriptionId: null,
+                                      subscriptionStatus: null,
+                                      cancelAtPeriodEnd: false,
+                                      currentPeriodEnd: null,
+                                      firstSubscriptionDate: null,
+                                      hadRefundBefore: false,
+                                      lastSubscriptionCheck: null,
+                                    });
+                                    toast.success('Seus dados foram resetados!');
+                                    setTimeout(() => window.location.reload(), 1000);
+                                  } catch (error) {
+                                    toast.error('Erro ao resetar dados.');
+                                  }
+                                }}
                               >
-                                {isResettingAll ? 'Resetando...' : 'SIM, LIMPAR TUDO'}
+                                Sim, Resetar
                               </Button>
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="outline"
                                 size="sm"
-                                className="flex-1 text-[10px] h-8 border-border"
-                                onClick={() => setShowResetAllConfirm(false)}
-                                disabled={isResettingAll}
+                                className="flex-1 text-[10px] h-8"
+                                onClick={() => setShowResetConfirm(false)}
                               >
                                 Cancelar
                               </Button>
@@ -1299,9 +1269,9 @@ export const Settings = () => {
                           </div>
                         )}
                       </div>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -1487,11 +1457,11 @@ function PrivacyTab() {
           </div>
 
           {/* Ações */}
-          <div className="flex flex-wrap gap-2 pt-2 border-t border-border">
+          <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-border">
             <Button
               variant="outline"
               size="sm"
-              className="rounded-lg"
+              className="rounded-lg w-full sm:w-auto"
               onClick={acceptEssentialOnly}
               disabled={consent === 'essential'}
             >
@@ -1499,7 +1469,7 @@ function PrivacyTab() {
             </Button>
             <Button
               size="sm"
-              className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground"
+              className="rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground w-full sm:w-auto"
               onClick={acceptAll}
               disabled={consent === 'all'}
             >
@@ -1508,7 +1478,7 @@ function PrivacyTab() {
             <Button
               variant="ghost"
               size="sm"
-              className="rounded-lg text-muted-foreground ml-auto"
+              className="rounded-lg text-muted-foreground sm:ml-auto w-full sm:w-auto"
               onClick={resetConsent}
             >
               Redefinir preferências
@@ -1529,7 +1499,7 @@ function PrivacyTab() {
             <p className="text-sm text-muted-foreground">
               Conforme LGPD Art. 20, você pode exportar todos os seus dados em formato JSON.
             </p>
-            <Button variant="outline" onClick={handleExportData}>
+            <Button variant="outline" className="w-full md:w-auto" onClick={handleExportData}>
               Exportar meus dados
             </Button>
           </div>

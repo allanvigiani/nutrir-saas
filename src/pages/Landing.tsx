@@ -473,7 +473,7 @@ export function Landing() {
               </div>
 
               <div className="space-y-4">
-                <h2 className="text-4xl font-bold tracking-tight leading-tight">
+                <h2 className="text-3xl md:text-4xl font-bold tracking-tight leading-tight">
                   Agende uma vez.<br />
                   <span className="text-primary">Todos ficam informados.</span>
                 </h2>
@@ -524,7 +524,7 @@ export function Landing() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center space-y-3 mb-16">
             <p className="text-sm font-semibold text-primary uppercase tracking-widest">Como funciona</p>
-            <h2 className="text-4xl font-bold tracking-tight">Comece em minutos</h2>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Comece em minutos</h2>
           </div>
 
           <div className="grid md:grid-cols-4 gap-8 relative">
@@ -560,7 +560,7 @@ export function Landing() {
         <div className="max-w-4xl mx-auto">
           <div className="text-center space-y-3 mb-16">
             <p className="text-sm font-semibold text-primary uppercase tracking-widest">Preços</p>
-            <h2 className="text-4xl font-bold tracking-tight">Simples e transparente</h2>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Simples e transparente</h2>
             <p className="text-lg text-muted-foreground">Sem surpresas. Cancele quando quiser.</p>
           </div>
 
@@ -673,7 +673,7 @@ export function Landing() {
         <div className="max-w-5xl mx-auto">
           <div className="text-center space-y-3 mb-16">
             <p className="text-sm font-semibold text-primary uppercase tracking-widest">Depoimentos</p>
-            <h2 className="text-4xl font-bold tracking-tight">Quem usa, recomenda</h2>
+            <h2 className="text-3xl md:text-4xl font-bold tracking-tight">Quem usa, recomenda</h2>
           </div>
 
           <div className="grid md:grid-cols-2 gap-6">

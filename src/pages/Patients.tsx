@@ -400,7 +400,7 @@ export const Patients = () => {
               <UserPlus className="w-4 h-4" /> Novo Paciente
             </DialogTrigger>
           </PremiumFeature>
-          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl p-4">
+          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl p-4">
             <DialogHeader className="mb-4">
               <DialogTitle className="text-xl font-bold">{editingPatient ? 'Editar Paciente' : 'Cadastrar Novo Paciente'}</DialogTitle>
               <DialogDescription className="text-sm">

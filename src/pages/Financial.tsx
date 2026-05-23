@@ -383,7 +383,7 @@ export const Financial = () => {
           <h1 className="text-3xl font-bold text-foreground tracking-tight">Financeiro</h1>
           <p className="text-muted-foreground">Gerencie pagamentos e emita recibos para seus pacientes.</p>
         </div>
-        <Button 
+        <Button
           className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95"
           onClick={() => {
             reset();
@@ -543,9 +543,9 @@ export const Financial = () => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-muted/30/50">
-                  <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Data</th>
+                  <th className="hidden md:table-cell px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Data</th>
                   <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Paciente</th>
-                  <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Método</th>
+                  <th className="hidden md:table-cell px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Método</th>
                   <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Valor</th>
                   <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider">Status</th>
                   <th className="px-6 py-4 text-xs font-bold text-muted-foreground uppercase tracking-wider text-right">Ações</th>
@@ -577,7 +577,7 @@ export const Financial = () => {
                     
                     return (
                       <tr key={payment.id} className="hover:bg-muted/30/50 transition-colors group">
-                        <td className="px-6 py-4">
+                        <td className="hidden md:table-cell px-6 py-4">
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
                             <span className="text-sm font-medium text-muted-foreground">
@@ -589,7 +589,7 @@ export const Financial = () => {
                           <p className="text-sm font-bold text-foreground">{patient?.name || 'Paciente Excluído'}</p>
                           <p className="text-xs text-muted-foreground">{payment.description || 'Sem descrição'}</p>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="hidden md:table-cell px-6 py-4">
                           <div className="flex items-center gap-2 text-muted-foreground">
                             <MethodIcon className="w-4 h-4" />
                             <span className="text-xs font-medium">{getMethodLabel(payment.method)}</span>
@@ -617,7 +617,7 @@ export const Financial = () => {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center justify-end gap-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                             {payment.status === 'pending' && (
                               <Button 
                                 variant="ghost" 

@@ -1062,18 +1062,18 @@ export const PatientProfile = () => {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button nativeButton={false} variant="ghost" size="icon" render={<Link to="/patients" />} title="Voltar para lista de pacientes">
             <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-2xl">
+            <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-primary/15 text-primary flex items-center justify-center font-bold text-xl sm:text-2xl">
               {patient.name.charAt(0)}
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-3xl font-bold text-foreground">{patient.name}</h1>
+                <h1 className="text-xl sm:text-3xl font-bold text-foreground">{patient.name}</h1>
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -1156,7 +1156,7 @@ export const PatientProfile = () => {
             >
               <Plus className="w-4 h-4" /> Nova Consulta
             </DialogTrigger>
-            <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl">
+            <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl">
               <DialogHeader>
                 <DialogTitle>{selectedConsultation ? 'Editar Consulta' : 'Registrar Nova Consulta'}</DialogTitle>
                 <DialogDescription>Preencha os dados antropométricos e clínicos do atendimento.</DialogDescription>
@@ -1270,20 +1270,20 @@ export const PatientProfile = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto mb-8 overflow-x-auto">
-          <TabsTrigger value="personal" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
+          <TabsTrigger value="personal" className="relative gap-2 px-3 py-3 md:px-4 md:py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
             <User className="w-4 h-4" /> Dados Pessoais
           </TabsTrigger>
 
-          <TabsTrigger value="consultations" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
+          <TabsTrigger value="consultations" className="relative gap-2 px-3 py-3 md:px-4 md:py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
             <Calendar className="w-4 h-4" /> Consultas
           </TabsTrigger>
-          <TabsTrigger value="mealplans" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
+          <TabsTrigger value="mealplans" className="relative gap-2 px-3 py-3 md:px-4 md:py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
             <FileText className="w-4 h-4" /> Planos Alimentares
           </TabsTrigger>
-          <TabsTrigger value="exams" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
+          <TabsTrigger value="exams" className="relative gap-2 px-3 py-3 md:px-4 md:py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
             <Beaker className="w-4 h-4" /> Exames
           </TabsTrigger>
-          <TabsTrigger value="evolution" className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
+          <TabsTrigger value="evolution" className="relative gap-2 px-3 py-3 md:px-4 md:py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap">
             <TrendingUp className="w-4 h-4" /> Evolução
           </TabsTrigger>
         </TabsList>
@@ -1967,7 +1967,7 @@ export const PatientProfile = () => {
         </Dialog>
 
         <Dialog open={isDeleteMealPlanConfirmOpen} onOpenChange={setIsDeleteMealPlanConfirmOpen}>
-          <DialogContent className="sm:max-w-sm">
+          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Excluir Plano Alimentar</DialogTitle>
               <DialogDescription>
@@ -1982,7 +1982,7 @@ export const PatientProfile = () => {
         </Dialog>
 
         <Dialog open={isDeleteLabExamConfirmOpen} onOpenChange={setIsDeleteLabExamConfirmOpen}>
-          <DialogContent className="sm:max-w-sm">
+          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Excluir Exame Laboratorial</DialogTitle>
               <DialogDescription>
@@ -1997,7 +1997,7 @@ export const PatientProfile = () => {
         </Dialog>
 
         <Dialog open={isDeleteConsultationConfirmOpen} onOpenChange={setIsDeleteConsultationConfirmOpen}>
-          <DialogContent className="sm:max-w-sm">
+          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Excluir Consulta</DialogTitle>
               <DialogDescription>
@@ -2150,7 +2150,7 @@ export const PatientProfile = () => {
                     <Plus className="w-4 h-4" /> Registrar Exame
                   </DialogTrigger>
                 </PremiumFeature>
-                <DialogContent className="sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl shadow-2xl">
+                <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl shadow-2xl">
                   <DialogHeader className="p-6 pb-0">
                     <DialogTitle>{selectedExam ? 'Editar Exame' : 'Novo Exame'}</DialogTitle>
                     <DialogDescription>Insira os dados do exame laboratorial e seus marcadores.</DialogDescription>
@@ -2914,7 +2914,7 @@ export const PatientProfile = () => {
 
       {/* Modals */}
       <Dialog open={isCalculatorModalOpen} onOpenChange={setIsCalculatorModalOpen}>
-        <DialogContent className="sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden flex flex-col bg-muted/30 rounded-2xl shadow-2xl">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden flex flex-col bg-muted/30 rounded-2xl shadow-2xl">
           <div className="bg-card px-6 py-4 border-b flex justify-between items-center shadow-sm z-10 shrink-0">
             <div>
               <h2 className="text-xl font-black text-foreground">Cálculo Nutricional</h2>
@@ -2946,7 +2946,7 @@ export const PatientProfile = () => {
 
       {/* Edit Patient Modal */}
       <Dialog open={isEditPatientModalOpen} onOpenChange={setIsEditPatientModalOpen}>
-        <DialogContent className="sm:max-w-2xl rounded-2xl shadow-2xl">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-2xl rounded-2xl shadow-2xl">
           <DialogHeader>
             <DialogTitle>Editar Perfil do Paciente</DialogTitle>
             <DialogDescription>Atualize as informações cadastrais do paciente.</DialogDescription>

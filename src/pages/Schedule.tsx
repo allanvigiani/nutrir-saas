@@ -86,7 +86,9 @@ export const Schedule = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<AppointmentWithPatient | null>(null);
   const [appointmentToDelete, setAppointmentToDelete] = useState<string | null>(null);
-  const [view, setView] = useState<'month' | 'week' | 'day'>('month');
+  const [view, setView] = useState<'month' | 'week' | 'day'>(() =>
+    window.innerWidth < 768 ? 'day' : 'month'
+  );
   const [isDateLocked, setIsDateLocked] = useState(false);
 
   // Form states
@@ -286,10 +288,10 @@ export const Schedule = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Agenda</h1>
+          <h1 className="text-xl md:text-3xl font-bold text-foreground">Agenda</h1>
           <p className="text-muted-foreground">Gerencie seus horários e atendimentos.</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <Tabs value={view} onValueChange={(val: any) => setView(val)} className="w-auto">
             <TabsList className="flex items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto overflow-x-auto">
               <TabsTrigger
@@ -318,12 +320,12 @@ export const Schedule = () => {
             if (!open) setEditingAppointment(null);
           }}>
             <DialogTrigger
-              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" onClick={() => openNewModal()} />}
+              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 w-full md:w-auto" onClick={() => openNewModal()} />}
               nativeButton={true}
             >
               <Plus className="w-4 h-4" /> Novo Agendamento
             </DialogTrigger>
-            <DialogContent className="sm:max-w-xl rounded-2xl">
+            <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-xl rounded-2xl">
               <DialogHeader>
                 <DialogTitle>{editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}</DialogTitle>
                 <DialogDescription>
@@ -521,6 +523,7 @@ export const Schedule = () => {
         </CardHeader>
         <CardContent className="p-0">
           {view === 'month' && (
+            <div className="overflow-x-auto -mx-4 md:mx-0">
             <div className="grid grid-cols-7 border-b border-border">
               {weekDays.map(day => (
                 <div key={day} className="py-2 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider bg-muted/30/50 border-r border-border last:border-r-0">
@@ -586,9 +589,11 @@ export const Schedule = () => {
                 );
               })}
             </div>
+            </div>
           )}
 
           {view === 'week' && (
+            <div className="overflow-x-auto -mx-4 md:mx-0">
             <div className="flex flex-col h-[600px] overflow-y-auto">
               <div className="grid grid-cols-8 border-b border-border sticky top-0 bg-card z-10">
                 <div className="py-2 border-r border-border bg-muted/30/50"></div>
@@ -659,9 +664,11 @@ export const Schedule = () => {
                 ))}
               </div>
             </div>
+            </div>
           )}
 
           {view === 'day' && (
+            <div className="overflow-x-auto -mx-4 md:mx-0">
             <div className="flex flex-col h-[600px] overflow-y-auto">
               <div className="grid grid-cols-8 border-b border-border sticky top-0 bg-card z-10">
                 <div className="py-2 border-r border-border bg-muted/30/50"></div>
@@ -728,6 +735,7 @@ export const Schedule = () => {
                     })}
                 </div>
               </div>
+            </div>
             </div>
           )}
         </CardContent>

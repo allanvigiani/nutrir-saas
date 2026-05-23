@@ -196,7 +196,7 @@ export const AdminDashboard = () => {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Painel Administrativo</h1>
+          <h1 className="text-xl md:text-3xl font-bold text-foreground">Painel Administrativo</h1>
           <p className="text-muted-foreground">Gerenciamento global da plataforma Nutrir</p>
         </div>
       </div>
@@ -427,10 +427,10 @@ export const AdminDashboard = () => {
                   <thead>
                     <tr className="bg-muted/30 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
                       <th className="px-6 py-4 font-bold">Nutricionista</th>
-                      <th className="px-6 py-4 font-bold">CRN</th>
+                      <th className="hidden md:table-cell px-6 py-4 font-bold">CRN</th>
                       <th className="px-6 py-4 font-bold">Plano</th>
                       <th className="px-6 py-4 font-bold">Cargo</th>
-                      <th className="px-6 py-4 font-bold">Último Login</th>
+                      <th className="hidden md:table-cell px-6 py-4 font-bold">Último Login</th>
                       <th className="px-6 py-4 font-bold">Ações</th>
                     </tr>
                   </thead>
@@ -461,7 +461,7 @@ export const AdminDashboard = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-muted-foreground font-medium">{n.crn}</td>
+                          <td className="hidden md:table-cell px-6 py-4 text-muted-foreground font-medium">{n.crn}</td>
                           <td className="px-6 py-4">
                             <span className={cn(
                               "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
@@ -486,7 +486,7 @@ export const AdminDashboard = () => {
                               {n.role === 'admin' ? 'Admin' : 'Nutricionista'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap">
                             {(n as any).lastLogin ? (() => {
                               const daysInactive = differenceInDays(new Date(), parseISO((n as any).lastLogin));
                               return (
