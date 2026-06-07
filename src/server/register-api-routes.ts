@@ -23,6 +23,7 @@ import { registerAdminRoutes } from "./routes/admin.routes.ts";
 import { registerSubscriptionRoutes } from "./routes/subscription.routes.ts";
 import { registerAccountExportRoutes } from "./routes/account-export.routes.ts";
 import { logger } from "./logger.ts";
+import { createAuditMiddleware } from "./middlewares/audit.ts";
 import {
   createAiLimiter,
   createEmailLimiter,
@@ -58,6 +59,9 @@ export function registerApiRoutes(deps: RegisterApiRoutesDeps) {
   deps.app.use('/api/logs',          generalLimiter);
   deps.app.use('/api/health',        generalLimiter);
   deps.app.use('/api/asaas-webhook', generalLimiter);
+
+  // ── Auditoria de mutações (POST/PUT/PATCH/DELETE) ─────────────────────────
+  deps.app.use('/api', createAuditMiddleware());
 
   // ── Registro das rotas (após os limiters) ───────────────────────────────
   registerEmailRoutes(deps);
