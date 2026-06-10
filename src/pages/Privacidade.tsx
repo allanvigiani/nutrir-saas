@@ -1,18 +1,20 @@
+import type { ReactNode } from 'react';
+import { AlertTriangle, Info } from 'lucide-react';
 import { LandingNavbar } from '../components/LandingNavbar';
 import { LandingFooter } from '../components/LandingFooter';
 
-const Section = ({ id, title, children }: { id: string; title: string; children: React.ReactNode }) => (
+const Section = ({ id, title, children }: { id: string; title: string; children: ReactNode }) => (
   <section id={id} className="space-y-4 scroll-mt-24">
     <h2 className="text-xl font-bold text-foreground border-b border-border pb-2">{title}</h2>
     {children}
   </section>
 );
 
-const P = ({ children }: { children: React.ReactNode }) => (
+const P = ({ children }: { children: ReactNode }) => (
   <p className="text-muted-foreground leading-relaxed text-sm">{children}</p>
 );
 
-const Li = ({ children }: { children: React.ReactNode }) => (
+const Li = ({ children }: { children: ReactNode }) => (
   <li className="flex gap-2 text-sm text-muted-foreground leading-relaxed">
     <span className="text-primary mt-0.5 shrink-0">•</span>
     <span>{children}</span>
@@ -25,7 +27,7 @@ const Table = ({ headers, rows }: { headers: string[]; rows: string[][] }) => (
       <thead className="bg-muted/40">
         <tr>
           {headers.map(h => (
-            <th key={h} className="px-4 py-2.5 text-left font-semibold text-foreground text-xs uppercase tracking-wide">{h}</th>
+            <th key={h} className="px-4 py-2.5 text-left font-semibold text-foreground text-xs">{h}</th>
           ))}
         </tr>
       </thead>
@@ -41,8 +43,6 @@ const Table = ({ headers, rows }: { headers: string[]; rows: string[][] }) => (
     </table>
   </div>
 );
-
-import React from 'react';
 
 export function Privacidade() {
   const toc = [
@@ -73,7 +73,7 @@ export function Privacidade() {
             <div className="inline-flex items-center gap-2 text-xs font-semibold text-primary bg-primary/10 px-3 py-1 rounded-full mb-4">
               LGPD — Lei 13.709/2018
             </div>
-            <h1 className="text-4xl font-bold mb-3">Política de Privacidade</h1>
+            <h1 className="text-4xl font-bold tracking-tight text-balance mb-3">Política de Privacidade</h1>
             <p className="text-muted-foreground text-sm">
               Última atualização: maio de 2026 · Versão 2.0
             </p>
@@ -161,9 +161,12 @@ export function Privacidade() {
                   <Li>Registros de anamnese e evolução clínica</Li>
                   <Li>Planos alimentares individualizados</Li>
                 </ul>
-                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-200">
-                  ⚠️ O nutricionista é responsável por obter o consentimento expresso de seus pacientes para o tratamento
-                  desses dados sensíveis antes de inseri-los na plataforma (LGPD Art. 11, I).
+                <div className="bg-accent/30 border border-accent-foreground/20 rounded-lg p-3 flex items-start gap-2 text-xs text-accent-foreground">
+                  <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" aria-hidden="true" />
+                  <span>
+                    O nutricionista é responsável por obter o consentimento expresso de seus pacientes para o tratamento
+                    desses dados sensíveis antes de inseri-los na plataforma (LGPD Art. 11, I).
+                  </span>
                 </div>
               </Section>
 
@@ -291,9 +294,12 @@ export function Privacidade() {
                   Responderemos às solicitações em até <strong className="text-foreground">15 dias úteis</strong>. Em casos complexos,
                   esse prazo pode ser estendido por igual período, mediante comunicação ao titular.
                 </P>
-                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 text-xs text-blue-800 dark:text-blue-200">
-                  ℹ️ Você também pode apresentar reclamação diretamente à Autoridade Nacional de Proteção de Dados (ANPD)
-                  em <a href="https://www.gov.br/anpd" target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80">www.gov.br/anpd</a>.
+                <div className="bg-primary/10 border border-primary/20 rounded-lg p-3 flex items-start gap-2 text-xs text-foreground">
+                  <Info className="w-4 h-4 shrink-0 mt-0.5 text-primary" aria-hidden="true" />
+                  <span>
+                    Você também pode apresentar reclamação diretamente à Autoridade Nacional de Proteção de Dados (ANPD)
+                    em <a href="https://www.gov.br/anpd" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">www.gov.br/anpd</a>.
+                  </span>
                 </div>
               </Section>
 

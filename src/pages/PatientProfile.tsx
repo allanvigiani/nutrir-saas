@@ -6,8 +6,6 @@ import {
   FileText,
   Beaker,
   TrendingUp,
-  FileSpreadsheet,
-  Download,
   ArrowLeft,
   Plus,
   Mail,
@@ -23,20 +21,13 @@ import {
   Apple,
   Utensils,
   Moon,
-  Sun,
-  Save,
   CloudMoon,
   Dna,
   Zap,
   Droplets,
   ChevronDown,
   ChevronUp,
-  MoreHorizontal,
   MessageSquare,
-  CheckCircle2,
-  Key,
-  Share2,
-  ExternalLink,
   Calculator,
   X
 } from 'lucide-react';
@@ -53,7 +44,7 @@ import {
   CardTitle,
   CardDescription
 } from '../components/ui/card';
-import { Button, buttonVariants } from '../components/ui/button';
+import { Button } from '../components/ui/button';
 import { useAuth } from '../contexts/AuthContext';
 import { FREE_PLAN_LIMITS, isAdminOrPremium } from '../lib/planLimits';
 import { auth } from '../lib/firebase';
@@ -66,7 +57,7 @@ import { PremiumBanner } from '../components/PremiumBanner';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { useFreeplanLimits } from '../hooks/useFreeplanLimits';
 import { maskCPF, maskPhone } from '../lib/masks';
-import { generateSecureToken, cn } from '../lib/utils';
+import { cn } from '../lib/utils';
 import { FoodAutocomplete } from '../components/FoodAutocomplete';
 import { TacoFood } from '../data/taco';
 import { CustomFoodDialog } from '../components/CustomFoodDialog';
@@ -74,34 +65,6 @@ import { NutritionalCalculator } from '../components/NutritionalCalculator';
 import { MealPlanEditor } from '../components/MealPlanEditor';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
 
 type DraftMealItem = {
   meal: string;
@@ -121,34 +84,10 @@ type DraftMealItem = {
   serving_weight?: number | null;
 };
 
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
 import { toast } from 'sonner';
 import { logEvent } from '../lib/firebase';
 
 import {
-  LineChart,
-  Line,
   AreaChart,
   Area,
   XAxis,
@@ -156,8 +95,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
   Legend,
   ReferenceLine,
 } from 'recharts';
@@ -198,7 +135,7 @@ const SummaryCard = ({ label, value, total, unit, color, progressColor, icon: Ic
         <Icon className="w-5 h-5" />
       </div>
       <div className="flex-1">
-        <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground mb-1">{label}</p>
+        <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
         <p className="text-lg font-bold text-foreground leading-none">
           {Number(value).toFixed(1)}
           <span className="text-xs font-medium text-muted-foreground ml-1">
@@ -282,7 +219,6 @@ export const PatientProfile = () => {
   const [isDeleteConsultationConfirmOpen, setIsDeleteConsultationConfirmOpen] = useState(false);
   const [consultationToDelete, setConsultationToDelete] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('personal');
-  const [isGeneratingToken, setIsGeneratingToken] = useState(false);
   const [selectedMealPlan, setSelectedMealPlan] = useState<MealPlan | null>(null);
   const [selectedMealPlanItems, setSelectedMealPlanItems] = useState<MealPlanItem[]>([]);
 
@@ -540,7 +476,7 @@ export const PatientProfile = () => {
       doc.setFontSize(8);
       doc.setTextColor(148, 163, 184); // slate-400
       doc.text(
-        `Gerado por NutriCare Pro em ${format(new Date(), 'dd/MM/yyyy HH:mm')} - Página ${i} de ${pageCount}`,
+        `Gerado por Nutrir em ${format(new Date(), 'dd/MM/yyyy HH:mm')} - Página ${i} de ${pageCount}`,
         pageWidth / 2,
         doc.internal.pageSize.getHeight() - 10,
         { align: 'center' }
@@ -996,44 +932,6 @@ export const PatientProfile = () => {
     loadPatientData();
   }, [id, user, navigate, isAuthReady, nutritionist?.plan]);
 
-  const generateAccessToken = async () => {
-    if (!patient || !id) return;
-    setIsGeneratingToken(true);
-    const toastId = toast.loading('Gerando link de acesso...');
-    try {
-      const token = generateSecureToken();
-      await apiRequest(`/api/patients/${id}`, 'PATCH', {
-        accessToken: token,
-        updatedAt: new Date().toISOString(),
-      });
-      setPatient(prev => prev ? { ...prev, access_token: token } : prev);
-      toast.success('Link de acesso gerado com sucesso!', { id: toastId });
-    } catch (error) {
-      console.error('Error generating access token:', error);
-      toast.error('Erro ao gerar link de acesso.', { id: toastId });
-    } finally {
-      setIsGeneratingToken(false);
-    }
-  };
-
-  const shareAccessLink = () => {
-    const accessToken = patient?.access_token || (patient as any)?.accessToken;
-    if (!accessToken) return;
-    const whatsappBaseUrl = import.meta.env.VITE_WHATSAPP_BASE_URL || '';
-    if (!whatsappBaseUrl) {
-      toast.error('VITE_WHATSAPP_BASE_URL não configurada.');
-      return;
-    }
-
-    const baseUrl = window.location.origin;
-    const accessUrl = `${baseUrl}/patient-access/${id}?token=${accessToken}`;
-
-    const message = `Olá ${patient.name}! Aqui está seu link exclusivo para acessar seu plano alimentar e evolução no Nutrir: ${accessUrl}\n\nPara sua segurança, ao acessar, digite os 3 últimos dígitos do seu CPF.`;
-
-    const whatsappUrl = `${whatsappBaseUrl}/55${patient.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center py-24">
@@ -1050,11 +948,11 @@ export const PatientProfile = () => {
     <div className="space-y-8">
 
       {isPatientReadOnly && (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+        <div className="bg-accent/30 border border-accent-foreground/20 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-accent-foreground shrink-0 mt-0.5" />
           <div className="text-sm">
-            <p className="font-bold text-amber-800 dark:text-amber-300">Paciente em somente leitura</p>
-            <p className="text-amber-700 dark:text-amber-400 mt-0.5">
+            <p className="font-bold text-accent-foreground">Paciente em somente leitura</p>
+            <p className="text-accent-foreground/80 mt-0.5">
               Este paciente excede o limite do plano gratuito. Você pode visualizar o histórico, mas novas consultas, planos e exames estão bloqueados.{' '}
               <Link to="/settings" className="underline font-medium">Fazer upgrade</Link>
             </p>
@@ -1094,26 +992,6 @@ export const PatientProfile = () => {
           </div>
         </div>
         <div className="flex gap-2">
-          {/* 
-          {!patient.access_token ? (
-            <Button 
-              variant="outline" 
-              className="h-8 text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 px-4"
-              onClick={generateAccessToken}
-              disabled={isGeneratingToken}
-            >
-              {isGeneratingToken ? 'GERANDO...' : 'GERAR LINK DE ACESSO'}
-            </Button>
-          ) : (
-            <Button 
-              variant="outline" 
-              className="h-8 text-sm font-bold border-primary/30 text-primary hover:bg-primary/10 px-4"
-              onClick={shareAccessLink}
-                         >
-              ENVIAR ACESSO WHATSAPP
-            </Button>
-          )}
-          */}
           <Dialog open={isConsultationModalOpen} onOpenChange={(open) => {
             setIsConsultationModalOpen(open);
             if (!open) {
@@ -1327,11 +1205,11 @@ export const PatientProfile = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Objetivo</p>
+                  <p className="text-xs text-muted-foreground font-medium">Objetivo</p>
                   <p className="font-medium text-foreground">{patient.objective}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Atividade Física</p>
+                  <p className="text-xs text-muted-foreground font-medium">Atividade Física</p>
                   <p className="font-medium text-foreground">{patient.activityLevel}</p>
                 </div>
               </CardContent>
@@ -1345,19 +1223,19 @@ export const PatientProfile = () => {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                   <div className="space-y-2">
                     <p className="text-sm font-bold text-foreground flex items-center gap-2">
-                      <Activity className="w-4 h-4 text-red-500" /> Doenças
+                      <Activity className="w-4 h-4 text-muted-foreground" /> Doenças
                     </p>
                     <p className="text-muted-foreground text-sm">{patient.diseases || 'Nenhuma informada'}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-bold text-foreground flex items-center gap-2">
-                      <Beaker className="w-4 h-4 text-blue-500" /> Medicamentos
+                      <Beaker className="w-4 h-4 text-muted-foreground" /> Medicamentos
                     </p>
                     <p className="text-muted-foreground text-sm">{patient.medications || 'Nenhum informado'}</p>
                   </div>
                   <div className="space-y-2">
                     <p className="text-sm font-bold text-foreground flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-amber-500" /> Alergias
+                      <AlertCircle className="w-4 h-4 text-muted-foreground" /> Alergias
                     </p>
                     <p className="text-muted-foreground text-sm">{patient.allergies || 'Nenhuma informada'}</p>
                   </div>
@@ -1411,7 +1289,7 @@ export const PatientProfile = () => {
                       >
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 rounded-xl bg-muted flex flex-col items-center justify-center text-muted-foreground">
-                            <span className="text-[10px] font-bold uppercase">{formatDateSafely(consultation.date, 'MMM')}</span>
+                            <span className="text-[10px] font-medium capitalize">{formatDateSafely(consultation.date, 'MMM')}</span>
                             <span className="text-lg font-bold leading-none">{formatDateSafely(consultation.date, 'dd')}</span>
                           </div>
                           <div>
@@ -1421,8 +1299,8 @@ export const PatientProfile = () => {
                         </div>
                         <div className="flex items-center gap-3">
                           <span className={cn(
-                            "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
-                            consultation.status === 'realized' ? "bg-primary/15 text-primary" : "bg-red-100 text-red-700"
+                            "px-2 py-1 rounded-full text-xs font-medium",
+                            consultation.status === 'realized' ? "bg-primary/15 text-primary" : "bg-destructive/10 text-destructive"
                           )}>
                             {consultation.status === 'realized' ? 'Realizada' : 'Cancelada'}
                           </span>
@@ -1462,7 +1340,7 @@ export const PatientProfile = () => {
                             }}>
                               <Edit className="w-4 h-4" />
                             </Button>
-                            <Button variant="ghost" size="icon-sm" className="text-red-400 hover:text-red-600 disabled:opacity-30" title="Excluir consulta" onClick={(e) => {
+                            <Button variant="ghost" size="icon-sm" className="text-destructive/70 hover:text-destructive disabled:opacity-30" title="Excluir consulta" onClick={(e) => {
                               e.stopPropagation();
                               setConsultationToDelete(consultation.id);
                               setIsDeleteConsultationConfirmOpen(true);
@@ -1483,23 +1361,23 @@ export const PatientProfile = () => {
                         <div className="p-6 bg-card space-y-8 animate-in fade-in slide-in-from-top-2 duration-200">
                           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             <div className="p-3 rounded-xl bg-muted/30 border border-border">
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Altura</p>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Altura</p>
                               <p className="font-bold text-foreground">{consultation.height}m</p>
                             </div>
                             <div className="p-3 rounded-xl bg-muted/30 border border-border">
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Gordura</p>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Gordura</p>
                               <p className="font-bold text-foreground">{consultation.fatPercentage || '--'}%</p>
                             </div>
                             <div className="p-3 rounded-xl bg-muted/30 border border-border">
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Cintura</p>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Cintura</p>
                               <p className="font-bold text-foreground">{consultation.waist || '--'}cm</p>
                             </div>
                             <div className="p-3 rounded-xl bg-muted/30 border border-border">
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Quadril</p>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Quadril</p>
                               <p className="font-bold text-foreground">{consultation.hip || '--'}cm</p>
                             </div>
                             <div className="p-3 rounded-xl bg-muted/30 border border-border">
-                              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Braço</p>
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Braço</p>
                               <p className="font-bold text-foreground">{consultation.arm || '--'}cm</p>
                             </div>
                           </div>
@@ -1507,7 +1385,7 @@ export const PatientProfile = () => {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-4">
                               <div>
-                                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <h4 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-2">
                                   <AlertCircle className="w-3 h-3 text-primary" /> Queixas Principais
                                 </h4>
                                 <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl border border-border min-h-[80px]">
@@ -1515,7 +1393,7 @@ export const PatientProfile = () => {
                                 </p>
                               </div>
                               <div>
-                                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <h4 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-2">
                                   <TrendingUp className="w-3 h-3 text-primary" /> Objetivos
                                 </h4>
                                 <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl border border-border min-h-[80px]">
@@ -1525,7 +1403,7 @@ export const PatientProfile = () => {
                             </div>
                             <div className="space-y-4">
                               <div>
-                                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
+                                <h4 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-2">
                                   <FileText className="w-3 h-3 text-primary" /> Anamnese / Evolução
                                 </h4>
                                 <p className="text-sm text-muted-foreground leading-relaxed bg-muted/30 p-4 rounded-xl border border-border min-h-[180px] whitespace-pre-wrap">
@@ -1537,7 +1415,7 @@ export const PatientProfile = () => {
 
                           {consultation.observations && (
                             <div className="pt-4 border-t border-border">
-                              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Observações Adicionais</h4>
+                              <h4 className="text-xs font-medium text-muted-foreground mb-2">Observações Adicionais</h4>
                               <p className="text-sm text-muted-foreground italic">{consultation.observations}</p>
                             </div>
                           )}
@@ -1588,21 +1466,21 @@ export const PatientProfile = () => {
                                       </div>
                                       <div className="text-right">
                                         <p className="text-sm font-black text-primary">{calc.result.getAjustado} kcal</p>
-                                        <p className="text-[10px] text-muted-foreground uppercase font-bold">{calc.result.formulaUtilizada.replace('_', '/')}</p>
+                                        <p className="text-[10px] text-muted-foreground font-medium">{calc.result.formulaUtilizada.replace('_', '/')}</p>
                                       </div>
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2">
                                       <div className="bg-card p-2 rounded-lg border border-border text-center">
-                                        <p className="text-[10px] text-muted-foreground font-bold uppercase">Proteína</p>
+                                        <p className="text-[10px] text-muted-foreground font-medium">Proteína</p>
                                         <p className="text-xs font-bold text-muted-foreground">{calc.result.macronutrientes.ptnG}g</p>
                                       </div>
                                       <div className="bg-card p-2 rounded-lg border border-border text-center">
-                                        <p className="text-[10px] text-muted-foreground font-bold uppercase">Carboidratos</p>
+                                        <p className="text-[10px] text-muted-foreground font-medium">Carboidratos</p>
                                         <p className="text-xs font-bold text-muted-foreground">{calc.result.macronutrientes.choG}g</p>
                                       </div>
                                       <div className="bg-card p-2 rounded-lg border border-border text-center">
-                                        <p className="text-[10px] text-muted-foreground font-bold uppercase">Gorduras</p>
+                                        <p className="text-[10px] text-muted-foreground font-medium">Gorduras</p>
                                         <p className="text-xs font-bold text-muted-foreground">{calc.result.macronutrientes.lipG}g</p>
                                       </div>
                                     </div>
@@ -1627,13 +1505,13 @@ export const PatientProfile = () => {
                                     </div>
 
                                     {calc.result.alertas.length > 0 && (
-                                      <div className="bg-amber-50 p-2 rounded-lg border border-amber-100 mt-2">
-                                        <p className="text-[10px] font-bold text-amber-800 mb-1 flex items-center gap-1">
+                                      <div className="bg-accent/20 p-2 rounded-lg border border-accent-foreground/20 mt-2">
+                                        <p className="text-[10px] font-medium text-accent-foreground mb-1 flex items-center gap-1">
                                           <AlertCircle className="w-3 h-3" /> Alertas
                                         </p>
                                         <ul className="space-y-1">
                                           {calc.result.alertas.map((alerta: string, i: number) => (
-                                            <li key={i} className="text-[9px] text-amber-700 leading-tight">• {alerta}</li>
+                                            <li key={i} className="text-xs text-accent-foreground/80 leading-tight">• {alerta}</li>
                                           ))}
                                         </ul>
                                       </div>
@@ -1663,7 +1541,9 @@ export const PatientProfile = () => {
                 </div>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
-                  Nenhuma consulta registrada para este paciente.
+                  <Calendar className="w-10 h-10 opacity-20 mx-auto mb-3" />
+                  <p className="font-medium text-sm">Nenhuma consulta registrada</p>
+                  <p className="text-xs mt-1 max-w-xs mx-auto">Clique em "Nova Consulta" para registrar o primeiro atendimento.</p>
                 </div>
               )}
 
@@ -1697,12 +1577,6 @@ export const PatientProfile = () => {
                 <CardTitle className="text-lg">Planos Alimentares</CardTitle>
                 <CardDescription>Gerencie as dietas prescritas.</CardDescription>
               </div>
-              <div className="flex flex-col items-end text-right gap-3">
-                <span className="text-[10px] font-bold text-primary uppercase tracking-widest bg-primary/10 px-2 py-1 rounded-full">
-                  Jornada do Paciente
-                </span>
-              </div>
-
             </CardHeader>
             <CardContent>
               {mealPlans.length > 0 ? (
@@ -1715,7 +1589,7 @@ export const PatientProfile = () => {
                           <p className="text-xs text-muted-foreground">Criado em {formatDateSafely(plan.createdAt, 'dd/MM/yyyy')}</p>
                         </div>
                         <span className={cn(
-                          "px-2 py-1 rounded-full text-[10px] font-bold uppercase",
+                          "px-2 py-1 rounded-full text-xs font-medium",
                           plan.status === 'active' ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground"
                         )}>
                           {plan.status === 'active' ? 'Ativo' : 'Arquivado'}
@@ -1731,7 +1605,7 @@ export const PatientProfile = () => {
                         <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => exportMealPlanPDF(plan)} title="Imprimir PDF">
                           <Printer className="w-4 h-4" />
                         </Button>
-                        <Button variant="ghost" size="sm" className="px-2 text-red-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-30" onClick={() => deleteMealPlan(plan.id)} title="Excluir plano">
+                        <Button variant="ghost" size="sm" className="px-2 text-destructive hover:text-destructive hover:bg-destructive/10 disabled:opacity-30" onClick={() => deleteMealPlan(plan.id)} title="Excluir plano">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
@@ -1787,24 +1661,24 @@ export const PatientProfile = () => {
                       N
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-foreground leading-none">NutriCare Pro</h2>
-                      <p className="text-xs text-muted-foreground mt-1">Gestão Nutricional de Excelência</p>
+                      <h2 className="text-2xl font-bold text-foreground leading-none">Nutrir</h2>
+                      <p className="text-xs text-muted-foreground mt-1">Gestão Nutricional</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <h3 className="text-lg font-bold text-primary uppercase tracking-wider">Plano Alimentar</h3>
+                    <h3 className="text-lg font-bold text-primary">Plano Alimentar</h3>
                     <p className="text-xs text-muted-foreground">{selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}</p>
                   </div>
                 </div>
 
                 <div className="hidden print:grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-6 bg-card border border-primary/20 rounded-2xl">
                   <div>
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Paciente</p>
+                    <p className="text-[10px] font-medium text-muted-foreground mb-1">Paciente</p>
                     <p className="font-bold text-foreground text-lg">{patient?.name}</p>
                     <p className="text-sm text-muted-foreground">{patient?.email}</p>
                   </div>
                   <div className="md:text-right">
-                    <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Nutricionista</p>
+                    <p className="text-[10px] font-medium text-muted-foreground mb-1">Nutricionista</p>
                     <p className="font-bold text-foreground text-lg">{user?.displayName || 'Nutricionista'}</p>
                     <p className="text-sm text-muted-foreground">CRN: 12345/P</p>
                   </div>
@@ -1812,21 +1686,21 @@ export const PatientProfile = () => {
 
                 {/* Nutritional Summary */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4">
-                  <SummaryCard label="Calorias" value={viewMealTotals.kcal} unit="kcal" icon={Activity} color="bg-orange-50 text-orange-600" progressColor="bg-orange-500" />
-                  <SummaryCard label="Proteínas" value={viewMealTotals.protein} unit="g" icon={Dna} color="bg-blue-50 text-blue-600" progressColor="bg-blue-500" />
-                  <SummaryCard label="Carboidratos" value={viewMealTotals.carbs} unit="g" icon={Zap} color="bg-primary/10 text-primary" progressColor="bg-primary/100" />
-                  <SummaryCard label="Gorduras" value={viewMealTotals.fat} unit="g" icon={Droplets} color="bg-purple-50 text-purple-600" progressColor="bg-purple-500" />
+                  <SummaryCard label="Calorias" value={viewMealTotals.kcal} unit="kcal" icon={Activity} color="bg-primary/10 text-primary" progressColor="bg-primary" />
+                  <SummaryCard label="Proteínas" value={viewMealTotals.protein} unit="g" icon={Dna} color="bg-primary/10 text-primary" progressColor="bg-primary" />
+                  <SummaryCard label="Carboidratos" value={viewMealTotals.carbs} unit="g" icon={Zap} color="bg-primary/10 text-primary" progressColor="bg-primary" />
+                  <SummaryCard label="Gorduras" value={viewMealTotals.fat} unit="g" icon={Droplets} color="bg-muted text-muted-foreground" progressColor="bg-muted-foreground" />
                 </div>
 
                 {/* Water Intake & General Instructions */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:hidden">
                   <div>
                     <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
-                      <div className="flex items-center gap-3 text-blue-600 mb-2">
-                        <div className="p-2 rounded-xl bg-blue-50">
+                      <div className="flex items-center gap-3 text-primary mb-2">
+                        <div className="p-2 rounded-xl bg-primary/10">
                           <Droplets className="w-5 h-5" />
                         </div>
-                        <h4 className="font-bold uppercase tracking-wider text-xs">Meta de Água</h4>
+                        <h4 className="font-medium text-xs">Meta de Água</h4>
                       </div>
                       <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">Quantidade Diária</p>
@@ -1840,7 +1714,7 @@ export const PatientProfile = () => {
                         <div className="p-2 rounded-xl bg-primary/10">
                           <Activity className="w-5 h-5" />
                         </div>
-                        <h4 className="font-bold uppercase tracking-wider text-xs">Orientações Gerais</h4>
+                        <h4 className="font-medium text-xs">Orientações Gerais</h4>
                       </div>
                       <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                         {selectedMealPlan?.generalInstructions || 'Nenhuma orientação cadastrada.'}
@@ -1892,7 +1766,7 @@ export const PatientProfile = () => {
                                   {meal.time && <span className="text-xs font-black opacity-40 bg-black/5 px-2 py-0.5 rounded-full uppercase tracking-tighter">{meal.time}</span>}
                                 </div>
                                 <div className="flex items-center gap-2 mt-1.5">
-                                  <span className="text-[10px] uppercase font-black opacity-40 tracking-widest">{items.length} {items.length === 1 ? 'alimento' : 'alimentos'}</span>
+                                  <span className="text-[10px] font-medium opacity-50">{items.length} {items.length === 1 ? 'alimento' : 'alimentos'}</span>
                                   <span className="w-1 h-1 rounded-full bg-black/10" />
                                   <div className="flex items-center gap-2 text-[10px] font-bold opacity-60">
                                     <span>{mealTotals.kcal.toFixed(0)} kcal</span>
@@ -1908,19 +1782,19 @@ export const PatientProfile = () => {
                           <div className="overflow-x-auto">
                             <table className="w-full text-sm min-w-[800px]">
                               <thead>
-                                <tr className="bg-muted/30/50 text-muted-foreground text-left border-b print:bg-muted/30">
-                                  <th className="px-6 py-4 font-bold uppercase tracking-wider text-[10px]">Alimento</th>
-                                  <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Qtd</th>
-                                  <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Unidade</th>
-                                  <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">Kcal</th>
-                                  <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">P (g)</th>
-                                  <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">C (g)</th>
-                                  <th className="px-4 py-4 font-bold uppercase tracking-wider text-[10px] text-center">G (g)</th>
+                                <tr className="bg-muted/30 text-muted-foreground text-left border-b">
+                                  <th className="px-6 py-4 font-medium text-[11px] text-muted-foreground">Alimento</th>
+                                  <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">Qtd</th>
+                                  <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">Unidade</th>
+                                  <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">Kcal</th>
+                                  <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">P (g)</th>
+                                  <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">C (g)</th>
+                                  <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">G (g)</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-border">
                                 {items.map((item, idx) => (
-                                  <tr key={idx} className="hover:bg-muted/30/50 transition-colors">
+                                  <tr key={idx} className="hover:bg-muted/30 transition-colors">
                                     <td className="px-6 py-4 font-medium text-foreground">{item.food}</td>
                                     <td className="px-4 py-4 text-muted-foreground text-center">{item.quantity}</td>
                                     <td className="px-4 py-4 text-muted-foreground text-center">{item.unit}</td>
@@ -1936,13 +1810,13 @@ export const PatientProfile = () => {
 
                           {/* Meal Observation in View Modal */}
                           {selectedMealPlan?.mealObservations?.[meal.id] && (
-                            <div className="p-4 bg-amber-50/30 border-t border-amber-100/50">
+                            <div className="p-4 bg-accent/10 border-t border-accent-foreground/10">
                               <div className="flex items-start gap-3">
-                                <div className="mt-0.5 p-1.5 rounded-lg bg-amber-100 text-amber-600 shrink-0">
+                                <div className="mt-0.5 p-1.5 rounded-lg bg-accent/20 text-accent-foreground shrink-0">
                                   <MessageSquare className="w-3.5 h-3.5" />
                                 </div>
                                 <div className="flex-1">
-                                  <p className="text-[10px] uppercase font-bold text-amber-700/60 mb-1">Observações da Refeição</p>
+                                  <p className="text-[10px] font-medium text-accent-foreground/70 mb-1">Observações da Refeição</p>
                                   <p className="text-sm text-muted-foreground leading-relaxed italic">
                                     "{selectedMealPlan.mealObservations[meal.id]}"
                                   </p>
@@ -2020,24 +1894,24 @@ export const PatientProfile = () => {
                   N
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground leading-none">NutriCare Pro</h2>
-                  <p className="text-xs text-muted-foreground mt-1">Gestão Nutricional de Excelência</p>
+                  <h2 className="text-2xl font-bold text-foreground leading-none">Nutrir</h2>
+                  <p className="text-xs text-muted-foreground mt-1">Gestão Nutricional</p>
                 </div>
               </div>
               <div className="text-right">
-                <h3 className="text-lg font-bold text-primary uppercase tracking-wider">Plano Alimentar</h3>
+                <h3 className="text-lg font-bold text-primary">Plano Alimentar</h3>
                 <p className="text-xs text-muted-foreground">{selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}</p>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-6 mb-8 p-6 bg-card border border-primary/20 rounded-2xl">
               <div>
-                <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Paciente</p>
+                <p className="text-[10px] font-medium text-muted-foreground mb-1">Paciente</p>
                 <p className="font-bold text-foreground text-lg">{patient?.name}</p>
                 <p className="text-sm text-muted-foreground">{patient?.email}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Nutricionista</p>
+                <p className="text-[10px] font-medium text-muted-foreground mb-1">Nutricionista</p>
                 <p className="font-bold text-foreground text-lg">{user?.displayName || 'Nutricionista'}</p>
                 <p className="text-sm text-muted-foreground">CRN: 12345/P</p>
               </div>
@@ -2180,14 +2054,14 @@ export const PatientProfile = () => {
 
                         <div className="space-y-4">
                           {examMarkers.map((marker, index) => (
-                            <div key={marker.id} className="p-4 rounded-xl border border-border bg-muted/30/30 space-y-4 relative">
+                            <div key={marker.id} className="p-4 rounded-xl border border-border bg-muted/20 space-y-4 relative">
                               <div className="flex items-center justify-between">
-                                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Marcador {index + 1}</span>
+                                <span className="text-xs font-medium text-muted-foreground">Marcador {index + 1}</span>
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="icon-sm"
-                                  className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10"
                                   onClick={() => removeExamMarker(marker.id)}
                                   title="Remover este marcador"
                                 >
@@ -2328,7 +2202,7 @@ export const PatientProfile = () => {
                             <p className="font-bold text-foreground">{exam.title || 'Exame laboratorial'}</p>
                             <div className="flex items-center gap-2 mt-1">
                               <p className="text-sm text-muted-foreground">{formatDateSafely(exam.date, "dd 'de' MMMM 'de' yyyy")}</p>
-                              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-wider">
+                              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
                                 {exam.markers?.length || 0} marcadores
                               </span>
 
@@ -2353,7 +2227,7 @@ export const PatientProfile = () => {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            className="text-muted-foreground hover:text-red-600 disabled:opacity-30"
+                            className="text-muted-foreground hover:text-destructive disabled:opacity-30"
                             title="Excluir exame"
                             onClick={(e) => {
                               e.stopPropagation();
@@ -2366,17 +2240,17 @@ export const PatientProfile = () => {
                       </div>
 
                       {expandedExams[exam.id] && (
-                        <div className="p-4 bg-muted/30/30 border-t border-border">
+                        <div className="p-4 bg-muted/20 border-t border-border">
 
                           <div className="rounded-xl border border-border bg-card overflow-hidden">
                             <table className="w-full text-sm">
                               <thead>
                                 <tr className="bg-muted/30 text-muted-foreground text-left border-b">
-                                  <th className="px-4 py-3 font-bold uppercase text-[10px]">Marcador</th>
-                                  <th className="px-4 py-3 font-bold uppercase text-[10px]">Tipo</th>
-                                  <th className="px-4 py-3 font-bold uppercase text-[10px]">Resultado</th>
-                                  <th className="px-4 py-3 font-bold uppercase text-[10px]">Referência</th>
-                                  <th className="px-4 py-3 font-bold uppercase text-[10px]">Status</th>
+                                  <th className="px-4 py-3 font-medium text-[11px] text-muted-foreground">Marcador</th>
+                                  <th className="px-4 py-3 font-medium text-[11px] text-muted-foreground">Tipo</th>
+                                  <th className="px-4 py-3 font-medium text-[11px] text-muted-foreground">Resultado</th>
+                                  <th className="px-4 py-3 font-medium text-[11px] text-muted-foreground">Referência</th>
+                                  <th className="px-4 py-3 font-medium text-[11px] text-muted-foreground">Status</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-border">
@@ -2395,11 +2269,11 @@ export const PatientProfile = () => {
                                     <td className="px-4 py-3 text-muted-foreground">{marker.reference || '—'}</td>
                                     <td className="px-4 py-3">
                                       <span className={cn(
-                                        "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider",
+                                        "px-2 py-0.5 rounded-full text-xs font-medium capitalize",
                                         marker.status === 'normal' ? "bg-primary/10 text-primary" :
-                                          marker.status === 'alto' ? "bg-red-50 text-red-600" :
-                                            marker.status === 'baixo' ? "bg-orange-50 text-orange-600" :
-                                              "bg-blue-50 text-blue-600"
+                                          marker.status === 'alto' ? "bg-destructive/10 text-destructive" :
+                                            marker.status === 'baixo' ? "bg-accent/20 text-accent-foreground" :
+                                              "bg-muted text-muted-foreground"
                                       )}>
                                         {marker.status}
                                       </span>
@@ -2421,7 +2295,9 @@ export const PatientProfile = () => {
                 </div>
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
-                  Nenhum exame registrado.
+                  <Beaker className="w-10 h-10 opacity-20 mx-auto mb-3" />
+                  <p className="font-medium text-sm">Nenhum exame registrado</p>
+                  <p className="text-xs mt-1">Clique em "Registrar Exame" para adicionar o primeiro resultado laboratorial.</p>
                 </div>
               )}
 
@@ -2533,10 +2409,10 @@ export const PatientProfile = () => {
                 const prev = sorted.length > 1 ? sorted[sorted.length - 2] : null;
 
                 const imcInfo = (imc: number) => {
-                  if (imc < 18.5) return { label: 'Abaixo do peso', cls: 'text-blue-600 bg-blue-50 dark:bg-blue-950/50' };
-                  if (imc < 25) return { label: 'Normal', cls: 'text-green-600 bg-green-50 dark:bg-green-950/50' };
-                  if (imc < 30) return { label: 'Sobrepeso', cls: 'text-yellow-600 bg-yellow-50 dark:bg-yellow-950/50' };
-                  return { label: 'Obesidade', cls: 'text-red-600 bg-red-50 dark:bg-red-950/50' };
+                  if (imc < 18.5) return { label: 'Abaixo do peso', cls: 'text-muted-foreground bg-muted' };
+                  if (imc < 25) return { label: 'Normal', cls: 'text-primary bg-primary/10' };
+                  if (imc < 30) return { label: 'Sobrepeso', cls: 'text-accent-foreground bg-accent/30' };
+                  return { label: 'Obesidade', cls: 'text-destructive bg-destructive/10' };
                 };
 
                 const fmtDelta = (curr?: number, prevVal?: number, unit = '') => {
@@ -2558,9 +2434,6 @@ export const PatientProfile = () => {
                     value: `${latest.weight} kg`,
                     sub: idealMin && idealMax ? `Ideal: ${idealMin}–${idealMax} kg` : null,
                     delta: fmtDelta(latest.weight, prev?.weight, ' kg'),
-                    accent: 'border-emerald-500',
-                    valueColor: 'text-emerald-600 dark:text-emerald-400',
-                    bg: 'bg-card',
                   },
                   {
                     label: 'IMC',
@@ -2568,56 +2441,37 @@ export const PatientProfile = () => {
                     badge: imc,
                     sub: h ? `Altura: ${(h * 100).toFixed(0)} cm` : null,
                     delta: fmtDelta(latest.imc, prev?.imc),
-                    accent: 'border-blue-500',
-                    valueColor: 'text-blue-600 dark:text-blue-400',
-                    bg: 'bg-card',
                   },
                   {
                     label: 'Gordura corporal',
                     value: latest.fatPercentage != null ? `${latest.fatPercentage}%` : '—',
                     delta: fmtDelta(latest.fatPercentage, prev?.fatPercentage, '%'),
-                    accent: 'border-amber-500',
-                    valueColor: 'text-amber-600 dark:text-amber-400',
-                    bg: 'bg-card',
                   },
                   {
                     label: 'Cintura',
                     value: latest.waist != null ? `${latest.waist} cm` : '—',
                     delta: fmtDelta(latest.waist, prev?.waist, ' cm'),
-                    accent: 'border-violet-500',
-                    valueColor: 'text-violet-600 dark:text-violet-400',
-                    bg: 'bg-card',
                   },
                   {
                     label: 'Quadril',
                     value: latest.hip != null ? `${latest.hip} cm` : '—',
                     delta: fmtDelta(latest.hip, prev?.hip, ' cm'),
-                    accent: 'border-pink-500',
-                    valueColor: 'text-pink-600 dark:text-pink-400',
-                    bg: 'bg-card',
                   },
                   {
                     label: 'Braço',
                     value: latest.arm != null ? `${latest.arm} cm` : '—',
                     delta: fmtDelta(latest.arm, prev?.arm, ' cm'),
-                    accent: 'border-cyan-500',
-                    valueColor: 'text-cyan-600 dark:text-cyan-400',
-                    bg: 'bg-card',
                   },
                 ];
 
                 return (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                     {cards.map((card) => (
-                      <div key={card.label} className={cn(
-                        'rounded-xl p-4 border border-border border-l-4 shadow-sm',
-                        card.accent,
-                        card.bg,
-                      )}>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{card.label}</p>
-                        <p className={cn('text-2xl font-bold leading-tight', card.valueColor)}>{card.value}</p>
+                      <div key={card.label} className="rounded-xl p-4 border border-border bg-card shadow-sm">
+                        <p className="text-xs font-medium text-muted-foreground mb-2">{card.label}</p>
+                        <p className="text-2xl font-bold leading-tight text-foreground">{card.value}</p>
                         {card.badge && (
-                          <span className={cn('inline-block text-xs font-semibold px-2 py-0.5 rounded-md mt-1.5', card.badge.cls)}>
+                          <span className={cn('inline-block text-xs font-medium px-2 py-0.5 rounded-md mt-1.5', card.badge.cls)}>
                             {card.badge.label}
                           </span>
                         )}
@@ -2678,20 +2532,20 @@ export const PatientProfile = () => {
                         >
                           <defs>
                             <linearGradient id="evGradWeight" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.18} />
-                              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                              <stop offset="5%" stopColor="oklch(0.52 0.10 163)" stopOpacity={0.18} />
+                              <stop offset="95%" stopColor="oklch(0.52 0.10 163)" stopOpacity={0} />
                             </linearGradient>
                             <linearGradient id="evGradFat" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.18} />
-                              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                              <stop offset="5%" stopColor="oklch(0.72 0.14 75)" stopOpacity={0.18} />
+                              <stop offset="95%" stopColor="oklch(0.72 0.14 75)" stopOpacity={0} />
                             </linearGradient>
                             <linearGradient id="evGradIMC" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.18} />
-                              <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                              <stop offset="5%" stopColor="oklch(0.60 0.12 240)" stopOpacity={0.18} />
+                              <stop offset="95%" stopColor="oklch(0.60 0.12 240)" stopOpacity={0} />
                             </linearGradient>
                             <linearGradient id="evGradWaist" x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.12} />
-                              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
+                              <stop offset="5%" stopColor="oklch(0.60 0.12 280)" stopOpacity={0.12} />
+                              <stop offset="95%" stopColor="oklch(0.60 0.12 280)" stopOpacity={0} />
                             </linearGradient>
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.4} />
@@ -2701,14 +2555,14 @@ export const PatientProfile = () => {
                             fontSize={11}
                             tickLine={false}
                             axisLine={false}
-                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                            tick={{ fill: 'var(--muted-foreground)' }}
                           />
                           <YAxis
                             fontSize={11}
                             tickLine={false}
                             axisLine={false}
                             width={38}
-                            tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                            tick={{ fill: 'var(--muted-foreground)' }}
                           />
                           <Tooltip
                             contentStyle={{
@@ -2726,10 +2580,10 @@ export const PatientProfile = () => {
                               name="Peso (kg)"
                               type="monotone"
                               dataKey="weight"
-                              stroke="#10b981"
+                              stroke="oklch(0.52 0.10 163)"
                               strokeWidth={2.5}
                               fill="url(#evGradWeight)"
-                              dot={{ r: 4, fill: '#10b981', strokeWidth: 2, stroke: '#fff' }}
+                              dot={{ r: 4, fill: 'oklch(0.52 0.10 163)', strokeWidth: 2, stroke: '#fff' }}
                               activeDot={{ r: 6, strokeWidth: 0 }}
                             />
                           )}
@@ -2739,27 +2593,27 @@ export const PatientProfile = () => {
                               name="Gordura (%)"
                               type="monotone"
                               dataKey="fatPercentage"
-                              stroke="#f59e0b"
+                              stroke="oklch(0.72 0.14 75)"
                               strokeWidth={2.5}
                               fill="url(#evGradFat)"
-                              dot={{ r: 4, fill: '#f59e0b', strokeWidth: 2, stroke: '#fff' }}
+                              dot={{ r: 4, fill: 'oklch(0.72 0.14 75)', strokeWidth: 2, stroke: '#fff' }}
                               activeDot={{ r: 6, strokeWidth: 0 }}
                             />
                           )}
 
                           {evolutionMetric === 'imc' && (
                             <>
-                              <ReferenceLine y={18.5} stroke="#94a3b8" strokeDasharray="4 3" label={{ value: 'Baixo peso  ', position: 'insideTopRight', fontSize: 10, fill: '#94a3b8' }} />
-                              <ReferenceLine y={25} stroke="#f59e0b" strokeDasharray="4 3" label={{ value: 'Sobrepeso  ', position: 'insideTopRight', fontSize: 10, fill: '#f59e0b' }} />
-                              <ReferenceLine y={30} stroke="#ef4444" strokeDasharray="4 3" label={{ value: 'Obesidade  ', position: 'insideTopRight', fontSize: 10, fill: '#ef4444' }} />
+                              <ReferenceLine y={18.5} stroke="oklch(0.65 0 0)" strokeDasharray="4 3" label={{ value: 'Baixo peso  ', position: 'insideTopRight', fontSize: 10, fill: 'oklch(0.55 0 0)' }} />
+                              <ReferenceLine y={25} stroke="oklch(0.72 0.14 75)" strokeDasharray="4 3" label={{ value: 'Sobrepeso  ', position: 'insideTopRight', fontSize: 10, fill: 'oklch(0.60 0.12 75)' }} />
+                              <ReferenceLine y={30} stroke="oklch(0.55 0.20 27)" strokeDasharray="4 3" label={{ value: 'Obesidade  ', position: 'insideTopRight', fontSize: 10, fill: 'oklch(0.50 0.18 27)' }} />
                               <Area
                                 name="IMC"
                                 type="monotone"
                                 dataKey="imc"
-                                stroke="#3b82f6"
+                                stroke="oklch(0.60 0.12 240)"
                                 strokeWidth={2.5}
                                 fill="url(#evGradIMC)"
-                                dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                                dot={{ r: 4, fill: 'oklch(0.60 0.12 240)', strokeWidth: 2, stroke: '#fff' }}
                                 activeDot={{ r: 6, strokeWidth: 0 }}
                               />
                             </>
@@ -2767,10 +2621,10 @@ export const PatientProfile = () => {
 
                           {evolutionMetric === 'measurements' && (
                             <>
-                              <Area name="Cintura (cm)" type="monotone" dataKey="waist" stroke="#6366f1" strokeWidth={2} fill="url(#evGradWaist)" dot={{ r: 3, fill: '#6366f1', strokeWidth: 2, stroke: '#fff' }} />
-                              <Area name="Quadril (cm)" type="monotone" dataKey="hip" stroke="#ec4899" strokeWidth={2} fill="none" dot={{ r: 3, fill: '#ec4899', strokeWidth: 2, stroke: '#fff' }} />
-                              <Area name="Abdômen (cm)" type="monotone" dataKey="abdomen" stroke="#8b5cf6" strokeWidth={2} fill="none" dot={{ r: 3, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }} />
-                              <Area name="Braço (cm)" type="monotone" dataKey="arm" stroke="#06b6d4" strokeWidth={2} fill="none" dot={{ r: 3, fill: '#06b6d4', strokeWidth: 2, stroke: '#fff' }} />
+                              <Area name="Cintura (cm)" type="monotone" dataKey="waist" stroke="oklch(0.60 0.12 280)" strokeWidth={2} fill="url(#evGradWaist)" dot={{ r: 3, fill: 'oklch(0.60 0.12 280)', strokeWidth: 2, stroke: '#fff' }} />
+                              <Area name="Quadril (cm)" type="monotone" dataKey="hip" stroke="oklch(0.60 0.14 340)" strokeWidth={2} fill="none" dot={{ r: 3, fill: 'oklch(0.60 0.14 340)', strokeWidth: 2, stroke: '#fff' }} />
+                              <Area name="Abdômen (cm)" type="monotone" dataKey="abdomen" stroke="oklch(0.55 0.15 300)" strokeWidth={2} fill="none" dot={{ r: 3, fill: 'oklch(0.55 0.15 300)', strokeWidth: 2, stroke: '#fff' }} />
+                              <Area name="Braço (cm)" type="monotone" dataKey="arm" stroke="oklch(0.65 0.12 200)" strokeWidth={2} fill="none" dot={{ r: 3, fill: 'oklch(0.65 0.12 200)', strokeWidth: 2, stroke: '#fff' }} />
                             </>
                           )}
                         </AreaChart>
@@ -2793,12 +2647,12 @@ export const PatientProfile = () => {
               {/* Tabela Completa */}
               {consultations.length > 0 && (() => {
                 const imcLabel = (imc: number) => {
-                  if (imc < 18.5) return { text: 'Abaixo', cls: 'text-blue-600' };
-                  if (imc < 25) return { text: 'Normal', cls: 'text-green-600' };
-                  if (imc < 30) return { text: 'Sobrepeso', cls: 'text-yellow-600' };
-                  if (imc < 35) return { text: 'Obesidade I', cls: 'text-orange-600' };
-                  if (imc < 40) return { text: 'Obesidade II', cls: 'text-red-500' };
-                  return { text: 'Obesidade III', cls: 'text-red-700' };
+                  if (imc < 18.5) return { text: 'Abaixo', cls: 'text-muted-foreground' };
+                  if (imc < 25) return { text: 'Normal', cls: 'text-primary' };
+                  if (imc < 30) return { text: 'Sobrepeso', cls: 'text-accent-foreground' };
+                  if (imc < 35) return { text: 'Obesidade I', cls: 'text-destructive' };
+                  if (imc < 40) return { text: 'Obesidade II', cls: 'text-destructive' };
+                  return { text: 'Obesidade III', cls: 'text-destructive' };
                 };
 
                 const deltaTag = (curr?: number, prevVal?: number, unit = '') => {
@@ -2838,7 +2692,7 @@ export const PatientProfile = () => {
                                 <th
                                   key={h}
                                   className={cn(
-                                    'py-2.5 px-3 text-[11px] font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap',
+                                    'py-2.5 px-3 text-[11px] font-medium text-muted-foreground whitespace-nowrap',
                                     h === 'Data' || h === 'Classif.' ? 'text-left' : 'text-right'
                                   )}
                                 >
@@ -2914,17 +2768,17 @@ export const PatientProfile = () => {
 
       {/* Modals */}
       <Dialog open={isCalculatorModalOpen} onOpenChange={setIsCalculatorModalOpen}>
-        <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] p-0 overflow-hidden flex flex-col bg-muted/30 rounded-2xl shadow-2xl">
+        <DialogContent showCloseButton={false} className="w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col bg-muted/30 rounded-2xl shadow-2xl">
           <div className="bg-card px-6 py-4 border-b flex justify-between items-center shadow-sm z-10 shrink-0">
             <div>
-              <h2 className="text-xl font-black text-foreground">Cálculo Nutricional</h2>
+              <h2 className="text-xl font-bold text-foreground">Cálculo Nutricional</h2>
               <p className="text-sm text-muted-foreground">Consulta de {selectedConsultationForCalc ? formatDateSafely(selectedConsultationForCalc.date, "dd 'de' MMMM 'de' yyyy") : ''}</p>
             </div>
             <Button variant="ghost" size="icon" onClick={() => setIsCalculatorModalOpen(false)} title="Fechar calculadora">
               <X className="w-5 h-5" />
             </Button>
           </div>
-          <div className="p-6 overflow-y-auto flex-1">
+          <div className="p-6 overflow-y-auto flex-1 min-h-0">
             {patient && selectedConsultationForCalc && (
               <NutritionalCalculator
                 patient={patient}

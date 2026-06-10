@@ -445,10 +445,10 @@ export const PatientAccess = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <Card className="w-full max-w-md text-center p-8 rounded-2xl border-none shadow-xl">
-          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <AlertCircle className="w-16 h-16 text-destructive mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-foreground mb-2">Acesso Inválido</h1>
           <p className="text-muted-foreground mb-6">Este link de acesso não é mais válido ou o paciente não foi encontrado.</p>
-          <Button onClick={() => navigate('/')} className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl">
+          <Button onClick={() => navigate('/')} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 rounded-xl">
             Voltar para o Início
           </Button>
         </Card>
@@ -460,9 +460,9 @@ export const PatientAccess = () => {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <Card className="w-full max-w-md rounded-2xl border-none shadow-xl overflow-hidden">
-          <div className="bg-primary p-8 text-center text-white">
+          <div className="bg-primary p-8 text-center text-primary-foreground">
             <div className="w-16 h-16 bg-card/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
-              <Lock className="w-8 h-8 text-white" />
+              <Lock className="w-8 h-8 text-primary-foreground" />
             </div>
             <h1 className="text-2xl font-bold">Acesso Restrito</h1>
             <p className="text-primary-foreground/80 mt-2">Olá, {patient.name.split(' ')[0]}!</p>
@@ -484,9 +484,9 @@ export const PatientAccess = () => {
                   className="text-center text-2xl tracking-[1em] h-14 font-bold border-border focus:ring-primary focus:border-primary rounded-xl"
                   autoFocus
                 />
-                {authError && <p className="text-red-500 text-sm font-medium">{authError}</p>}
+                {authError && <p className="text-destructive text-sm font-medium">{authError}</p>}
               </div>
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl transition-all active:scale-95 shadow-lg shadow-primary/10">
+              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-12 rounded-xl transition-all active:scale-95 shadow-lg shadow-primary/10">
                 Acessar Meu Perfil
               </Button>
             </form>
@@ -504,7 +504,7 @@ export const PatientAccess = () => {
       <div className="bg-card border-b border-border sticky top-0 z-10">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold">N</div>
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-primary-foreground font-bold">N</div>
             <span className="font-bold text-foreground">Nutrir</span>
           </div>
           <div className="text-sm font-medium text-muted-foreground">

@@ -3,11 +3,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { 
-  User, 
+  User,
   Users,
-  Mail, 
-  Phone, 
-  Award, 
+  Award,
   Camera,
   Save,
   Lock,
@@ -36,7 +34,6 @@ import {
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Separator } from '../components/ui/separator';
 import { Badge } from '../components/ui/badge';
 import { 
   Tabs, 
@@ -68,57 +65,6 @@ import { CustomFoodDialog } from '../components/CustomFoodDialog';
 import { useSubscription } from '../hooks/useSubscription';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useCookieConsent } from '../contexts/CookieConsentContext';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
 
 const profileSchema = z.object({
   name: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
@@ -482,7 +428,7 @@ export const Settings = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Configurações</h1>
+        <h1 className="text-3xl font-bold text-foreground tracking-tight">Configurações</h1>
         <p className="text-muted-foreground">Gerencie seu perfil e preferências do sistema.</p>
       </div>
 
@@ -655,7 +601,7 @@ export const Settings = () => {
             <div className="space-y-6">
               <Card className="border-none shadow-sm bg-card">
                 <CardHeader>
-                  <CardTitle className="text-lg font-bold text-red-600">Sair do Sistema</CardTitle>
+                  <CardTitle className="text-lg font-bold">Sair do Sistema</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground mb-4">Deseja encerrar sua sessão atual?</p>
@@ -681,7 +627,7 @@ export const Settings = () => {
                 setEditingFood(null);
                 setIsFoodDialogOpen(true);
               }}
-              className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95"
             >
               <Plus className="w-4 h-4" /> Cadastrar Alimento
             </Button>
@@ -717,7 +663,7 @@ export const Settings = () => {
                   <tbody className="divide-y divide-border">
                     {filteredFoods.length > 0 ? (
                       filteredFoods.map((food) => (
-                        <tr key={food.id} className="hover:bg-muted/30/50 transition-colors">
+                        <tr key={food.id} className="hover:bg-muted/50 transition-colors">
                           <td className="px-6 py-4">
                             <span className="font-semibold text-foreground">{food.name}</span>
                           </td>
@@ -755,7 +701,7 @@ export const Settings = () => {
                               <Button 
                                 variant="ghost" 
                                 size="icon" 
-                                className="h-8 w-8 text-muted-foreground hover:text-red-600 hover:bg-red-50 rounded-lg"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg"
                                 onClick={() => setFoodToDelete(food.id)}
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -835,7 +781,7 @@ export const Settings = () => {
               </CardContent>
               <CardFooter className="border-t border-border pt-5">
                 <Button
-                  className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50 w-full md:w-auto"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 rounded-xl h-8 px-4 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50 w-full md:w-auto"
                   onClick={handleUpdatePassword}
                   disabled={isUpdatingPassword || !isStrongPassword(newPassword) || newPassword !== confirmNewPassword}
                 >
@@ -1040,7 +986,7 @@ export const Settings = () => {
                         ? "bg-slate-50 dark:bg-slate-900/30 border-slate-200 dark:border-slate-700"
                         : isPremiumOrAdmin
                         ? "bg-primary/5 border-primary/20"
-                        : "bg-red-50 dark:bg-red-950/20 border-red-100 dark:border-red-900/30"
+                        : "bg-destructive/10 border-destructive/20"
                     )}>
                       <Icon className={cn(
                         "w-4 h-4 shrink-0",
@@ -1048,7 +994,7 @@ export const Settings = () => {
                           ? "text-slate-400"
                           : isPremiumOrAdmin
                           ? "text-primary"
-                          : "text-red-400"
+                          : "text-destructive"
                       )} />
                       <div className="min-w-0">
                         <p className={cn(
@@ -1057,7 +1003,7 @@ export const Settings = () => {
                             ? "text-slate-400"
                             : isPremiumOrAdmin
                             ? "text-primary/70"
-                            : "text-red-400"
+                            : "text-destructive"
                         )}>{label}</p>
                         <p className="text-sm font-bold text-foreground truncate">{value}</p>
                       </div>
@@ -1067,11 +1013,11 @@ export const Settings = () => {
 
                 {/* Aviso cancelamento pendente */}
                 {nutritionist?.subscription?.cancelAtPeriodEnd && (
-                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="bg-accent/30 border border-accent-foreground/20 rounded-xl p-4 flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-accent-foreground shrink-0 mt-0.5" />
                     <div className="space-y-1">
-                      <p className="text-sm font-bold text-amber-700 dark:text-amber-400">Assinatura Cancelada</p>
-                      <p className="text-xs text-amber-600 dark:text-amber-500">
+                      <p className="text-sm font-bold text-accent-foreground">Assinatura Cancelada</p>
+                      <p className="text-xs text-accent-foreground/80">
                         Seu acesso Premium continua ativo até{' '}
                         <span className="font-bold">
                           {nutritionist.subscription?.currentPeriodEnd
@@ -1081,7 +1027,7 @@ export const Settings = () => {
                       </p>
                       <Button
                         variant="link"
-                        className="p-0 h-auto text-xs text-amber-700 dark:text-amber-400 font-bold underline gap-1"
+                        className="p-0 h-auto text-xs text-accent-foreground font-bold underline gap-1"
                         onClick={handleSubscribe}
                         disabled={isSubscribing}
                       >
@@ -1131,10 +1077,10 @@ export const Settings = () => {
                               </Button>
                               <Button
                                 variant="outline"
-                                className="w-full justify-start gap-3 h-12 rounded-xl border-red-100 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                                className="w-full justify-start gap-3 h-12 rounded-xl border-destructive/20 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30"
                                 onClick={() => setShowCancelConfirm(true)}
                               >
-                                <Trash2 className="w-5 h-5 text-red-500" />
+                                <Trash2 className="w-5 h-5 text-destructive" />
                                 <div className="text-left">
                                   <p className="font-bold text-sm">Cancelar Assinatura</p>
                                   <p className="text-[10px] text-muted-foreground">Interromper renovações automáticas</p>
@@ -1180,7 +1126,7 @@ export const Settings = () => {
                 {!isPremiumOrAdmin && !nutritionist?.subscription?.cancelAtPeriodEnd && (
                   <div className="space-y-3 pt-1">
                     <Button
-                      className="w-full bg-primary hover:bg-primary/90 text-white rounded-xl h-11 font-bold text-sm shadow-md shadow-primary/20 transition-all active:scale-95"
+                      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-11 font-bold text-sm shadow-md shadow-primary/20 transition-all active:scale-95"
                       onClick={handleSubscribe}
                       disabled={isSubscribing}
                     >
@@ -1230,7 +1176,7 @@ export const Settings = () => {
                           </Button>
                         ) : (
                           <div className="flex flex-col gap-2">
-                            <p className="text-[10px] text-red-500 font-bold text-center">Confirmar reset dos SEUS dados?</p>
+                            <p className="text-[10px] text-destructive font-bold text-center">Confirmar reset dos SEUS dados?</p>
                             <div className="flex gap-2">
                               <Button
                                 variant="destructive"
@@ -1290,7 +1236,7 @@ export const Settings = () => {
               </div>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
-              <div className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl border border-border bg-muted/30/30 gap-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl border border-border bg-muted/30 gap-4">
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-card rounded-xl shadow-sm flex items-center justify-center border border-border">
                     <svg className="w-6 h-6" viewBox="0 0 24 24">
@@ -1326,7 +1272,7 @@ export const Settings = () => {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="text-red-600 border-red-100 hover:bg-red-50"
+                      className="text-destructive border-destructive/20 hover:bg-destructive/10"
                       onClick={handleDisconnectGoogle}
                     >
                       Desconectar
@@ -1334,7 +1280,7 @@ export const Settings = () => {
                   </div>
                 ) : (
                   <Button 
-                    className="bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 rounded-xl"
                     onClick={handleConnectGoogle}
                     disabled={isConnectingGoogle}
                   >

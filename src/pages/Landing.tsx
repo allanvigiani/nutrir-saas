@@ -8,7 +8,6 @@ import {
   MessageSquare,
   Calendar,
   Target,
-  Smartphone,
   ChevronRight,
   CheckCircle2,
   Users,
@@ -58,7 +57,7 @@ export function Landing() {
               </div>
 
               <div className="space-y-4">
-                <h1 className="text-5xl sm:text-6xl lg:text-6xl font-bold leading-[1.08] tracking-tight">
+                <h1 className="text-5xl sm:text-6xl font-bold leading-[1.08] tracking-tight">
                   Resultados reais<br />
                   para seus{' '}
                   <span className="relative">
@@ -835,7 +834,7 @@ function FAQ() {
         {/* Header */}
         <div className="text-center mb-8">
           <p className="text-sm font-semibold text-primary uppercase tracking-widest mb-3">FAQ</p>
-          <h2 className="text-3xl sm:text-4xl font-bold text-foreground">
+          <h2 className="text-3xl sm:text-4xl font-bold text-foreground tracking-tight">
             Perguntas frequentes
           </h2>
           <p className="mt-4 text-muted-foreground text-lg">

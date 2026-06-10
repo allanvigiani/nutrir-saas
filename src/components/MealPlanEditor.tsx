@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   Plus,
   Trash2,
@@ -8,23 +8,17 @@ import {
   Zap,
   Droplets,
   Apple,
-  Coffee,
   Utensils,
-  Moon,
-  Sun,
-  CloudMoon,
   Save,
   ArrowLeft,
   Clock,
-  ChevronDown,
-  ChevronUp,
-  MoreHorizontal,
   Edit2,
   Calculator,
   Search,
-  Sparkles,
   ChevronRight,
-  Info
+  CircleAlert,
+  CircleCheck,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './ui/button';
@@ -39,6 +33,14 @@ import {
   SelectTrigger,
   SelectValue
 } from './ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 import { FoodAutocomplete } from './FoodAutocomplete';
 import { TacoFood } from '../data/taco';
 import { CustomFood, MealPlan, MealPlanItem, NutritionCalculation } from '../types';
@@ -61,6 +63,7 @@ interface MealPlanEditorProps {
   initialCustomMeals?: any[];
   selectedCalculation?: NutritionCalculation | null;
   foodDataSource: 'Todas' | 'TACO' | 'TBCA' | 'Custom';
+  isNew?: boolean;
   onSave: (data: {
     name: string;
     items: any[];
@@ -68,7 +71,7 @@ interface MealPlanEditorProps {
     waterIntake: string;
     mealObservations: Record<string, string>;
     customMeals: any[];
-  }) => void;
+  }) => Promise<boolean>;
   onClose: () => void;
 }
 
@@ -82,7 +85,7 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
     <motion.div 
       whileHover={isSidebar ? { x: 4 } : { y: -2, scale: 1.01 }}
       className={cn(
-        "bg-card rounded-[1.5rem] border border-border relative overflow-hidden transition-all duration-300",
+        "bg-card rounded-xl border border-border relative overflow-hidden transition-all duration-300",
         isSidebar ? "p-4 shadow-sm hover:shadow-md hover:border-primary/20" : "p-4 shadow-sm"
       )}
     >
@@ -94,18 +97,18 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
           <Icon className={cn(isSidebar ? "w-5 h-5" : "w-4.5 h-4.5", color)} />
         </div>
         <div className="text-right">
-          <p className="text-[11px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">{label}</p>
+          <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
           <div className="flex items-baseline justify-end gap-1">
             <span className={cn("font-black leading-none tracking-tighter", isSidebar ? "text-2xl" : "text-lg", color)}>
               {Number(value).toFixed(0)}
             </span>
-            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">{unit}</span>
+            <span className="text-xs font-medium text-muted-foreground">{unit}</span>
           </div>
         </div>
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-widest">
+        <div className="flex items-center justify-between text-xs font-medium">
           <span className="text-muted-foreground">Atingido</span>
           {total ? (
             <span className={cn("font-black", percentage >= 100 ? "text-primary" : "text-muted-foreground")}>
@@ -148,7 +151,7 @@ const MealItemRow = React.memo(({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="group relative bg-card rounded-2xl p-4 border border-border hover:border-primary/30 hover:shadow-md transition-all duration-200"
+      className="group relative bg-card rounded-xl p-4 border border-border hover:border-primary/30 hover:shadow-md transition-all duration-200"
     >
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
         {/* Food Search */}
@@ -178,7 +181,7 @@ const MealItemRow = React.memo(({
             value={item.unit}
             onValueChange={(v) => onUpdate(index, 'unit', v)}
           >
-            <SelectTrigger className="flex-1 bg-card border border-border focus:border-primary focus:ring-4 focus:ring-primary/10 h-10 rounded-xl px-3 text-muted-foreground font-bold text-xs uppercase tracking-widest transition-all shadow-sm">
+            <SelectTrigger className="flex-1 bg-card border border-border focus:border-primary focus:ring-4 focus:ring-primary/10 h-10 rounded-xl px-3 text-muted-foreground font-medium text-xs transition-all shadow-sm">
               <SelectValue>{item.unit}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -200,7 +203,7 @@ const MealItemRow = React.memo(({
         {/* Macros Summary */}
         <div className="md:col-span-3 flex items-center justify-around gap-2 px-2">
           <div className="text-center">
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-tighter mb-0.5">Kcal</p>
+            <p className="text-xs font-medium text-muted-foreground mb-0.5">Kcal</p>
             <Input
               type="number"
               value={item.kcal}
@@ -209,7 +212,7 @@ const MealItemRow = React.memo(({
             />
           </div>
           <div className="text-center border-l border-border pl-2">
-            <p className="text-[11px] font-bold text-blue-400 uppercase tracking-tighter mb-0.5">P</p>
+            <p className="text-xs font-medium text-blue-400 mb-0.5">Prot</p>
             <Input
               type="number"
               value={item.protein}
@@ -218,7 +221,7 @@ const MealItemRow = React.memo(({
             />
           </div>
           <div className="text-center border-l border-border pl-2">
-            <p className="text-[11px] font-bold text-primary uppercase tracking-tighter mb-0.5">C</p>
+            <p className="text-xs font-medium text-primary mb-0.5">Carb</p>
             <Input
               type="number"
               value={item.carbs}
@@ -227,7 +230,7 @@ const MealItemRow = React.memo(({
             />
           </div>
           <div className="text-center border-l border-border pl-2">
-            <p className="text-[11px] font-bold text-purple-400 uppercase tracking-tighter mb-0.5">G</p>
+            <p className="text-xs font-medium text-purple-400 mb-0.5">Gord</p>
             <Input
               type="number"
               value={item.fat}
@@ -264,6 +267,7 @@ export const MealPlanEditor = ({
   initialCustomMeals = [],
   selectedCalculation,
   foodDataSource,
+  isNew = false,
   onSave,
   onClose
 }: MealPlanEditorProps) => {
@@ -278,6 +282,60 @@ export const MealPlanEditor = ({
   const [isCustomFoodDialogOpen, setIsCustomFoodDialogOpen] = useState(false);
   const [initialFoodName, setInitialFoodName] = useState('');
   const [activeMealItemIndex, setActiveMealItemIndex] = useState<number | null>(null);
+
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const isFirstRender = useRef(true);
+
+  // Marca o plano como alterado a partir da segunda renderização (ignora o estado inicial)
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setHasUnsavedChanges(true);
+  }, [mealPlanName, mealItems, generalInstructions, waterIntake, mealObservations, mealTypes]);
+
+  // Avisa o navegador antes de fechar a aba/recarregar com alterações não salvas
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  const handleRequestClose = useCallback(() => {
+    if (hasUnsavedChanges) {
+      setShowLeaveConfirm(true);
+    } else {
+      onClose();
+    }
+  }, [hasUnsavedChanges, onClose]);
+
+  const handleSaveClick = useCallback(async () => {
+    setIsSaving(true);
+    try {
+      const success = await onSave({
+        name: mealPlanName,
+        items: mealItems,
+        generalInstructions,
+        waterIntake,
+        mealObservations,
+        customMeals: mealTypes
+      });
+      if (success) {
+        setHasUnsavedChanges(false);
+      }
+    } finally {
+      setIsSaving(false);
+    }
+  }, [onSave, mealPlanName, mealItems, generalInstructions, waterIntake, mealObservations, mealTypes]);
 
   const mealTotals = useMemo(() => mealItems.reduce((acc, item) => ({
     kcal: acc.kcal + (Number(item.kcal) || 0),
@@ -416,12 +474,12 @@ export const MealPlanEditor = ({
       >
         <div className="p-5 border-b border-border bg-muted/30">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-2xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
               <Activity className="w-4 h-4 text-white" />
             </div>
             <div>
-              <h2 className="text-sm font-black text-foreground tracking-tight uppercase">Dashboard</h2>
-              <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest">Nutricional</p>
+              <h2 className="text-sm font-heading font-medium text-foreground tracking-tight">Dashboard</h2>
+              <p className="text-xs text-muted-foreground font-medium">Nutricional</p>
             </div>
           </div>
         </div>
@@ -431,7 +489,7 @@ export const MealPlanEditor = ({
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-5 rounded-2xl bg-primary text-white shadow-lg shadow-primary/25 relative overflow-hidden group"
+              className="p-5 rounded-xl bg-primary text-white shadow-lg shadow-primary/25 relative overflow-hidden group"
             >
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                 <Calculator className="w-16 h-16" />
@@ -441,13 +499,13 @@ export const MealPlanEditor = ({
                   <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
                     <Calculator className="w-3.5 h-3.5 text-white" />
                   </div>
-                  <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-primary-foreground/80">Meta Sugerida</span>
+                  <span className="text-xs font-medium text-primary-foreground/80">Meta Sugerida</span>
                 </div>
                 <div className="flex items-baseline gap-1.5 mb-1">
                   <span className="text-4xl font-black tracking-tighter text-white">
                     {selectedCalculation.result.getAjustado.toFixed(0)}
                   </span>
-                  <span className="text-xs font-bold text-primary-foreground/60 uppercase tracking-widest">kcal</span>
+                  <span className="text-xs font-medium text-primary-foreground/60">kcal</span>
                 </div>
                 <p className="text-xs font-medium text-primary-foreground/80 leading-relaxed">
                   Baseado no cálculo de TMB e nível de atividade selecionado.
@@ -458,7 +516,7 @@ export const MealPlanEditor = ({
 
           <div className="space-y-3">
             <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-bold text-muted-foreground uppercase tracking-[0.2em]">Macronutrientes</span>
+              <span className="text-xs font-medium text-muted-foreground">Macronutrientes</span>
               <div className="w-12 h-px bg-muted" />
             </div>
 
@@ -492,7 +550,7 @@ export const MealPlanEditor = ({
                 unit="g"
                 color="text-primary"
                 iconBg="bg-primary/10"
-                progressColor="bg-primary/100"
+                progressColor="bg-primary"
                 icon={Zap}
                 variant="sidebar"
               />
@@ -513,9 +571,22 @@ export const MealPlanEditor = ({
         </div>
 
         <div className="p-4 border-t border-border bg-muted/30">
-          <div className="flex items-center gap-3 p-3 rounded-2xl bg-card border border-border">
-             <div className="w-2 h-2 rounded-full bg-primary/100 animate-pulse" />
-             <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest">Sincronizado em tempo real</p>
+          <div
+            className={cn(
+              "flex items-center gap-2.5 p-3 rounded-xl border transition-colors",
+              hasUnsavedChanges
+                ? "bg-accent border-accent-foreground/20"
+                : "bg-card border-border"
+            )}
+          >
+            {hasUnsavedChanges ? (
+              <CircleAlert className="w-4 h-4 text-accent-foreground shrink-0" />
+            ) : (
+              <CircleCheck className="w-4 h-4 text-primary shrink-0" />
+            )}
+            <p className="text-xs font-medium text-foreground">
+              {hasUnsavedChanges ? 'Alterações não salvas' : 'Tudo salvo'}
+            </p>
           </div>
         </div>
       </motion.aside>
@@ -533,14 +604,14 @@ export const MealPlanEditor = ({
               <Button
                 variant="outline"
                 size="icon"
-                onClick={onClose}
+                onClick={handleRequestClose}
                 className="rounded-xl border-border hover:bg-muted/30 transition-all h-9 w-9 shrink-0 shadow-sm"
               >
                 <ArrowLeft className="w-4 h-4 text-muted-foreground" />
               </Button>
               
               <div className="flex flex-col">
-                <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-0.5">
                   <span>Plano Alimentar</span>
                   <ChevronRight className="w-3 h-3" />
                   <span className="text-primary">Edição</span>
@@ -552,7 +623,7 @@ export const MealPlanEditor = ({
             </div>
 
             <div className="hidden lg:flex items-center gap-1.5 p-1 bg-muted/80 rounded-xl border border-border/60 shadow-inner">
-              <div className="px-3 text-[11px] font-bold text-muted-foreground uppercase tracking-tight border-r border-border mr-1">
+              <div className="px-3 text-xs font-medium text-muted-foreground border-r border-border mr-1">
                 Base de Dados
               </div>
               {[
@@ -579,18 +650,16 @@ export const MealPlanEditor = ({
 
             <div className="flex items-center gap-2">
               <Button
-                onClick={() => onSave({
-                  name: mealPlanName,
-                  items: mealItems,
-                  generalInstructions,
-                  waterIntake,
-                  mealObservations,
-                  customMeals: mealTypes
-                })}
+                onClick={handleSaveClick}
+                disabled={isSaving}
                 className="bg-primary hover:bg-primary/90 text-white rounded-xl h-10 px-6 font-bold text-xs gap-2 shadow-lg shadow-primary/10 transition-all active:scale-95 group"
               >
-                <Save className="w-3.5 h-3.5 transition-transform group-hover:scale-110" /> 
-                <span>Salvar Alterações</span>
+                {isSaving ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <Save className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
+                )}
+                <span>{isNew ? 'Criar Plano' : 'Salvar Alterações'}</span>
               </Button>
             </div>
           </div>
@@ -612,7 +681,7 @@ export const MealPlanEditor = ({
             </div>
             <div className="w-px h-4 bg-border" />
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-primary/100" />
+              <div className="w-2 h-2 rounded-full bg-primary" />
               <span className="text-xs font-bold text-foreground">{mealTotals.carbs.toFixed(0)}g</span>
               <span className="text-[11px] text-muted-foreground">carb</span>
             </div>
@@ -632,7 +701,7 @@ export const MealPlanEditor = ({
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card rounded-[2rem] p-6 border border-border shadow-[0_20px_50px_rgba(0,0,0,0.03)] relative overflow-hidden"
+              className="bg-card rounded-2xl p-6 border border-border shadow-[0_20px_50px_rgba(0,0,0,0.03)] relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
                 <Edit2 className="w-48 h-48 text-foreground" />
@@ -641,22 +710,22 @@ export const MealPlanEditor = ({
               <div className="space-y-6 relative">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="sm:col-span-2 space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground tracking-[0.2em] ml-1">Nome do Plano</Label>
+                    <Label className="text-xs font-medium text-muted-foreground ml-1">Nome do Plano</Label>
                     <Input
                       value={mealPlanName}
                       onChange={(e) => setMealPlanName(e.target.value)}
-                      className="text-xl font-black border-2 border-border bg-card focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 h-12 rounded-2xl transition-all shadow-sm px-5"
+                      className="text-xl font-black border-2 border-border bg-card focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 h-12 rounded-xl transition-all shadow-sm px-5"
                       placeholder="Ex: Estratégia de Cutting..."
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground tracking-[0.2em] ml-1">Ingestão de Água</Label>
+                    <Label className="text-xs font-medium text-muted-foreground ml-1">Ingestão de Água</Label>
                     <div className="relative">
                       <Droplets className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
                       <Input
                         value={waterIntake}
                         onChange={(e) => setWaterIntake(e.target.value)}
-                        className="pl-9 border-2 border-border bg-card focus:bg-card focus:border-blue-400 focus:ring-4 focus:ring-blue-400/10 h-12 rounded-2xl transition-all shadow-sm"
+                        className="pl-9 border-2 border-border bg-card focus:bg-card focus:border-blue-400 focus:ring-4 focus:ring-blue-400/10 h-12 rounded-xl transition-all shadow-sm"
                         placeholder="Ex: 2,5L"
                       />
                     </div>
@@ -666,11 +735,11 @@ export const MealPlanEditor = ({
                 <div className="pt-5 border-t border-border">
                   <div className="flex items-center gap-2 mb-3 px-1">
                     <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
-                    <Label className="text-xs font-bold uppercase text-muted-foreground tracking-[0.2em]">Orientações Gerais</Label>
+                    <Label className="text-xs font-medium text-muted-foreground">Orientações Gerais</Label>
                   </div>
                   <Textarea
                     placeholder="Quais as orientações principais para este plano?"
-                    className="min-h-[110px] rounded-2xl border-2 border-border bg-card focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 shadow-sm resize-none transition-all text-base font-medium leading-relaxed p-4"
+                    className="min-h-[110px] rounded-xl border-2 border-border bg-card focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 shadow-sm resize-none transition-all text-base font-medium leading-relaxed p-4"
                     value={generalInstructions}
                     onChange={(e) => setGeneralInstructions(e.target.value)}
                   />
@@ -689,9 +758,9 @@ export const MealPlanEditor = ({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="px-4 py-2 bg-card rounded-2xl border border-border shadow-sm flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-primary/100" />
-                    <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                  <div className="px-4 py-2 bg-card rounded-xl border border-border shadow-sm flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-primary" />
+                    <span className="text-xs font-medium text-muted-foreground">
                       {mealItems.length} Alimentos selecionados
                     </span>
                   </div>
@@ -710,7 +779,7 @@ export const MealPlanEditor = ({
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      className="group/meal relative bg-card/50 hover:bg-card rounded-3xl border border-border hover:border-primary/20 p-6 transition-all duration-500 shadow-sm hover:shadow-xl"
+                      className="group/meal relative bg-card/50 hover:bg-card rounded-2xl border border-border hover:border-primary/20 p-6 transition-all duration-500 shadow-sm hover:shadow-xl"
                     >
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
                         <div className="flex items-center gap-4">
@@ -735,25 +804,25 @@ export const MealPlanEditor = ({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 bg-card p-2 rounded-2xl shadow-sm border border-border">
-                          <div className="flex items-center gap-3 px-3 py-1.5 bg-primary/8 rounded-xl border border-primary/20/50">
+                        <div className="flex items-center gap-2 bg-card p-2 rounded-xl shadow-sm border border-border">
+                          <div className="flex items-center gap-3 px-3 py-1.5 bg-primary/10 rounded-xl border border-primary/20">
                             <div className="text-center">
-                              <p className="text-[11px] font-bold text-primary uppercase tracking-tighter">Energia</p>
+                              <p className="text-xs font-medium text-primary">Energia</p>
                               <p className="text-xs font-bold text-foreground">{totals.kcal.toFixed(0)}<span className="text-[11px] ml-0.5">kcal</span></p>
                             </div>
                             <div className="w-px h-5 bg-primary/15" />
                             <div className="text-center">
-                              <p className="text-[11px] font-bold text-blue-500 uppercase tracking-tighter">Prot</p>
+                              <p className="text-xs font-medium text-blue-500">Prot</p>
                               <p className="text-xs font-bold text-foreground">{totals.protein.toFixed(1)}g</p>
                             </div>
                             <div className="w-px h-5 bg-primary/15" />
                             <div className="text-center">
-                              <p className="text-[11px] font-bold text-primary uppercase tracking-tighter">Carb</p>
+                              <p className="text-xs font-medium text-primary">Carb</p>
                               <p className="text-xs font-bold text-foreground">{totals.carbs.toFixed(1)}g</p>
                             </div>
                             <div className="w-px h-5 bg-primary/15" />
                             <div className="text-center">
-                              <p className="text-[11px] font-bold text-purple-500 uppercase tracking-tighter">Gord</p>
+                              <p className="text-xs font-medium text-purple-500">Gord</p>
                               <p className="text-xs font-bold text-foreground">{totals.fat.toFixed(1)}g</p>
                             </div>
                           </div>
@@ -795,7 +864,7 @@ export const MealPlanEditor = ({
                           whileHover={{ scale: 1.01 }}
                           whileTap={{ scale: 0.99 }}
                           onClick={() => addMealItem(mealType.id)}
-                          className="w-full py-3 border-2 border-dashed border-border hover:border-primary/30 hover:bg-primary/10/30 rounded-xl flex items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-all font-bold text-xs"
+                          className="w-full py-3 border-2 border-dashed border-border hover:border-primary/30 hover:bg-primary/10 rounded-xl flex items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-all font-bold text-xs"
                         >
                           <Plus className="w-4 h-4" /> Adicionar Alimento
                         </motion.button>
@@ -805,11 +874,11 @@ export const MealPlanEditor = ({
                         <div className="space-y-2">
                           <div className="flex items-center gap-2 px-1">
                             <MessageSquare className="w-3 h-3 text-muted-foreground" />
-                            <Label className="text-[11px] uppercase font-bold text-muted-foreground tracking-widest">Observações específicas</Label>
+                            <Label className="text-xs font-medium text-muted-foreground">Observações específicas</Label>
                           </div>
                           <Textarea
                             placeholder="Observações importantes para esta refeição..."
-                            className="min-h-[80px] text-sm font-medium bg-card border-2 border-border rounded-2xl resize-none focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 shadow-sm transition-all p-4"
+                            className="min-h-[80px] text-sm font-medium bg-card border-2 border-border rounded-xl resize-none focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 shadow-sm transition-all p-4"
                             value={mealObservations[mealType.id] || ''}
                             onChange={(e) => setMealObservations(prev => ({ ...prev, [mealType.id]: e.target.value }))}
                           />
@@ -824,7 +893,7 @@ export const MealPlanEditor = ({
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center justify-center py-24 px-10 text-center bg-card rounded-[2rem] border-2 border-dashed border-border shadow-[0_20px_50px_rgba(0,0,0,0.02)]"
+                  className="flex flex-col items-center justify-center py-24 px-10 text-center bg-card rounded-2xl border-2 border-dashed border-border shadow-[0_20px_50px_rgba(0,0,0,0.02)]"
                 >
                   <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 relative">
                     <Apple className="w-10 h-10 text-primary" />
@@ -870,6 +939,31 @@ export const MealPlanEditor = ({
             }
           }}
         />
+
+        <Dialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Sair sem salvar?</DialogTitle>
+              <DialogDescription>
+                Você tem alterações não salvas neste plano alimentar. Se sair agora, elas serão perdidas.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowLeaveConfirm(false)}>
+                Continuar editando
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => {
+                  setShowLeaveConfirm(false);
+                  onClose();
+                }}
+              >
+                Sair sem salvar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
