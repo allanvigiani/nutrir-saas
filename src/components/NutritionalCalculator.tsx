@@ -7,7 +7,7 @@ import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { Patient, Consultation } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { Activity, Beaker, Zap, Calculator, AlertCircle, RefreshCw } from 'lucide-react';
+import { Activity, Beaker, Calculator, AlertCircle, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { NutritionCalculationInput, NutritionCalculationOutput } from '../server/services/nutrition.service'; // We will import the interface
 
@@ -173,7 +173,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
       {/* Formulário de Entrada */}
       <div className="lg:col-span-1 space-y-6">
         <Card className="border-primary/20 shadow-sm">
-          <CardHeader className="bg-primary/8 pb-4 border-b border-primary/20">
+          <CardHeader className="bg-primary/10 pb-4 border-b border-primary/20">
             <CardTitle className="text-secondary-foreground flex items-center gap-2 text-lg">
               <Calculator className="w-5 h-5" />
               Parâmetros do Paciente
@@ -346,7 +346,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                 <div className="col-span-2 pt-2 border-t mt-2">
                   <div className="flex justify-between items-center mb-3">
                     <Label className="text-xs text-muted-foreground font-bold">Macronutrientes (%)</Label>
-                    <span className={cn("text-xs font-bold px-2 py-0.5 rounded-md", isPercentError ? "bg-red-100 text-red-600" : "bg-primary/10 text-primary")}>
+                    <span className={cn("text-xs font-medium px-2 py-0.5 rounded-md", isPercentError ? "bg-destructive/10 text-destructive" : "bg-primary/10 text-primary")}>
                       Soma: {sumPercent}%
                     </span>
                   </div>
@@ -357,10 +357,10 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                       { label: 'Gorduras', value: percentualLip, set: setPercentualLip },
                     ].map(({ label, value, set }) => (
                       <div key={label} className="space-y-1">
-                        <Label className="text-[10px] text-muted-foreground uppercase">{label}</Label>
+                        <Label className="text-xs text-muted-foreground">{label}</Label>
                         <div className="relative">
                           <Input
-                            className={cn("h-8 text-xs pr-6", isPercentError && "border-red-300 focus-visible:ring-red-200")}
+                            className={cn("h-8 text-xs pr-6", isPercentError && "border-destructive focus-visible:ring-destructive/20")}
                             type="number"
                             placeholder="Auto"
                             value={value}
@@ -382,24 +382,25 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
       {/* Painel de Resultados */}
       <div className="lg:col-span-2 relative">
         {loading && (
-          <div className="absolute inset-0 bg-card/50 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
-            <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+          <div className="absolute inset-0 bg-card/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
+            <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-4 py-2 shadow-sm">
+              <RefreshCw className="w-4 h-4 text-primary animate-spin" />
+              <span className="text-sm text-muted-foreground">Calculando...</span>
+            </div>
           </div>
         )}
-        
+
         {result ? (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-card border-none shadow-sm">
+              <Card className="border-border shadow-sm">
                 <CardContent className="p-4 flex flex-col justify-center">
-                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-1">IMC</p>
-                  <div className="flex items-end gap-2">
-                    <span className="text-3xl font-black text-foreground">{result.imc}</span>
-                  </div>
+                  <p className="text-xs font-medium text-muted-foreground mb-1">IMC</p>
+                  <span className="text-3xl font-bold text-foreground">{result.imc}</span>
                   <span className={cn(
-                    "text-xs font-bold mt-2 px-2 py-1 rounded-md inline-block w-fit",
-                    result.classificacaoImc.includes('obesidade') || result.classificacaoImc.includes('Baixo') ? "bg-red-100 text-red-700" :
-                    result.classificacaoImc.includes('Sobrepeso') ? "bg-amber-100 text-amber-700" :
+                    "text-xs font-medium mt-2 px-2 py-1 rounded-md inline-block w-fit",
+                    result.classificacaoImc.includes('obesidade') || result.classificacaoImc.includes('Baixo') ? "bg-destructive/10 text-destructive" :
+                    result.classificacaoImc.includes('Sobrepeso') ? "bg-accent/20 text-accent-foreground" :
                     "bg-primary/15 text-primary"
                   )}>
                     {result.classificacaoImc}
@@ -407,48 +408,45 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                 </CardContent>
               </Card>
 
-              <Card className="bg-primary text-white border-none shadow-sm md:col-span-2 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-20">
-                  <Zap className="w-24 h-24" />
-                </div>
-                <CardContent className="p-6 relative z-10">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+              <Card className="border-border shadow-sm md:col-span-2">
+                <CardContent className="p-5">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                     <div>
-                      <p className="text-sm font-medium text-primary-foreground/80 uppercase tracking-wider mb-1">Gasto Energético Alvo</p>
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Gasto Energético Alvo</p>
                       <div className="flex items-end gap-2">
-                        <span className="text-4xl font-black">{result.getAjustado}</span>
-                        <span className="text-lg font-medium text-primary-foreground/60 mb-1">kcal/dia</span>
+                        <span className="text-4xl font-bold text-primary tabular-nums">{result.getAjustado}</span>
+                        <span className="text-base font-medium text-muted-foreground mb-1">kcal/dia</span>
                       </div>
-                      <p className="text-sm text-primary-foreground/80 mt-2">
-                        Base: {result.get} kcal (TMB: {result.tmb} kcal)
+                      <p className="text-sm text-muted-foreground mt-1.5">
+                        Base: {result.get} kcal · TMB: {result.tmb} kcal
                       </p>
                     </div>
                     {onSaveCalculation && (
-                      <div className="flex flex-col items-end gap-2">
-                        <Input 
+                      <div className="flex flex-col items-end gap-2 shrink-0">
+                        <Input
                           value={calculationName}
                           onChange={(e) => setCalculationName(e.target.value)}
                           placeholder="Nome do Cálculo"
-                          className="h-8 bg-primary/40 border-primary/50 text-white placeholder:text-primary/70 text-sm text-right max-w-[200px]"
+                          className="h-8 text-sm text-right max-w-[200px]"
                         />
-                        <Button 
-                          onClick={handleSave} 
+                        <Button
+                          onClick={handleSave}
                           disabled={isSaving || !latestConsultation}
-                          className="bg-card text-primary hover:bg-primary/10 font-bold h-10 px-6 rounded-xl shadow-lg border-0 shrink-0 transition-transform active:scale-95"
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-9 px-5 rounded-xl shadow-sm shrink-0 transition-all active:scale-95"
                         >
                           {isSaving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
                           Salvar Cálculo
                         </Button>
                         {onCreateMealPlan && (
-                          <Button 
-                            variant="ghost"
-                            onClick={() => onCreateMealPlan(result as any, result as any)} // Passing result as both for simplicity since we just need result in MP
-                            className="text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary/90/50 text-xs h-8 px-4 border border-primary/30 rounded-lg mt-1"
+                          <Button
+                            variant="outline"
+                            onClick={() => onCreateMealPlan(result as any, result as any)}
+                            className="text-xs h-8 px-4 rounded-lg"
                           >
                             Criar Plano com este Cálculo
                           </Button>
                         )}
-                        {!latestConsultation && <span className="text-[10px] text-amber-200">Requer consulta base</span>}
+                        {!latestConsultation && <span className="text-xs text-accent-foreground/80">Requer consulta base</span>}
                       </div>
                     )}
                   </div>
@@ -457,45 +455,45 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
             </div>
 
             <Card className="border-border shadow-sm">
-              <CardHeader className="border-b bg-muted/30/50 pb-4">
+              <CardHeader className="border-b bg-muted/30 pb-4">
                 <CardTitle className="text-foreground text-lg">Distribuição de Macronutrientes</CardTitle>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   {/* Proteínas */}
-                  <div className="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                  <div className="bg-card p-4 rounded-xl border border-border">
                     <div className="flex justify-between items-center mb-3">
-                      <span className="font-bold text-blue-800">Proteínas</span>
-                      <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{Math.round((result.macronutrientes.ptnKcal / result.getAjustado) * 100)}%</span>
+                      <span className="font-medium text-foreground">Proteínas</span>
+                      <span className="text-xs font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{Math.round((result.macronutrientes.ptnKcal / result.getAjustado) * 100)}%</span>
                     </div>
-                    <p className="text-2xl font-black text-blue-900">{result.macronutrientes.ptnG} <span className="text-sm font-normal text-blue-600">g</span></p>
-                    <div className="flex justify-between items-center mt-2 text-xs text-blue-700">
+                    <p className="text-2xl font-bold text-foreground tabular-nums">{result.macronutrientes.ptnG} <span className="text-sm font-normal text-muted-foreground">g</span></p>
+                    <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
                       <span>{result.macronutrientes.ptnGKg} g/kg</span>
                       <span>{result.macronutrientes.ptnKcal} kcal</span>
                     </div>
                   </div>
 
                   {/* Carboidratos */}
-                  <div className="bg-primary/8 p-4 rounded-xl border border-primary/20">
+                  <div className="bg-card p-4 rounded-xl border border-border">
                     <div className="flex justify-between items-center mb-3">
-                      <span className="font-bold text-secondary-foreground">Carboidratos</span>
-                      <span className="text-xs font-bold bg-primary/15 text-primary px-2 py-0.5 rounded-full">{Math.round((result.macronutrientes.choKcal / result.getAjustado) * 100)}%</span>
+                      <span className="font-medium text-foreground">Carboidratos</span>
+                      <span className="text-xs font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{Math.round((result.macronutrientes.choKcal / result.getAjustado) * 100)}%</span>
                     </div>
-                    <p className="text-2xl font-black text-foreground">{result.macronutrientes.choG} <span className="text-sm font-normal text-primary">g</span></p>
-                    <div className="flex justify-between items-center mt-2 text-xs text-primary">
+                    <p className="text-2xl font-bold text-foreground tabular-nums">{result.macronutrientes.choG} <span className="text-sm font-normal text-muted-foreground">g</span></p>
+                    <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
                       <span>{result.macronutrientes.choGKg} g/kg</span>
                       <span>{result.macronutrientes.choKcal} kcal</span>
                     </div>
                   </div>
 
                   {/* Lipídios */}
-                  <div className="bg-amber-50/50 p-4 rounded-xl border border-amber-100">
+                  <div className="bg-card p-4 rounded-xl border border-border">
                     <div className="flex justify-between items-center mb-3">
-                      <span className="font-bold text-amber-800">Gorduras</span>
-                      <span className="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{result.macronutrientes.lipPercentual}%</span>
+                      <span className="font-medium text-foreground">Gorduras</span>
+                      <span className="text-xs font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{result.macronutrientes.lipPercentual}%</span>
                     </div>
-                    <p className="text-2xl font-black text-amber-900">{result.macronutrientes.lipG} <span className="text-sm font-normal text-amber-600">g</span></p>
-                    <div className="flex justify-between items-center mt-2 text-xs text-amber-700">
+                    <p className="text-2xl font-bold text-foreground tabular-nums">{result.macronutrientes.lipG} <span className="text-sm font-normal text-muted-foreground">g</span></p>
+                    <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
                       <span>{Math.round((result.macronutrientes.lipG / result.pesoUtilizado) * 100) / 100} g/kg</span>
                       <span>{result.macronutrientes.lipKcal} kcal</span>
                     </div>
@@ -516,7 +514,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                   </div>
                   <div className="flex justify-between border-b pb-2 border-dashed">
                     <span className="text-muted-foreground">Fórmula Utilizada</span>
-                    <span className="font-medium uppercase">{result.formulaUtilizada.replace('_', '/')}</span>
+                    <span className="font-medium">{result.formulaUtilizada.replace('_', '/')}</span>
                   </div>
                   <div className="flex justify-between border-b pb-2 border-dashed">
                     <span className="text-muted-foreground">Peso Utilizado</span>
@@ -527,9 +525,9 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
               </Card>
 
               {result.alertas.length > 0 && (
-                <Card className="border-amber-200 shadow-sm bg-amber-50 h-full">
-                  <CardHeader className="pb-3 border-b border-amber-200/50">
-                    <CardTitle className="text-sm font-bold text-amber-800 flex items-center gap-2">
+                <Card className="border-accent-foreground/20 shadow-sm bg-accent/20 h-full">
+                  <CardHeader className="pb-3 border-b border-accent-foreground/10">
+                    <CardTitle className="text-sm font-bold text-accent-foreground flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" />
                       Alertas Clínicos
                     </CardTitle>
@@ -537,8 +535,8 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                   <CardContent className="p-4">
                     <ul className="space-y-2">
                       {result.alertas.map((alerta, i) => (
-                        <li key={i} className="text-xs text-amber-900 flex items-start gap-2 bg-amber-100/50 p-2 rounded-lg">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1 shrink-0" />
+                        <li key={i} className="text-xs text-accent-foreground flex items-start gap-2 bg-accent/20 p-2 rounded-lg">
+                          <span className="w-1.5 h-1.5 rounded-full bg-accent-foreground/60 mt-1 shrink-0" />
                           <span>{alerta}</span>
                         </li>
                       ))}
@@ -550,7 +548,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
 
           </div>
         ) : (
-          <div className="h-full min-h-[400px] border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground p-8 text-center bg-muted/30/50">
+          <div className="h-full min-h-[400px] border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground p-8 text-center bg-muted/30">
             <Calculator className="w-12 h-12 mb-4 text-muted-foreground" />
             <h3 className="font-bold text-muted-foreground mb-2">Motor de Cálculo Nutricional</h3>
             <p className="max-w-md text-sm">Insira o peso, altura e idade do paciente para visualizar o gasto energético e distribuição de macronutrientes recomendados.</p>
