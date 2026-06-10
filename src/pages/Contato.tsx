@@ -6,6 +6,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Card, CardContent } from '../components/ui/card';
+import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
 import { LandingNavbar } from '../components/LandingNavbar';
 import { LandingFooter } from '../components/LandingFooter';
@@ -38,7 +39,7 @@ export function Contato() {
       <main className="pt-24 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto">
           <div className="text-center space-y-4 mb-16">
-            <h1 className="text-4xl font-bold">Entre em <span className="text-primary">Contato</span></h1>
+            <h1 className="text-4xl font-bold tracking-tight text-balance">Entre em <span className="text-primary">Contato</span></h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               Tem alguma dúvida, sugestão ou precisa de suporte? Nossa equipe está pronta para ajudar.
             </p>
@@ -76,36 +77,36 @@ export function Contato() {
                       <div className="space-y-2">
                         <Label htmlFor="nome">Nome</Label>
                         <Input id="nome" placeholder="Seu nome completo" {...register('nome')} />
-                        {errors.nome && <p className="text-sm text-red-500">{errors.nome.message}</p>}
+                        {errors.nome && <p className="text-sm text-destructive">{errors.nome.message}</p>}
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="email">E-mail</Label>
                         <Input id="email" type="email" placeholder="seu@email.com" {...register('email')} />
-                        {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
+                        {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
                       </div>
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="assunto">Assunto</Label>
                       <Input id="assunto" placeholder="Como podemos ajudar?" {...register('assunto')} />
-                      {errors.assunto && <p className="text-sm text-red-500">{errors.assunto.message}</p>}
+                      {errors.assunto && <p className="text-sm text-destructive">{errors.assunto.message}</p>}
                     </div>
 
                     <div className="space-y-2">
                       <Label htmlFor="mensagem">Mensagem</Label>
-                      <textarea
+                      <Textarea
                         id="mensagem"
                         rows={6}
                         placeholder="Descreva sua dúvida ou sugestão em detalhes..."
-                        className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none"
+                        className="resize-none"
                         {...register('mensagem')}
                       />
-                      {errors.mensagem && <p className="text-sm text-red-500">{errors.mensagem.message}</p>}
+                      {errors.mensagem && <p className="text-sm text-destructive">{errors.mensagem.message}</p>}
                     </div>
 
                     <Button
                       type="submit"
-                      className="w-full bg-primary hover:bg-primary/90 text-white"
+                      className="w-full"
                       size="lg"
                       disabled={isSubmitting}
                     >
