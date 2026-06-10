@@ -288,7 +288,7 @@ export const Schedule = () => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-3xl font-bold text-foreground">Agenda</h1>
+          <h1 className="text-xl md:text-3xl font-bold text-foreground tracking-tight">Agenda</h1>
           <p className="text-muted-foreground">Gerencie seus horários e atendimentos.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -320,7 +320,7 @@ export const Schedule = () => {
             if (!open) setEditingAppointment(null);
           }}>
             <DialogTrigger
-              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 w-full md:w-auto" onClick={() => openNewModal()} />}
+              render={<Button className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 w-full md:w-auto" onClick={() => openNewModal()} />}
               nativeButton={true}
             >
               <Plus className="w-4 h-4" /> Novo Agendamento
@@ -485,8 +485,8 @@ export const Schedule = () => {
           <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
             <DialogContent className="sm:max-w-sm p-6 rounded-2xl">
               <DialogHeader className="space-y-3">
-                <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-2">
-                  <Trash2 className="w-6 h-6 text-red-600" />
+                <div className="w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mx-auto mb-2">
+                  <Trash2 className="w-6 h-6 text-destructive" />
                 </div>
                 <DialogTitle className="text-center text-xl">Excluir Agendamento</DialogTitle>
                 <DialogDescription className="text-center">
@@ -526,7 +526,7 @@ export const Schedule = () => {
             <div className="overflow-x-auto -mx-4 md:mx-0">
             <div className="grid grid-cols-7 border-b border-border">
               {weekDays.map(day => (
-                <div key={day} className="py-2 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider bg-muted/30/50 border-r border-border last:border-r-0">
+                <div key={day} className="py-2 text-center text-xs font-bold text-muted-foreground uppercase tracking-wider bg-muted/50 border-r border-border last:border-r-0">
                   {day}
                 </div>
               ))}
@@ -540,10 +540,10 @@ export const Schedule = () => {
                     key={idx}
                     className={cn(
                       "min-h-[120px] p-2 border-r border-b border-border transition-colors",
-                      !isCurrentMonth && "bg-muted/30/30 text-muted-foreground",
-                      isToday(day) && "bg-primary/10/30",
-                      isPast && "bg-muted/30/50 text-muted-foreground",
-                      !isPast && "hover:bg-muted/30/50 cursor-pointer",
+                      !isCurrentMonth && "bg-muted/30 text-muted-foreground",
+                      isToday(day) && "bg-primary/8",
+                      isPast && "bg-muted/50 text-muted-foreground",
+                      !isPast && "hover:bg-muted/50 cursor-pointer",
                       idx % 7 === 6 && "border-r-0"
                     )}
                     onClick={() => {
@@ -553,7 +553,7 @@ export const Schedule = () => {
                     <div className="flex justify-between items-start mb-2">
                       <span className={cn(
                         "text-sm font-medium w-7 h-7 flex items-center justify-center rounded-full",
-                        isToday(day) && "bg-primary text-white",
+                        isToday(day) && "bg-primary text-primary-foreground",
                         !isCurrentMonth && "text-muted-foreground"
                       )}>
                         {format(day, 'd')}
@@ -596,19 +596,19 @@ export const Schedule = () => {
             <div className="overflow-x-auto -mx-4 md:mx-0">
             <div className="flex flex-col h-[600px] overflow-y-auto">
               <div className="grid grid-cols-8 border-b border-border sticky top-0 bg-card z-10">
-                <div className="py-2 border-r border-border bg-muted/30/50"></div>
+                <div className="py-2 border-r border-border bg-muted/50"></div>
                 {eachDayOfInterval({
                   start: startOfWeek(currentDate),
                   end: endOfWeek(currentDate)
                 }).map(day => (
                   <div key={day.toString()} className={cn(
-                    "py-2 text-center border-r border-border last:border-r-0 bg-muted/30/50",
+                    "py-2 text-center border-r border-border last:border-r-0 bg-muted/50",
                     isToday(day) && "bg-primary/8"
                   )}>
                     <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{format(day, 'EEE', { locale: ptBR })}</div>
                     <div className={cn(
                       "text-sm font-medium w-7 h-7 mx-auto flex items-center justify-center rounded-full mt-1",
-                      isToday(day) && "bg-primary text-white"
+                      isToday(day) && "bg-primary text-primary-foreground"
                     )}>
                       {format(day, 'd')}
                     </div>
@@ -671,15 +671,15 @@ export const Schedule = () => {
             <div className="overflow-x-auto -mx-4 md:mx-0">
             <div className="flex flex-col h-[600px] overflow-y-auto">
               <div className="grid grid-cols-8 border-b border-border sticky top-0 bg-card z-10">
-                <div className="py-2 border-r border-border bg-muted/30/50"></div>
+                <div className="py-2 border-r border-border bg-muted/50"></div>
                 <div className={cn(
-                  "col-span-7 py-2 text-center bg-muted/30/50",
+                  "col-span-7 py-2 text-center bg-muted/50",
                   isToday(currentDate) && "bg-primary/8"
                 )}>
                   <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{format(currentDate, 'EEEE', { locale: ptBR })}</div>
                   <div className={cn(
                     "text-sm font-medium w-7 h-7 mx-auto flex items-center justify-center rounded-full mt-1",
-                    isToday(currentDate) && "bg-primary text-white"
+                    isToday(currentDate) && "bg-primary text-primary-foreground"
                   )}>
                     {format(currentDate, 'd')}
                   </div>
@@ -726,7 +726,7 @@ export const Schedule = () => {
                           <div className="text-[10px] opacity-70">Status: {translateStatus(app.status)}</div>
                           {app.meetLink && (
                             <div className="mt-1 flex items-center gap-1 text-[10px] text-primary font-bold">
-                              <div className="w-1.5 h-1.5 rounded-full bg-primary/100 animate-pulse" />
+                              <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                               Google Meet disponível
                             </div>
                           )}
