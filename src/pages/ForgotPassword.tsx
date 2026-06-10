@@ -53,20 +53,20 @@ export const ForgotPassword = () => {
   if (step === 'success') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-        <div className="max-w-md w-full bg-card rounded-3xl shadow-xl shadow-slate-200/60 p-8 text-center space-y-6">
+        <div className="max-w-md w-full bg-card rounded-3xl shadow-xl p-8 text-center space-y-6">
           <div className="w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto">
             <CheckCircle2 className="w-10 h-10" />
           </div>
           <div className="space-y-2">
-            <h1 className="text-2xl font-bold text-foreground">E-mail Enviado!</h1>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">E-mail Enviado!</h1>
             <p className="text-muted-foreground">
-              Enviamos um link de redefinição de senha para <strong>{email}</strong>. 
+              Enviamos um link de redefinição de senha para <strong>{email}</strong>.
               Por favor, verifique sua caixa de entrada e a pasta de spam.
             </p>
           </div>
-          <Button 
+          <Button
             onClick={() => navigate('/login')}
-            className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl"
+            className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl"
           >
             Voltar para o Login
           </Button>
@@ -77,7 +77,7 @@ export const ForgotPassword = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-      <div className="max-w-md w-full bg-card rounded-3xl shadow-xl shadow-slate-200/60 overflow-hidden">
+      <div className="max-w-md w-full bg-card rounded-3xl shadow-xl overflow-hidden">
         <div className="p-8">
           <div className="flex items-center justify-between mb-8">
             <Link to="/login" className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors">
@@ -85,7 +85,7 @@ export const ForgotPassword = () => {
             </Link>
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">N</span>
+                <span className="text-primary-foreground font-bold text-sm">N</span>
               </div>
               <span className="font-bold text-foreground">Nutrir</span>
             </div>
@@ -93,7 +93,7 @@ export const ForgotPassword = () => {
 
           <div className="space-y-6">
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-foreground">Esqueceu a senha?</h1>
+              <h1 className="text-2xl font-bold text-foreground tracking-tight">Esqueceu a senha?</h1>
               <p className="text-muted-foreground text-sm">
                 Informe seu e-mail e enviaremos um link oficial do Firebase para você redefinir sua senha com segurança.
               </p>
@@ -115,9 +115,9 @@ export const ForgotPassword = () => {
                 {form.formState.errors.email && <p className="text-xs text-destructive mt-1">{form.formState.errors.email.message}</p>}
               </div>
 
-              <Button 
-                type="submit" 
-                className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-bold rounded-xl shadow-lg shadow-primary/10 transition-all" 
+              <Button
+                type="submit"
+                className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-xl shadow-lg shadow-primary/10 transition-all"
                 disabled={isLoading}
               >
                 {isLoading ? 'Enviando...' : 'Enviar Link de Redefinição'}
