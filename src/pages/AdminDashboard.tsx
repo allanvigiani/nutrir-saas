@@ -196,7 +196,7 @@ export const AdminDashboard = () => {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl md:text-3xl font-bold text-foreground">Painel Administrativo</h1>
+          <h1 className="text-xl md:text-3xl font-bold text-foreground tracking-tight">Painel Administrativo</h1>
           <p className="text-muted-foreground">Gerenciamento global da plataforma Nutrir</p>
         </div>
       </div>
@@ -295,10 +295,10 @@ export const AdminDashboard = () => {
             <Card className="border-none shadow-sm bg-card overflow-hidden">
               <CardContent className="py-4 px-6">
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className={cn("w-5 h-5", adminStats?.pendingChurn ? "text-amber-500" : "text-primary")} />
+                  <AlertTriangle className={cn("w-5 h-5", adminStats?.pendingChurn ? "text-accent-foreground" : "text-primary")} />
                   <div>
                     <p className="text-xs text-muted-foreground">Cancelamentos Pendentes</p>
-                    <p className={cn("text-2xl font-bold", adminStats?.pendingChurn ? "text-amber-600" : "text-foreground")}>
+                    <p className={cn("text-2xl font-bold", adminStats?.pendingChurn ? "text-accent-foreground" : "text-foreground")}>
                       {adminStats?.pendingChurn ?? '—'}
                     </p>
                     <p className="text-xs text-muted-foreground">não renovarão</p>
@@ -471,7 +471,7 @@ export const AdminDashboard = () => {
                             </span>
                             {n.planOverridedByAdmin && (
                               <span
-                                className="ml-1 text-xs text-amber-600 font-medium"
+                                className="ml-1 text-xs text-accent-foreground font-medium"
                                 title="Plano definido manualmente — sync do Asaas não irá sobrescrever"
                               >
                                 Manual
@@ -492,7 +492,7 @@ export const AdminDashboard = () => {
                               return (
                                 <span className={cn(
                                   "text-sm",
-                                  daysInactive > 60 ? "text-amber-600 font-medium" : "text-muted-foreground"
+                                  daysInactive > 60 ? "text-accent-foreground font-medium" : "text-muted-foreground"
                                 )}>
                                   {format(parseISO((n as any).lastLogin), "dd/MM/yyyy", { locale: ptBR })}
                                   {daysInactive > 60 && <span className="ml-1 text-xs">(inativo {daysInactive}d)</span>}
@@ -610,7 +610,7 @@ export const AdminDashboard = () => {
             <Card className="border-none shadow-sm bg-card">
               <CardContent className="py-4 px-6">
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  <AlertTriangle className="w-5 h-5 text-accent-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Sem CPF/CNPJ</p>
                     <p className="text-2xl font-bold text-foreground">{operationalData?.noCpfCnpjCount ?? '—'}</p>
@@ -622,7 +622,7 @@ export const AdminDashboard = () => {
             <Card className="border-none shadow-sm bg-card">
               <CardContent className="py-4 px-6">
                 <div className="flex items-center gap-3">
-                  <Users className="w-5 h-5 text-amber-500" />
+                  <Users className="w-5 h-5 text-accent-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Sem Pacientes</p>
                     <p className="text-2xl font-bold text-foreground">{operationalData?.noPatientsCount ?? '—'}</p>
