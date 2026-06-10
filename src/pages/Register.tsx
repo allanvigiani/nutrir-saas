@@ -10,57 +10,6 @@ import { useTheme } from 'next-themes';
 import { maskCPF, maskCNPJ, maskPhone } from '../lib/utils';
 import { remoteLogger } from '../lib/remote-logger';
 import { recordSessionStart, useAuth } from '../contexts/AuthContext';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -221,7 +170,7 @@ export const Register = () => {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Left Side - Register Form */}
-      <div className="flex-1 flex flex-col justify-center px-8 sm:px-12 lg:px-20 py-16 bg-card relative overflow-y-auto">
+      <div className="flex-1 flex flex-col justify-center px-5 sm:px-12 lg:px-20 py-16 bg-card relative overflow-y-auto">
         <div className="max-w-md w-full mx-auto space-y-6">
           {/* Top controls */}
           <div className="absolute left-6 top-6">

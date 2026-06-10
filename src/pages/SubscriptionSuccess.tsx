@@ -83,7 +83,7 @@ export const SubscriptionSuccess = () => {
           <div className="w-20 h-20 bg-primary/15 text-primary rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-12 h-12" />
           </div>
-          <CardTitle className="text-2xl font-bold text-foreground">Pagamento Confirmado!</CardTitle>
+          <CardTitle className="text-2xl font-bold text-foreground tracking-tight">Pagamento Confirmado!</CardTitle>
         </CardHeader>
         <CardContent className="text-center space-y-6">
           <p className="text-muted-foreground">
@@ -91,7 +91,7 @@ export const SubscriptionSuccess = () => {
           </p>
           <Button 
             onClick={() => navigate('/')}
-            className="w-full bg-primary hover:bg-primary/90 text-white gap-2 rounded-xl h-12 font-bold transition-all active:scale-95"
+            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground gap-2 rounded-xl h-12 font-bold transition-all active:scale-95"
           >
             Ir para o Dashboard <ArrowRight className="w-4 h-4" />
           </Button>

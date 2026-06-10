@@ -9,7 +9,7 @@ export function Termos() {
       <main className="pt-24 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-3xl mx-auto space-y-8">
           <div>
-            <h1 className="text-4xl font-bold mb-2">Termos de Uso</h1>
+            <h1 className="text-4xl font-bold tracking-tight text-balance mb-2">Termos de Uso</h1>
             <p className="text-muted-foreground text-sm">Última atualização: maio de 2026</p>
           </div>
 

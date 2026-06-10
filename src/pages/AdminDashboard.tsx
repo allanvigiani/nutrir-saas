@@ -196,7 +196,7 @@ export const AdminDashboard = () => {
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Painel Administrativo</h1>
+          <h1 className="text-xl md:text-3xl font-bold text-foreground tracking-tight">Painel Administrativo</h1>
           <p className="text-muted-foreground">Gerenciamento global da plataforma Nutrir</p>
         </div>
       </div>
@@ -295,10 +295,10 @@ export const AdminDashboard = () => {
             <Card className="border-none shadow-sm bg-card overflow-hidden">
               <CardContent className="py-4 px-6">
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className={cn("w-5 h-5", adminStats?.pendingChurn ? "text-amber-500" : "text-primary")} />
+                  <AlertTriangle className={cn("w-5 h-5", adminStats?.pendingChurn ? "text-accent-foreground" : "text-primary")} />
                   <div>
                     <p className="text-xs text-muted-foreground">Cancelamentos Pendentes</p>
-                    <p className={cn("text-2xl font-bold", adminStats?.pendingChurn ? "text-amber-600" : "text-foreground")}>
+                    <p className={cn("text-2xl font-bold", adminStats?.pendingChurn ? "text-accent-foreground" : "text-foreground")}>
                       {adminStats?.pendingChurn ?? '—'}
                     </p>
                     <p className="text-xs text-muted-foreground">não renovarão</p>
@@ -427,10 +427,10 @@ export const AdminDashboard = () => {
                   <thead>
                     <tr className="bg-muted/30 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
                       <th className="px-6 py-4 font-bold">Nutricionista</th>
-                      <th className="px-6 py-4 font-bold">CRN</th>
+                      <th className="hidden md:table-cell px-6 py-4 font-bold">CRN</th>
                       <th className="px-6 py-4 font-bold">Plano</th>
                       <th className="px-6 py-4 font-bold">Cargo</th>
-                      <th className="px-6 py-4 font-bold">Último Login</th>
+                      <th className="hidden md:table-cell px-6 py-4 font-bold">Último Login</th>
                       <th className="px-6 py-4 font-bold">Ações</th>
                     </tr>
                   </thead>
@@ -461,7 +461,7 @@ export const AdminDashboard = () => {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-muted-foreground font-medium">{n.crn}</td>
+                          <td className="hidden md:table-cell px-6 py-4 text-muted-foreground font-medium">{n.crn}</td>
                           <td className="px-6 py-4">
                             <span className={cn(
                               "px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider",
@@ -471,7 +471,7 @@ export const AdminDashboard = () => {
                             </span>
                             {n.planOverridedByAdmin && (
                               <span
-                                className="ml-1 text-xs text-amber-600 font-medium"
+                                className="ml-1 text-xs text-accent-foreground font-medium"
                                 title="Plano definido manualmente — sync do Asaas não irá sobrescrever"
                               >
                                 Manual
@@ -486,13 +486,13 @@ export const AdminDashboard = () => {
                               {n.role === 'admin' ? 'Admin' : 'Nutricionista'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
+                          <td className="hidden md:table-cell px-6 py-4 whitespace-nowrap">
                             {(n as any).lastLogin ? (() => {
                               const daysInactive = differenceInDays(new Date(), parseISO((n as any).lastLogin));
                               return (
                                 <span className={cn(
                                   "text-sm",
-                                  daysInactive > 60 ? "text-amber-600 font-medium" : "text-muted-foreground"
+                                  daysInactive > 60 ? "text-accent-foreground font-medium" : "text-muted-foreground"
                                 )}>
                                   {format(parseISO((n as any).lastLogin), "dd/MM/yyyy", { locale: ptBR })}
                                   {daysInactive > 60 && <span className="ml-1 text-xs">(inativo {daysInactive}d)</span>}
@@ -610,7 +610,7 @@ export const AdminDashboard = () => {
             <Card className="border-none shadow-sm bg-card">
               <CardContent className="py-4 px-6">
                 <div className="flex items-center gap-3">
-                  <AlertTriangle className="w-5 h-5 text-amber-500" />
+                  <AlertTriangle className="w-5 h-5 text-accent-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Sem CPF/CNPJ</p>
                     <p className="text-2xl font-bold text-foreground">{operationalData?.noCpfCnpjCount ?? '—'}</p>
@@ -622,7 +622,7 @@ export const AdminDashboard = () => {
             <Card className="border-none shadow-sm bg-card">
               <CardContent className="py-4 px-6">
                 <div className="flex items-center gap-3">
-                  <Users className="w-5 h-5 text-amber-500" />
+                  <Users className="w-5 h-5 text-accent-foreground" />
                   <div>
                     <p className="text-xs text-muted-foreground">Sem Pacientes</p>
                     <p className="text-2xl font-bold text-foreground">{operationalData?.noPatientsCount ?? '—'}</p>

@@ -135,7 +135,7 @@ export const Login = () => {
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       {/* Left Side - Login Form */}
-      <div className="flex-1 flex flex-col justify-center px-8 sm:px-12 lg:px-20 py-12 bg-card relative">
+      <div className="flex-1 flex flex-col justify-center px-5 sm:px-12 lg:px-20 py-12 bg-card relative">
         <div className="max-w-md w-full mx-auto space-y-8">
           {/* Top controls */}
           <div className="absolute left-6 top-6 flex items-center gap-3">

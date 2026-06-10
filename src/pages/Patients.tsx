@@ -2,51 +2,45 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
+import {
+  Search,
   Edit,
-  MoreVertical, 
   UserPlus,
-  UserCheck,
-  UserX,
   Mail,
   Phone,
   Calendar as CalendarIcon,
   Activity,
   AlertCircle,
-  Trash2
+  Trash2,
+  Users,
 } from 'lucide-react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
+import {
+  Card,
+  CardContent,
 } from '../components/ui/card';
-import { Button, buttonVariants } from '../components/ui/button';
+import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogHeader, 
-  DialogTitle, 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
   DialogTrigger,
-  DialogFooter
+  DialogFooter,
 } from '../components/ui/dialog';
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '../components/ui/select';
 import { Label } from '../components/ui/label';
 import { useAuth } from '../contexts/AuthContext';
 import { FREE_PLAN_LIMITS, isAdminOrPremium } from '../lib/planLimits';
 import { auth } from '../lib/firebase';
-
+import { cn } from '../lib/utils';
 import { Patient } from '../types';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -56,59 +50,7 @@ import { logEvent } from '../lib/firebase';
 import { PremiumFeature } from '../components/PremiumFeature';
 import { PremiumBanner } from '../components/PremiumBanner';
 import { maskCPF, maskPhone } from '../lib/masks';
-import { generateSecureToken } from '../lib/utils';
 import { Skeleton } from '../components/ui/skeleton';
-
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
-
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId: string | undefined;
-    email: string | null | undefined;
-    emailVerified: boolean | undefined;
-    isAnonymous: boolean | undefined;
-    tenantId: string | null | undefined;
-    providerInfo: {
-      providerId: string;
-      displayName: string | null;
-      email: string | null;
-      photoUrl: string | null;
-    }[];
-  }
-}
-
-function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
-  const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
-    authInfo: {
-      userId: auth.currentUser?.uid,
-      email: auth.currentUser?.email,
-      emailVerified: auth.currentUser?.emailVerified,
-      isAnonymous: auth.currentUser?.isAnonymous,
-      tenantId: auth.currentUser?.tenantId,
-      providerInfo: auth.currentUser?.providerData.map(provider => ({
-        providerId: provider.providerId,
-        displayName: provider.displayName,
-        email: provider.email,
-        photoUrl: provider.photoURL
-      })) || []
-    },
-    operationType,
-    path
-  }
-  console.error('Firestore Error: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
 
 const patientSchema = z.object({
   name: z.string().min(3, 'Nome é obrigatório').refine((name) => {
@@ -133,6 +75,15 @@ const patientSchema = z.object({
 
 type PatientFormValues = z.infer<typeof patientSchema>;
 
+type StatusFilter = 'all' | 'active' | 'inactive';
+
+const AVATAR_STYLES = [
+  'bg-primary/10 text-primary',
+  'bg-accent text-accent-foreground',
+  'bg-secondary text-secondary-foreground',
+  'bg-muted text-foreground/70',
+] as const;
+
 export const Patients = () => {
   const { user, nutritionist, isAuthReady } = useAuth();
   const isPremium = isAdminOrPremium(nutritionist);
@@ -145,21 +96,28 @@ export const Patients = () => {
   const gracePeriodDaysLeft = isInGracePeriod && gracePeriodEndAt
     ? differenceInDays(gracePeriodEndAt, now)
     : 0;
+
   const [patients, setPatients] = useState<Patient[]>([]);
   const [searchInput, setSearchInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [loading, setLoading] = useState(true);
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
-  const [isGeneratingToken, setIsGeneratingToken] = useState<string | null>(null);
 
-  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<PatientFormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    watch,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<PatientFormValues>({
     resolver: zodResolver(patientSchema),
-    defaultValues: {
-      gender: 'male',
-    }
+    mode: 'onBlur',
+    defaultValues: { gender: 'male' },
   });
 
   const genderValue = watch('gender');
@@ -223,7 +181,6 @@ export const Patients = () => {
     refetchPatients();
   }, [refetchPatients, isAuthReady]);
 
-  // Debounce da busca (300ms)
   useEffect(() => {
     const timer = setTimeout(() => setSearchTerm(searchInput), 300);
     return () => clearTimeout(timer);
@@ -252,7 +209,6 @@ export const Patients = () => {
   const onSubmit = async (data: PatientFormValues) => {
     if (!user) return;
 
-    // Premium check: Free plan allows only a limited number of active patients
     if (!editingPatient && !isPremium) {
       const activePatients = patients.filter(p => p.status === 'active');
       const maxPatients = FREE_PLAN_LIMITS.maxPatients;
@@ -263,7 +219,6 @@ export const Patients = () => {
     }
 
     try {
-      // Verificação de duplicidade local
       const cpfExists = patients.some(p => p.cpf === data.cpf && p.id !== editingPatient?.id);
       if (cpfExists) {
         toast.error('Já existe um paciente cadastrado com este CPF.');
@@ -272,7 +227,7 @@ export const Patients = () => {
 
       const emailExists = patients.some(p => p.email === data.email && p.id !== editingPatient?.id);
       if (emailExists) {
-        toast.error('Já existe um paciente cadastrado com este E-mail.');
+        toast.error('Já existe um paciente cadastrado com este e-mail.');
         return;
       }
 
@@ -298,68 +253,36 @@ export const Patients = () => {
       reset();
       await refetchPatients();
     } catch (error) {
-      console.error("Error saving patient:", error);
+      console.error('Error saving patient:', error);
       toast.error('Erro ao salvar paciente.');
     }
   };
 
-  const generateAccessToken = async (patient: Patient) => {
-    setIsGeneratingToken(patient.id);
-    const toastId = toast.loading('Gerando link de acesso e atualizando registros...');
-    
-    try {
-      const token = generateSecureToken();
-      
-      // 1. Atualizar o paciente
-      const authToken = await auth.currentUser?.getIdToken();
-      await fetch(`/api/patients/${patient.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ access_token: token }),
-      });
+  const filteredPatients = useMemo(() =>
+    patients.filter(patient => {
+      const matchesSearch =
+        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.cpf.includes(searchTerm);
+      const matchesStatus =
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && patient.status === 'active') ||
+        (statusFilter === 'inactive' && patient.status !== 'active');
+      return matchesSearch && matchesStatus;
+    }),
+  [patients, searchTerm, statusFilter]);
 
-      toast.success('Link de acesso gerado com sucesso!', { id: toastId });
-      await refetchPatients();
-    } catch (error) {
-      console.error("Error generating access token:", error);
-      toast.error('Erro ao gerar link de acesso ou atualizar registros.', { id: toastId });
-    } finally {
-      setIsGeneratingToken(null);
-    }
-  };
-
-  const shareAccessLink = (patient: Patient) => {
-    if (!patient.access_token) return;
-    const whatsappBaseUrl = import.meta.env.VITE_WHATSAPP_BASE_URL || '';
-    if (!whatsappBaseUrl) {
-      toast.error('VITE_WHATSAPP_BASE_URL não configurada.');
-      return;
-    }
-    
-    const baseUrl = window.location.origin;
-    const accessUrl = `${baseUrl}/patient-access/${patient.id}?token=${patient.access_token}`;
-    
-    const message = `Olá ${patient.name}! Aqui está seu link exclusivo para acessar seu plano alimentar e evolução no Nutrir: ${accessUrl}\n\nPara sua segurança, ao acessar, digite os 3 últimos dígitos do seu CPF.`;
-    
-    const whatsappUrl = `${whatsappBaseUrl}/55${patient.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
-  };
-
-  const filteredPatients = patients.filter(patient =>
-    patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    patient.cpf.includes(searchTerm)
-  );
-
-  const isLimitReached = !isPremium && patients.length >= FREE_PLAN_LIMITS.maxPatients;
+  const isLimitReached = !isPremium && patients.filter(p => p.status === 'active').length >= FREE_PLAN_LIMITS.maxPatients;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+
+      {/* Grace period warning */}
       {isInGracePeriod && (
-        <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+        <div className="bg-accent/30 border border-accent-foreground/20 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-accent-foreground shrink-0 mt-0.5" aria-hidden="true" />
           <div className="text-sm">
-            <p className="font-bold text-amber-800 dark:text-amber-300">Período de transição ativo</p>
-            <p className="text-amber-700 dark:text-amber-400 mt-0.5">
+            <p className="font-semibold text-accent-foreground">Período de transição ativo</p>
+            <p className="text-accent-foreground/80 mt-0.5">
               Você mudou para o plano gratuito. Todos os seus pacientes estão acessíveis por mais{' '}
               <strong>{gracePeriodDaysLeft} {gracePeriodDaysLeft === 1 ? 'dia' : 'dias'}</strong>.
               Após esse prazo, pacientes além do limite de {FREE_PLAN_LIMITS.maxPatients} ficarão em somente leitura.{' '}
@@ -369,12 +292,13 @@ export const Patients = () => {
         </div>
       )}
 
+      {/* Hard limit exceeded */}
       {isGracePeriodOver && patients.length > FREE_PLAN_LIMITS.maxPatients && (
-        <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+        <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-destructive shrink-0 mt-0.5" aria-hidden="true" />
           <div className="text-sm">
-            <p className="font-bold text-red-800 dark:text-red-300">Limite do plano gratuito atingido</p>
-            <p className="text-red-700 dark:text-red-400 mt-0.5">
+            <p className="font-semibold text-destructive">Limite do plano gratuito atingido</p>
+            <p className="text-destructive/80 mt-0.5">
               {patients.length - FREE_PLAN_LIMITS.maxPatients} paciente(s) estão em somente leitura.
               Faça <Link to="/settings" className="underline font-medium">upgrade para Premium</Link> para recuperar o acesso completo.
             </p>
@@ -382,47 +306,58 @@ export const Patients = () => {
         </div>
       )}
 
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Pacientes</h1>
-          <p className="text-muted-foreground">Gerencie todos os seus pacientes em um só lugar.</p>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight text-balance">Pacientes</h1>
+          {!loading && (
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {patients.length} {patients.length === 1 ? 'paciente cadastrado' : 'pacientes cadastrados'}
+            </p>
+          )}
         </div>
-        
+
         <Dialog open={isModalOpen} onOpenChange={(open) => {
           setIsModalOpen(open);
           if (!open) setEditingPatient(null);
         }}>
           <PremiumFeature active={isLimitReached}>
-            <DialogTrigger 
-              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95" onClick={openNewModal} />}
+            <DialogTrigger
+              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-9 px-4 gap-2 font-medium text-sm transition-all active:scale-95" onClick={openNewModal} />}
               nativeButton={true}
             >
-              <UserPlus className="w-4 h-4" /> Novo Paciente
+              <UserPlus className="w-4 h-4" aria-hidden="true" /> Novo Paciente
             </DialogTrigger>
           </PremiumFeature>
-          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl p-4">
+
+          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl p-4">
             <DialogHeader className="mb-4">
-              <DialogTitle className="text-xl font-bold">{editingPatient ? 'Editar Paciente' : 'Cadastrar Novo Paciente'}</DialogTitle>
+              <DialogTitle className="text-xl font-bold">
+                {editingPatient ? 'Editar Paciente' : 'Cadastrar Novo Paciente'}
+              </DialogTitle>
               <DialogDescription className="text-sm">
-                {editingPatient ? 'Atualize os dados do paciente abaixo.' : 'Preencha os dados abaixo para criar o prontuário do paciente.'}
+                {editingPatient
+                  ? 'Atualize os dados do paciente abaixo.'
+                  : 'Preencha os dados abaixo para criar o prontuário do paciente.'}
               </DialogDescription>
             </DialogHeader>
+
             <form key={editingPatient?.id || 'new'} onSubmit={handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="name">Nome Completo</Label>
                   <Input id="name" {...register('name')} />
-                  {errors.name && <p className="text-sm text-red-500">{errors.name.message}</p>}
+                  {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">E-mail</Label>
                   <Input id="email" type="email" {...register('email')} />
-                  {errors.email && <p className="text-sm text-red-500">{errors.email.message}</p>}
+                  {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="birthDate">Data de Nascimento</Label>
                   <Input id="birthDate" type="date" {...register('birthDate')} />
-                  {errors.birthDate && <p className="text-sm text-red-500">{errors.birthDate.message}</p>}
+                  {errors.birthDate && <p className="text-sm text-destructive">{errors.birthDate.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="gender">Sexo</Label>
@@ -438,84 +373,85 @@ export const Patients = () => {
                       <SelectItem value="other">Outro</SelectItem>
                     </SelectContent>
                   </Select>
-                  {errors.gender && <p className="text-sm text-red-500">{errors.gender.message}</p>}
+                  {errors.gender && <p className="text-sm text-destructive">{errors.gender.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="cpf">CPF</Label>
-                  <Input 
-                    id="cpf" 
-                    placeholder="000.000.000-00" 
-                    {...register('cpf')} 
+                  <Input
+                    id="cpf"
+                    placeholder="000.000.000-00"
+                    {...register('cpf')}
                     onChange={(e) => {
                       const masked = maskCPF(e.target.value);
                       setValue('cpf', masked);
                     }}
                   />
-                  {errors.cpf && <p className="text-sm text-red-500">{errors.cpf.message}</p>}
+                  {errors.cpf && <p className="text-sm text-destructive">{errors.cpf.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Telefone</Label>
-                  <Input 
-                    id="phone" 
-                    placeholder="(00) 00000-0000" 
-                    {...register('phone')} 
+                  <Input
+                    id="phone"
+                    placeholder="(00) 00000-0000"
+                    {...register('phone')}
                     onChange={(e) => {
                       const masked = maskPhone(e.target.value);
                       setValue('phone', masked);
                     }}
                   />
-                  {errors.phone && <p className="text-sm text-red-500">{errors.phone.message}</p>}
+                  {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="address">Endereço Completo</Label>
                 <Input id="address" {...register('address')} />
-                {errors.address && <p className="text-sm text-red-500">{errors.address.message}</p>}
+                {errors.address && <p className="text-sm text-destructive">{errors.address.message}</p>}
               </div>
 
               <div className="border-t pt-4">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
-                  <Activity className="w-4 h-4 text-primary" />
+                  <Activity className="w-4 h-4 text-primary" aria-hidden="true" />
                   Dados Clínicos Iniciais
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="objective">Objetivo Nutricional</Label>
                     <Input id="objective" placeholder="Ex: Perda de peso, Ganho de massa" {...register('objective')} />
-                    {errors.objective && <p className="text-sm text-red-500">{errors.objective.message}</p>}
+                    {errors.objective && <p className="text-sm text-destructive">{errors.objective.message}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="activityLevel">Nível de Atividade Física</Label>
-                    <Input id="activityLevel" placeholder="Ex: Sedentário, Ativo" {...register('activityLevel')} />
-                    {errors.activityLevel && <p className="text-sm text-red-500">{errors.activityLevel.message}</p>}
+                    <Input id="activityLevel" placeholder="Ex: Sedentário, Moderado, Ativo" {...register('activityLevel')} />
+                    {errors.activityLevel && <p className="text-sm text-destructive">{errors.activityLevel.message}</p>}
                   </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="diseases">Histórico de Doenças</Label>
-                  <Input id="diseases" {...register('diseases')} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="allergies">Alergias e Intolerâncias</Label>
-                  <Input id="allergies" {...register('allergies')} />
+                  <div className="space-y-2">
+                    <Label htmlFor="diseases">Histórico de Doenças</Label>
+                    <Input id="diseases" placeholder="Ex: Diabetes tipo 2, Hipertensão" {...register('diseases')} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="medications">Medicamentos em uso</Label>
+                    <Input id="medications" placeholder="Ex: Metformina 500mg, Losartana" {...register('medications')} />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="allergies">Alergias e Intolerâncias</Label>
+                    <Input id="allergies" placeholder="Ex: Lactose, Glúten, Frutos do mar" {...register('allergies')} />
+                  </div>
                 </div>
               </div>
 
               <DialogFooter className="gap-2 sm:gap-0 pt-4 border-t border-border mt-4">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => setIsModalOpen(false)}
-                  className="rounded-xl h-8 px-4 border-border text-muted-foreground text-sm hover:bg-muted/30 transition-all active:scale-95"
+                  className="rounded-xl h-9 px-4 border-border text-muted-foreground text-sm hover:bg-muted/30 transition-all active:scale-95"
                 >
                   Cancelar
                 </Button>
-                <Button 
-                  type="submit" 
-                  className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" 
+                <Button
+                  type="submit"
+                  className="bg-primary hover:bg-primary/90 text-white rounded-xl h-9 px-5 font-medium text-sm transition-all active:scale-95 disabled:opacity-50"
                   disabled={isSubmitting}
                 >
                   {isSubmitting ? 'Salvando...' : editingPatient ? 'Salvar Alterações' : 'Salvar Paciente'}
@@ -527,150 +463,165 @@ export const Patients = () => {
       </div>
 
       {!isPremium && isLimitReached && (
-        <PremiumBanner 
-          title="Limite de Pacientes Atingido" 
+        <PremiumBanner
+          title="Limite de Pacientes Atingido"
           description={`Você atingiu o limite de ${FREE_PLAN_LIMITS.maxPatients} pacientes ativos do plano gratuito. Assine o Premium para cadastrar pacientes ilimitados.`}
-          className="mb-8"
         />
       )}
 
-      <div className="flex flex-col md:flex-row gap-4">
+      {/* Search + status filter */}
+      <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input 
-            placeholder="Buscar por nome ou CPF..." 
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+          <Input
+            placeholder="Buscar por nome ou CPF..."
             className="pl-10"
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
           />
         </div>
+        <div className="flex gap-1.5 shrink-0" role="group" aria-label="Filtrar por status">
+          {(['all', 'active', 'inactive'] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setStatusFilter(f)}
+              className={cn(
+                'text-xs font-medium px-3 py-2 rounded-lg transition-colors',
+                statusFilter === f
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80',
+              )}
+            >
+              {f === 'all' ? 'Todos' : f === 'active' ? 'Ativos' : 'Inativos'}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {/* Patient grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {Array.from({ length: 6 }).map((_, i) => (
             <Card key={i}>
-              <CardContent className="p-6">
+              <CardContent className="p-5">
                 <div className="flex items-center gap-3 mb-4">
-                  <Skeleton className="w-12 h-12 rounded-full shrink-0" />
+                  <Skeleton className="w-11 h-11 rounded-full shrink-0" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-36 rounded" />
                     <Skeleton className="h-3 w-24 rounded" />
                   </div>
                 </div>
-                <div className="space-y-2.5 mb-5">
+                <div className="space-y-2 mb-5">
                   <Skeleton className="h-3 w-full rounded" />
                   <Skeleton className="h-3 w-3/4 rounded" />
                   <Skeleton className="h-3 w-1/2 rounded" />
                 </div>
-                <Skeleton className="h-8 w-full rounded-lg" />
+                <Skeleton className="h-9 w-full rounded-lg" />
               </CardContent>
             </Card>
           ))}
         </div>
       ) : filteredPatients.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {filteredPatients.map((patient) => {
-            const avatarColors = [
-              'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
-              'bg-blue-100 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300',
-              'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-300',
-              'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
-              'bg-pink-100 text-pink-700 dark:bg-pink-950/60 dark:text-pink-300',
-              'bg-cyan-100 text-cyan-700 dark:bg-cyan-950/60 dark:text-cyan-300',
-              'bg-orange-100 text-orange-700 dark:bg-orange-950/60 dark:text-orange-300',
-            ];
-            const avatarColor = avatarColors[patient.name.charCodeAt(0) % avatarColors.length];
+            const avatarStyle = AVATAR_STYLES[patient.name.charCodeAt(0) % AVATAR_STYLES.length];
             const initials = patient.name.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase();
 
             return (
-            <Card key={patient.id} className="hover:shadow-md transition-all duration-200 hover:border-border group">
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-4 gap-3">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className={cn('w-11 h-11 rounded-full flex items-center justify-center font-bold text-base shrink-0', avatarColor)}>
-                      {initials}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className="font-semibold text-foreground truncate text-sm" title={patient.name}>{patient.name}</h3>
-                        {patient.isReadOnly && (
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400 shrink-0">
-                            Somente leitura
-                          </span>
-                        )}
+              <Card key={patient.id} className="hover:shadow-sm transition-all duration-200 hover:border-border group">
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between mb-4 gap-3">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className={cn('w-11 h-11 rounded-full flex items-center justify-center font-bold text-base shrink-0', avatarStyle)} aria-hidden="true">
+                        {initials}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">{patient.cpf || '—'}</p>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h3 className="font-semibold text-foreground truncate text-sm" title={patient.name}>{patient.name}</h3>
+                          {patient.isReadOnly && (
+                            <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-accent text-accent-foreground shrink-0">
+                              Somente leitura
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">{patient.cpf || '—'}</p>
+                      </div>
+                    </div>
+                    {/* Delete action: visible on hover AND on keyboard focus within the card */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-9 w-9 rounded-lg opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => setPatientToDelete(patient)}
+                        aria-label={`Excluir ${patient.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
+
+                  <div className="space-y-1.5 mb-4 pl-0.5">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Mail className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                      <span className="truncate">{patient.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Phone className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                      <span>{patient.phone || '—'}</span>
+                    </div>
+                    {patient.objective && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Activity className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                        <span className="truncate">{patient.objective}</span>
+                      </div>
+                    )}
+                    {!patient.objective && patient.birthDate && (
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <CalendarIcon className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+                        <span>Nasc: {format(parseISO(patient.birthDate), 'dd/MM/yyyy')}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2">
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 rounded-full opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30"
-                      onClick={() => setPatientToDelete(patient)}
-                      title="Excluir paciente"
+                      nativeButton={false}
+                      render={<Link to={`/patients/${patient.id}`} aria-label={`Ver prontuário de ${patient.name}`} />}
+                      className="flex-1 h-9 text-sm font-medium rounded-lg"
+                      variant="secondary"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      Ver Prontuário
+                    </Button>
+                    <Button
+                      variant="outline"
+                      className="h-9 w-9 p-0 rounded-lg"
+                      onClick={() => openEditModal(patient)}
+                      aria-label={`Editar ${patient.name}`}
+                    >
+                      <Edit className="w-3.5 h-3.5" aria-hidden="true" />
                     </Button>
                   </div>
-                </div>
-
-                <div className="space-y-1.5 mb-4 pl-0.5">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Mail className="w-3.5 h-3.5 shrink-0" />
-                    <span className="truncate">{patient.email}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <Phone className="w-3.5 h-3.5 shrink-0" />
-                    <span>{patient.phone || '—'}</span>
-                  </div>
-                  {patient.objective && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Activity className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">{patient.objective}</span>
-                    </div>
-                  )}
-                  {!patient.objective && patient.birthDate && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <CalendarIcon className="w-3.5 h-3.5 shrink-0" />
-                      <span>Nasc: {format(parseISO(patient.birthDate), 'dd/MM/yyyy')}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    nativeButton={false}
-                    render={<Link to={`/patients/${patient.id}`} />}
-                    className="flex-1 h-8 text-sm font-medium rounded-lg"
-                    variant="secondary"
-                  >
-                    Ver Prontuário
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="h-8 w-8 p-0 rounded-lg"
-                    onClick={() => openEditModal(patient)}
-                    title="Editar Paciente"
-                  >
-                    <Edit className="w-3.5 h-3.5" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          );
+                </CardContent>
+              </Card>
+            );
           })}
         </div>
       ) : (
         <div className="text-center py-12 bg-card rounded-xl border border-dashed border-border">
-          <AlertCircle className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-foreground">Nenhum paciente encontrado</h3>
-          <p className="text-muted-foreground">Tente ajustar sua busca ou cadastrar um novo paciente.</p>
+          <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" aria-hidden="true" />
+          <h3 className="text-base font-medium text-foreground">
+            {searchTerm || statusFilter !== 'all' ? 'Nenhum paciente encontrado' : 'Nenhum paciente cadastrado'}
+          </h3>
+          <p className="text-sm text-muted-foreground mt-1">
+            {searchTerm || statusFilter !== 'all'
+              ? 'Tente ajustar a busca ou o filtro de status.'
+              : 'Cadastre o primeiro paciente para começar.'}
+          </p>
         </div>
       )}
 
-      {/* Dialog de confirmação de exclusão */}
+      {/* Delete confirmation dialog */}
       <Dialog open={!!patientToDelete} onOpenChange={(open) => { if (!open) setPatientToDelete(null); }}>
         <DialogContent>
           <DialogHeader>
@@ -684,7 +635,7 @@ export const Patients = () => {
               Cancelar
             </Button>
             <Button variant="destructive" onClick={handleDeletePatient} disabled={isDeleting}>
-              {isDeleting ? 'Excluindo...' : 'Excluir'}
+              {isDeleting ? 'Excluindo...' : 'Excluir paciente'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -692,7 +643,3 @@ export const Patients = () => {
     </div>
   );
 };
-
-function cn(...inputs: any[]) {
-  return inputs.filter(Boolean).join(' ');
-}

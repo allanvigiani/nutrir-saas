@@ -182,7 +182,7 @@ export function SupportWidget({ context, userName }: SupportWidgetProps) {
         onClick={handleOpen}
         aria-label="Abrir suporte"
         className={cn(
-          'fixed bottom-5 right-5 z-50',
+          'fixed bottom-20 md:bottom-5 right-5 z-50',
           'flex items-center justify-center',
           'w-[52px] h-[52px] rounded-full',
           'bg-green-600 text-white shadow-lg',
@@ -197,7 +197,7 @@ export function SupportWidget({ context, userName }: SupportWidgetProps) {
       {/* Painel */}
       <div
         className={cn(
-          'fixed bottom-20 right-5 z-50',
+          'fixed bottom-36 md:bottom-20 right-5 z-50',
           'w-80 max-h-[520px]',
           'flex flex-col',
           'bg-white rounded-2xl shadow-2xl border border-gray-100',

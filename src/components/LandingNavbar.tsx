@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from 'next-themes';
-import { Moon, Sun, ChevronDown, LayoutDashboard, LogOut, User } from 'lucide-react';
+import { Moon, Sun, ChevronDown, LayoutDashboard, LogOut, User, Menu } from 'lucide-react';
 import { Button } from './ui/button';
 import {
   DropdownMenu,
@@ -50,6 +50,26 @@ export function LandingNavbar() {
               Depoimentos
             </a>
           </div>
+
+          {/* Mobile menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger render={
+              <Button variant="ghost" size="icon" className="flex md:hidden">
+                <Menu className="w-5 h-5" />
+              </Button>
+            } />
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem>
+                <a href="/#features" className="w-full">Funcionalidades</a>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <a href="/#pricing" className="w-full">Preços</a>
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <a href="/#testimonials" className="w-full">Depoimentos</a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <div className="flex items-center gap-2 sm:gap-3">
             <Button
