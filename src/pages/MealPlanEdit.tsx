@@ -54,7 +54,7 @@ export function MealPlanEdit() {
 
       } catch (error) {
         console.error("Error fetching data:", error);
-        toast.error("Erro ao carregar dados.");
+        toast.error("Não foi possível carregar o plano alimentar. Verifique sua conexão e tente novamente.");
       } finally {
         setLoading(false);
       }
@@ -70,8 +70,8 @@ export function MealPlanEdit() {
     waterIntake: string;
     mealObservations: Record<string, string>;
     customMeals: any[];
-  }) => {
-    if (!user || !patientId) return;
+  }): Promise<boolean> => {
+    if (!user || !patientId) return false;
 
     try {
       const planPayload = {
@@ -112,9 +112,11 @@ export function MealPlanEdit() {
       void logEvent(planId && planId !== 'new' ? 'plano_alimentar_atualizado' : 'novo_plano_alimentar');
       toast.success(planId && planId !== 'new' ? "Plano alimentar atualizado!" : "Plano alimentar criado!");
       navigate(`/patients/${patientId}`);
+      return true;
     } catch (error) {
       console.error("Error saving meal plan:", error);
-      toast.error("Erro ao salvar plano alimentar.");
+      toast.error("Não foi possível salvar o plano alimentar. Verifique sua conexão e tente novamente.");
+      return false;
     }
   };
 
@@ -123,7 +125,7 @@ export function MealPlanEdit() {
       <div className="flex h-screen items-center justify-center bg-muted/30">
         <div className="text-center space-y-4">
           <Loader2 className="w-12 h-12 text-primary animate-spin mx-auto" />
-          <p className="text-muted-foreground font-medium">Carregando editor...</p>
+          <p className="text-muted-foreground font-medium">Carregando plano alimentar...</p>
         </div>
       </div>
     );
@@ -140,6 +142,7 @@ export function MealPlanEdit() {
         initialCustomMeals={mealPlan?.customMeals || []}
         selectedCalculation={calculation}
         foodDataSource="Todas"
+        isNew={!planId || planId === 'new'}
         onSave={handleSave}
         onClose={() => navigate(`/patients/${patientId}`)}
       />
