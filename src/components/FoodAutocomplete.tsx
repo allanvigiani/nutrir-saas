@@ -139,12 +139,12 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-foreground text-sm">{food.name}</span>
                     {('nutritionist_id' in food) && (
-                      <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold uppercase">Próprio</span>
+                      <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold">Próprio</span>
                     )}
                   </div>
                   {value === food.name && <Check className="w-4 h-4 text-primary" />}
                 </div>
-                <div className="flex gap-3 text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                <div className="flex gap-3 text-[10px] text-muted-foreground font-bold">
                   <span>{formatKcal(food.kcal)} kcal</span>
                   <span>P: {formatMacro(food.protein)}g</span>
                   <span>C: {formatMacro(food.carbs)}g</span>
