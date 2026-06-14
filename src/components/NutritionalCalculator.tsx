@@ -173,7 +173,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Formulário de Entrada */}
       <div className="lg:col-span-1 space-y-6">
-        <Card className="border-primary/20 shadow-sm">
+        <Card className="border-primary/20">
           <CardHeader className="bg-primary/10 pb-4 border-b border-primary/20">
             <CardTitle className="text-secondary-foreground flex items-center gap-2 text-lg">
               <Calculator className="w-5 h-5" />
@@ -456,7 +456,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
         {result ? (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="border-border shadow-sm">
+              <Card className="border-border">
                 <CardContent className="p-4 flex flex-col justify-center">
                   <p className="text-xs font-medium text-muted-foreground mb-1">IMC</p>
                   <span className="text-3xl font-bold text-foreground">{result.imc}</span>
@@ -471,7 +471,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                 </CardContent>
               </Card>
 
-              <Card className="border-border shadow-sm md:col-span-2">
+              <Card className="border-border md:col-span-2">
                 <CardContent className="p-5">
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                     <div>
@@ -495,7 +495,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                         <Button
                           onClick={handleSave}
                           disabled={isSaving || !latestConsultation}
-                          className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-9 px-5 rounded-xl shadow-sm shrink-0 transition-all active:scale-95"
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-9 px-5 rounded-xl shrink-0 transition-all active:scale-95"
                         >
                           {isSaving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
                           Salvar Cálculo
@@ -517,7 +517,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
               </Card>
             </div>
 
-            <Card className="border-border shadow-sm">
+            <Card className="border-border">
               <CardHeader className="border-b bg-muted/30 pb-4">
                 <CardTitle className="text-foreground text-lg">Distribuição de Macronutrientes</CardTitle>
               </CardHeader>
@@ -566,7 +566,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="border-border shadow-sm h-full">
+              <Card className="border-border h-full">
                 <CardHeader className="pb-3 border-b">
                   <CardTitle className="text-sm font-bold text-muted-foreground">Informações do Cálculo</CardTitle>
                 </CardHeader>
@@ -588,7 +588,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
               </Card>
 
               {result.alertas.length > 0 && (
-                <Card className="border-accent-foreground/20 shadow-sm bg-accent/20 h-full">
+                <Card className="border-accent-foreground/20 bg-accent/20 h-full">
                   <CardHeader className="pb-3 border-b border-accent-foreground/10">
                     <CardTitle className="text-sm font-bold text-accent-foreground flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" />
