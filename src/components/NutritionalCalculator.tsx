@@ -7,7 +7,8 @@ import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { Patient, Consultation } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { Activity, Beaker, Calculator, AlertCircle, RefreshCw } from 'lucide-react';
+import { Activity, Beaker, Calculator, AlertCircle, RefreshCw, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { cn } from '../lib/utils';
 import { NutritionCalculationInput, NutritionCalculationOutput } from '../server/services/nutrition.service'; // We will import the interface
 
@@ -189,7 +190,17 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Altura</Label>
+                <div className="flex items-center gap-1">
+                  <Label>Altura</Label>
+                  <Tooltip>
+                    <TooltipTrigger className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Sobre o campo altura">
+                      <Info className="w-3.5 h-3.5" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      Aceita metros (ex: 1,70) ou centímetros (ex: 170) — a conversão é automática.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <div className="relative">
                   <Input type="number" step="0.01" value={altura} onChange={e => setAltura(e.target.value)} className="pr-8" />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">m</span>
@@ -279,22 +290,64 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
             )}
 
             <div className="space-y-2 pt-2">
-              <Label>Condições Clínicas</Label>
-              <div className="flex flex-wrap gap-2">
-                {condicoesOpcoes.map(cond => (
-                  <button
-                    key={cond.id}
-                    onClick={() => toggleCondicao(cond.id)}
-                    className={cn(
-                      "px-3 py-1.5 text-xs font-medium rounded-full border transition-colors",
-                      (condicoesClinicas.includes(cond.id) || (condicoesClinicas.length === 0 && cond.id === 'saudavel'))
-                        ? "bg-primary/15 text-secondary-foreground border-primary/30"
-                        : "bg-card text-muted-foreground border-border hover:bg-muted/30"
-                    )}
-                  >
-                    {cond.label}
-                  </button>
-                ))}
+              <div className="flex items-center gap-1">
+                <Label>Condições Clínicas</Label>
+                <Tooltip>
+                  <TooltipTrigger className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Sobre condições clínicas">
+                    <Info className="w-3.5 h-3.5" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[260px]">
+                    Influenciam a fórmula sugerida e o fator de estresse metabólico aplicado ao cálculo.
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="space-y-2">
+                <div className="space-y-1.5">
+                  <p className="text-[11px] text-muted-foreground">Estado fisiológico</p>
+                  <div className="flex flex-wrap gap-2">
+                    {condicoesOpcoes.slice(0, 3).map(cond => {
+                      const isActive = condicoesClinicas.includes(cond.id) || (condicoesClinicas.length === 0 && cond.id === 'saudavel');
+                      return (
+                        <button
+                          key={cond.id}
+                          onClick={() => toggleCondicao(cond.id)}
+                          aria-pressed={isActive}
+                          className={cn(
+                            "px-3 py-1.5 text-xs font-medium rounded-full border transition-colors",
+                            isActive
+                              ? "bg-primary/15 text-secondary-foreground border-primary/30"
+                              : "bg-card text-muted-foreground border-border hover:bg-muted/30"
+                          )}
+                        >
+                          {cond.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="space-y-1.5 pt-1.5 border-t border-dashed border-border">
+                  <p className="text-[11px] text-muted-foreground">Quadro clínico / hospitalar</p>
+                  <div className="flex flex-wrap gap-2">
+                    {condicoesOpcoes.slice(3).map(cond => {
+                      const isActive = condicoesClinicas.includes(cond.id);
+                      return (
+                        <button
+                          key={cond.id}
+                          onClick={() => toggleCondicao(cond.id)}
+                          aria-pressed={isActive}
+                          className={cn(
+                            "px-3 py-1.5 text-xs font-medium rounded-full border transition-colors",
+                            isActive
+                              ? "bg-primary/15 text-secondary-foreground border-primary/30"
+                              : "bg-card text-muted-foreground border-border hover:bg-muted/30"
+                          )}
+                        >
+                          {cond.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -322,7 +375,17 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
               <Label className="text-primary">Ajustes Avançados</Label>
               <div className="grid grid-cols-2 gap-4 mt-2">
                 <div className="space-y-2 col-span-2">
-                  <Label className="text-xs">Fórmula Base</Label>
+                  <div className="flex items-center gap-1">
+                    <Label className="text-xs">Fórmula Base</Label>
+                    <Tooltip>
+                      <TooltipTrigger className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Sobre a fórmula base">
+                        <Info className="w-3.5 h-3.5" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[260px]">
+                        Automática escolhe Mifflin-St Jeor por padrão, OMS/FAO para pacientes com menos de 18 ou 60+ anos, e Kcal/kg para internados, críticos ou pós-cirúrgicos.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   <Select value={formulaOverride} onValueChange={setFormulaOverride}>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Automática">
