@@ -117,7 +117,7 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
       {isOpen && dropdownRect && createPortal(
         <div 
           ref={dropdownRef}
-          className="fixed bg-card rounded-xl border border-border shadow-2xl z-[9999] max-h-[350px] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
+          className="fixed bg-card rounded-xl border border-border shadow-2xl z-50 max-h-[350px] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
           style={{
             top: dropdownRect.bottom + 8,
             left: dropdownRect.left,
