@@ -86,11 +86,11 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
       whileHover={isSidebar ? { x: 4 } : { y: -2, scale: 1.01 }}
       className={cn(
         "bg-card rounded-xl border border-border relative overflow-hidden transition-all duration-300",
-        isSidebar ? "p-4 shadow-sm hover:shadow-md hover:border-primary/20" : "p-4 shadow-sm"
+        isSidebar ? "p-4 hover:border-primary/20" : "p-4"
       )}
     >
       <div className={cn("flex items-start justify-between", isSidebar ? "mb-4" : "mb-2")}>
-        <div className={cn("rounded-xl flex items-center justify-center shadow-inner", 
+        <div className={cn("rounded-xl flex items-center justify-center",
           isSidebar ? "w-10 h-10" : "w-9 h-9",
           iconBg
         )}>
@@ -99,7 +99,7 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
         <div className="text-right">
           <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
           <div className="flex items-baseline justify-end gap-1">
-            <span className={cn("font-black leading-none tracking-tighter", isSidebar ? "text-2xl" : "text-lg", color)}>
+            <span className={cn("font-bold leading-none tracking-tight", isSidebar ? "text-2xl" : "text-lg", color)}>
               {Number(value).toFixed(0)}
             </span>
             <span className="text-xs font-medium text-muted-foreground">{unit}</span>
@@ -111,19 +111,19 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
         <div className="flex items-center justify-between text-xs font-medium">
           <span className="text-muted-foreground">Atingido</span>
           {total ? (
-            <span className={cn("font-black", percentage >= 100 ? "text-primary" : "text-muted-foreground")}>
+            <span className={cn("font-bold", percentage >= 100 ? "text-primary" : "text-muted-foreground")}>
               {percentage.toFixed(0)}% <span className="text-muted-foreground font-medium">de {total.toFixed(0)}</span>
             </span>
           ) : (
             <span className="text-muted-foreground">Sem meta</span>
           )}
         </div>
-        <div className="w-full bg-muted/30 h-2 rounded-full overflow-hidden shadow-inner ring-1 ring-border/50">
+        <div className="w-full bg-muted h-2 rounded-full overflow-hidden ring-1 ring-border/50">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${percentage}%` }}
             transition={{ duration: 1.5, ease: [0.19, 1, 0.22, 1] }}
-            className={cn("h-full rounded-full shadow-sm", progressColor, percentage > 100 && "bg-rose-500")}
+            className={cn("h-full rounded-full", progressColor, percentage > 100 && "bg-destructive")}
           />
         </div>
       </div>
@@ -151,7 +151,7 @@ const MealItemRow = React.memo(({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="group relative bg-card rounded-xl p-4 border border-border hover:border-primary/30 hover:shadow-md transition-all duration-200"
+      className="group relative bg-card rounded-xl p-4 border border-border hover:border-primary/30 transition-all duration-200"
     >
       <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
         {/* Food Search */}
@@ -163,13 +163,13 @@ const MealItemRow = React.memo(({
             onAddNew={(name) => onAddNewFood(name, index)}
             placeholder="Qual o alimento?"
             dataSource={foodDataSource as any}
-            className="bg-card hover:bg-card border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl transition-all h-10 shadow-sm"
+            className="bg-card hover:bg-card border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl transition-all h-10"
           />
         </div>
 
         {/* Quantity & Unit */}
         <div className="md:col-span-3 flex items-center gap-2">
-          <div className="flex-1 bg-card border border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl h-10 px-3 transition-all flex items-center shadow-sm">
+          <div className="flex-1 bg-card border border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl h-10 px-3 transition-all flex items-center">
             <Input
               value={item.quantity}
               onChange={(e) => onUpdate(index, 'quantity', e.target.value)}
@@ -181,7 +181,7 @@ const MealItemRow = React.memo(({
             value={item.unit}
             onValueChange={(v) => onUpdate(index, 'unit', v)}
           >
-            <SelectTrigger className="flex-1 bg-card border border-border focus:border-primary focus:ring-4 focus:ring-primary/10 h-10 rounded-xl px-3 text-muted-foreground font-medium text-xs transition-all shadow-sm">
+            <SelectTrigger className="flex-1 bg-card border border-border focus:border-primary focus:ring-4 focus:ring-primary/10 h-10 rounded-xl px-3 text-muted-foreground font-medium text-xs transition-all">
               <SelectValue>{item.unit}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -203,21 +203,21 @@ const MealItemRow = React.memo(({
         {/* Macros Summary */}
         <div className="md:col-span-3 flex items-center justify-around gap-2 px-2">
           <div className="text-center">
-            <p className="text-xs font-medium text-muted-foreground mb-0.5">Kcal</p>
+            <p className="text-xs font-medium text-chart-3 mb-0.5">Kcal</p>
             <Input
               type="number"
               value={item.kcal}
               onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-foreground font-bold w-14 mx-auto transition-all shadow-inner focus:shadow-none"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-foreground font-bold w-14 mx-auto transition-all"
             />
           </div>
           <div className="text-center border-l border-border pl-2">
-            <p className="text-xs font-medium text-blue-400 mb-0.5">Prot</p>
+            <p className="text-xs font-medium text-chart-4 mb-0.5">Prot</p>
             <Input
               type="number"
               value={item.protein}
               onChange={(e) => onUpdate(index, 'protein', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all"
             />
           </div>
           <div className="text-center border-l border-border pl-2">
@@ -226,16 +226,16 @@ const MealItemRow = React.memo(({
               type="number"
               value={item.carbs}
               onChange={(e) => onUpdate(index, 'carbs', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all"
             />
           </div>
           <div className="text-center border-l border-border pl-2">
-            <p className="text-xs font-medium text-purple-400 mb-0.5">Gord</p>
+            <p className="text-xs font-medium text-chart-2 mb-0.5">Gord</p>
             <Input
               type="number"
               value={item.fat}
               onChange={(e) => onUpdate(index, 'fat', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all shadow-inner focus:shadow-none"
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all"
             />
           </div>
         </div>
@@ -246,7 +246,7 @@ const MealItemRow = React.memo(({
             variant="ghost"
             size="icon"
             onClick={() => onRemove(index)}
-            className="h-9 w-9 rounded-xl hover:bg-red-50 hover:text-red-500 text-muted-foreground/50 hover:text-red-500 transition-all"
+            className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive text-muted-foreground/50 transition-all"
           >
             <Trash2 className="w-4 h-4" />
           </Button>
@@ -470,12 +470,12 @@ export const MealPlanEditor = ({
       <motion.aside 
         initial={{ x: -320, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        className="w-[320px] bg-card border-r border-border flex flex-col h-full hidden lg:flex shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]"
+        className="w-[320px] bg-card border-r border-border flex flex-col h-full hidden lg:flex shrink-0 z-20"
       >
         <div className="p-5 border-b border-border bg-muted/30">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center shadow-lg shadow-primary/20">
-              <Activity className="w-4 h-4 text-white" />
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
+              <Activity className="w-4 h-4 text-primary-foreground" />
             </div>
             <div>
               <h2 className="text-sm font-heading font-medium text-foreground tracking-tight">Dashboard</h2>
@@ -489,20 +489,20 @@ export const MealPlanEditor = ({
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="p-5 rounded-xl bg-primary text-white shadow-lg shadow-primary/25 relative overflow-hidden group"
+              className="p-5 rounded-xl bg-primary text-primary-foreground relative overflow-hidden group"
             >
               <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                 <Calculator className="w-16 h-16" />
               </div>
               <div className="relative">
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center">
-                    <Calculator className="w-3.5 h-3.5 text-white" />
+                  <div className="w-6 h-6 rounded-lg bg-primary-foreground/20 flex items-center justify-center">
+                    <Calculator className="w-3.5 h-3.5 text-primary-foreground" />
                   </div>
                   <span className="text-xs font-medium text-primary-foreground/80">Meta Sugerida</span>
                 </div>
                 <div className="flex items-baseline gap-1.5 mb-1">
-                  <span className="text-4xl font-black tracking-tighter text-white">
+                  <span className="text-4xl font-bold tracking-tight text-primary-foreground">
                     {selectedCalculation.result.getAjustado.toFixed(0)}
                   </span>
                   <span className="text-xs font-medium text-primary-foreground/60">kcal</span>
@@ -526,9 +526,9 @@ export const MealPlanEditor = ({
                 value={mealTotals.kcal}
                 total={selectedCalculation?.result.getAjustado}
                 unit="kcal"
-                color="text-orange-600"
-                iconBg="bg-orange-50"
-                progressColor="bg-orange-500"
+                color="text-chart-3"
+                iconBg="bg-chart-3/10"
+                progressColor="bg-chart-3"
                 icon={Activity}
                 variant="sidebar"
               />
@@ -537,9 +537,9 @@ export const MealPlanEditor = ({
                 value={mealTotals.protein}
                 total={selectedCalculation?.result.macronutrientes.ptnG}
                 unit="g"
-                color="text-blue-600"
-                iconBg="bg-blue-50"
-                progressColor="bg-blue-500"
+                color="text-chart-4"
+                iconBg="bg-chart-4/10"
+                progressColor="bg-chart-4"
                 icon={Dna}
                 variant="sidebar"
               />
@@ -559,9 +559,9 @@ export const MealPlanEditor = ({
                 value={mealTotals.fat}
                 total={selectedCalculation?.result.macronutrientes.lipG}
                 unit="g"
-                color="text-purple-600"
-                iconBg="bg-purple-50"
-                progressColor="bg-purple-500"
+                color="text-chart-2"
+                iconBg="bg-chart-2/10"
+                progressColor="bg-chart-2"
                 icon={Droplets}
                 variant="sidebar"
               />
@@ -605,7 +605,7 @@ export const MealPlanEditor = ({
                 variant="outline"
                 size="icon"
                 onClick={handleRequestClose}
-                className="rounded-xl border-border hover:bg-muted/30 transition-all h-9 w-9 shrink-0 shadow-sm"
+                className="rounded-xl border-border hover:bg-muted/30 transition-all h-9 w-9 shrink-0"
               >
                 <ArrowLeft className="w-4 h-4 text-muted-foreground" />
               </Button>
@@ -622,7 +622,7 @@ export const MealPlanEditor = ({
               </div>
             </div>
 
-            <div className="hidden lg:flex items-center gap-1.5 p-1 bg-muted/80 rounded-xl border border-border/60 shadow-inner">
+            <div className="hidden lg:flex items-center gap-1.5 p-1 bg-muted/80 rounded-xl border border-border/60">
               <div className="px-3 text-xs font-medium text-muted-foreground border-r border-border mr-1">
                 Base de Dados
               </div>
@@ -638,7 +638,7 @@ export const MealPlanEditor = ({
                   className={cn(
                     "flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap tracking-wide",
                     currentFoodDataSource === source.id
-                      ? "bg-card text-primary shadow-sm ring-1 ring-border/10"
+                      ? "bg-card text-primary ring-1 ring-border/10"
                       : "text-muted-foreground hover:text-foreground hover:bg-card/40"
                   )}
                 >
@@ -652,7 +652,7 @@ export const MealPlanEditor = ({
               <Button
                 onClick={handleSaveClick}
                 disabled={isSaving}
-                className="bg-primary hover:bg-primary/90 text-white rounded-xl h-10 px-6 font-bold text-xs gap-2 shadow-lg shadow-primary/10 transition-all active:scale-95 group"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-10 px-6 font-bold text-xs gap-2 transition-all active:scale-95 group"
               >
                 {isSaving ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -669,13 +669,13 @@ export const MealPlanEditor = ({
         <div className="lg:hidden border-b border-border bg-card px-4 py-2 print:hidden">
           <div className="flex items-center justify-around gap-2">
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-orange-500" />
+              <div className="w-2 h-2 rounded-full bg-chart-3" />
               <span className="text-xs font-bold text-foreground">{mealTotals.kcal.toFixed(0)}</span>
               <span className="text-[11px] text-muted-foreground">kcal</span>
             </div>
             <div className="w-px h-4 bg-border" />
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-blue-500" />
+              <div className="w-2 h-2 rounded-full bg-chart-4" />
               <span className="text-xs font-bold text-foreground">{mealTotals.protein.toFixed(0)}g</span>
               <span className="text-[11px] text-muted-foreground">prot</span>
             </div>
@@ -687,7 +687,7 @@ export const MealPlanEditor = ({
             </div>
             <div className="w-px h-4 bg-border" />
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-purple-500" />
+              <div className="w-2 h-2 rounded-full bg-chart-2" />
               <span className="text-xs font-bold text-foreground">{mealTotals.fat.toFixed(0)}g</span>
               <span className="text-[11px] text-muted-foreground">gord</span>
             </div>
@@ -701,7 +701,7 @@ export const MealPlanEditor = ({
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card rounded-2xl p-6 border border-border shadow-[0_20px_50px_rgba(0,0,0,0.03)] relative overflow-hidden"
+              className="bg-card rounded-2xl p-6 border border-border relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
                 <Edit2 className="w-48 h-48 text-foreground" />
@@ -714,18 +714,18 @@ export const MealPlanEditor = ({
                     <Input
                       value={mealPlanName}
                       onChange={(e) => setMealPlanName(e.target.value)}
-                      className="text-xl font-black border-2 border-border bg-card focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 h-12 rounded-xl transition-all shadow-sm px-5"
+                      className="text-xl font-bold border-2 border-border bg-card focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 h-12 rounded-xl transition-all px-5"
                       placeholder="Ex: Estratégia de Cutting..."
                     />
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs font-medium text-muted-foreground ml-1">Ingestão de Água</Label>
                     <div className="relative">
-                      <Droplets className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-400 pointer-events-none" />
+                      <Droplets className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                       <Input
                         value={waterIntake}
                         onChange={(e) => setWaterIntake(e.target.value)}
-                        className="pl-9 border-2 border-border bg-card focus:bg-card focus:border-blue-400 focus:ring-4 focus:ring-blue-400/10 h-12 rounded-xl transition-all shadow-sm"
+                        className="pl-9 border-2 border-border bg-card focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 h-12 rounded-xl transition-all"
                         placeholder="Ex: 2,5L"
                       />
                     </div>
@@ -739,7 +739,7 @@ export const MealPlanEditor = ({
                   </div>
                   <Textarea
                     placeholder="Quais as orientações principais para este plano?"
-                    className="min-h-[110px] rounded-xl border-2 border-border bg-card focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 shadow-sm resize-none transition-all text-base font-medium leading-relaxed p-4"
+                    className="min-h-[110px] rounded-xl border-2 border-border bg-card focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 resize-none transition-all text-base font-medium leading-relaxed p-4"
                     value={generalInstructions}
                     onChange={(e) => setGeneralInstructions(e.target.value)}
                   />
@@ -751,14 +751,14 @@ export const MealPlanEditor = ({
             <div className="space-y-12 pb-24">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-2">
                 <div>
-                  <h2 className="text-xl font-black text-foreground tracking-tight flex items-center gap-3">
+                  <h2 className="text-xl font-bold text-foreground tracking-tight flex items-center gap-3">
                     Cronograma de Refeições
                   </h2>
                   <p className="text-xs text-muted-foreground font-medium mt-1 ml-11">Estruture os horários e alimentos do paciente</p>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="px-4 py-2 bg-card rounded-xl border border-border shadow-sm flex items-center gap-2">
+                  <div className="px-4 py-2 bg-card rounded-xl border border-border flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-primary" />
                     <span className="text-xs font-medium text-muted-foreground">
                       {mealItems.length} Alimentos selecionados
@@ -779,7 +779,7 @@ export const MealPlanEditor = ({
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      className="group/meal relative bg-card/50 hover:bg-card rounded-2xl border border-border hover:border-primary/20 p-6 transition-all duration-500 shadow-sm hover:shadow-xl"
+                      className="group/meal relative bg-card/50 hover:bg-card rounded-2xl border border-border hover:border-primary/20 p-6 transition-all duration-500"
                     >
                       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
                         <div className="flex items-center gap-4">
@@ -788,10 +788,10 @@ export const MealPlanEditor = ({
                               <Input
                                 value={mealType.label}
                                 onChange={(e) => updateMealType(mealType.id, 'label', e.target.value)}
-                                className="font-black text-xl border-none bg-muted/50 hover:bg-muted/50 focus:bg-card h-11 px-4 w-full lg:w-[320px] text-foreground focus:ring-2 focus:ring-primary/20 rounded-xl placeholder:text-muted-foreground transition-all shadow-inner focus:shadow-none"
+                                className="font-bold text-xl border-none bg-muted/50 hover:bg-muted/50 focus:bg-card h-11 px-4 w-full lg:w-[320px] text-foreground focus:ring-2 focus:ring-primary/20 rounded-xl placeholder:text-muted-foreground transition-all"
                                 placeholder="Título da Refeição"
                               />
-                              <div className="flex items-center gap-2 px-4 py-1.5 bg-card rounded-xl border-2 border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 shadow-sm shrink-0 h-11 transition-all">
+                              <div className="flex items-center gap-2 px-4 py-1.5 bg-card rounded-xl border-2 border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 shrink-0 h-11 transition-all">
                                 <Clock className="w-4 h-4 text-muted-foreground" />
                                 <Input
                                   type="time"
@@ -804,15 +804,15 @@ export const MealPlanEditor = ({
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-2 bg-card p-2 rounded-xl shadow-sm border border-border">
+                        <div className="flex items-center gap-2 bg-card p-2 rounded-xl border border-border">
                           <div className="flex items-center gap-3 px-3 py-1.5 bg-primary/10 rounded-xl border border-primary/20">
                             <div className="text-center">
-                              <p className="text-xs font-medium text-primary">Energia</p>
+                              <p className="text-xs font-medium text-chart-3">Energia</p>
                               <p className="text-xs font-bold text-foreground">{totals.kcal.toFixed(0)}<span className="text-[11px] ml-0.5">kcal</span></p>
                             </div>
                             <div className="w-px h-5 bg-primary/15" />
                             <div className="text-center">
-                              <p className="text-xs font-medium text-blue-500">Prot</p>
+                              <p className="text-xs font-medium text-chart-4">Prot</p>
                               <p className="text-xs font-bold text-foreground">{totals.protein.toFixed(1)}g</p>
                             </div>
                             <div className="w-px h-5 bg-primary/15" />
@@ -822,16 +822,16 @@ export const MealPlanEditor = ({
                             </div>
                             <div className="w-px h-5 bg-primary/15" />
                             <div className="text-center">
-                              <p className="text-xs font-medium text-purple-500">Gord</p>
+                              <p className="text-xs font-medium text-chart-2">Gord</p>
                               <p className="text-xs font-bold text-foreground">{totals.fat.toFixed(1)}g</p>
                             </div>
                           </div>
-                          
+
                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => removeMealType(mealType.id)}
-                            className="text-muted-foreground hover:text-red-500 hover:bg-red-50 rounded-xl h-9 w-9 transition-all"
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl h-9 w-9 transition-all"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
@@ -878,7 +878,7 @@ export const MealPlanEditor = ({
                           </div>
                           <Textarea
                             placeholder="Observações importantes para esta refeição..."
-                            className="min-h-[80px] text-sm font-medium bg-card border-2 border-border rounded-xl resize-none focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 shadow-sm transition-all p-4"
+                            className="min-h-[80px] text-sm font-medium bg-card border-2 border-border rounded-xl resize-none focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all p-4"
                             value={mealObservations[mealType.id] || ''}
                             onChange={(e) => setMealObservations(prev => ({ ...prev, [mealType.id]: e.target.value }))}
                           />
@@ -893,11 +893,11 @@ export const MealPlanEditor = ({
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center justify-center py-24 px-10 text-center bg-card rounded-2xl border-2 border-dashed border-border shadow-[0_20px_50px_rgba(0,0,0,0.02)]"
+                  className="flex flex-col items-center justify-center py-24 px-10 text-center bg-card rounded-2xl border-2 border-dashed border-border"
                 >
                   <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 relative">
                     <Apple className="w-10 h-10 text-primary" />
-                    <div className="absolute -top-1.5 -right-1.5 w-7 h-7 bg-card rounded-full shadow-lg flex items-center justify-center">
+                    <div className="absolute -top-1.5 -right-1.5 w-7 h-7 bg-card rounded-full ring-1 ring-border flex items-center justify-center">
                       <Plus className="w-3.5 h-3.5 text-primary" />
                     </div>
                   </div>
@@ -905,9 +905,9 @@ export const MealPlanEditor = ({
                   <p className="text-muted-foreground max-w-sm mx-auto mb-8 font-medium text-sm leading-relaxed">
                     Comece adicionando a primeira refeição para estruturar a estratégia do seu paciente.
                   </p>
-                  <Button 
+                  <Button
                     onClick={addCustomMeal}
-                    className="bg-primary hover:bg-primary/90 text-white rounded-xl h-12 px-10 font-bold shadow-xl shadow-primary/10 transition-all active:scale-95 text-base"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-12 px-10 font-bold transition-all active:scale-95 text-base"
                   >
                     <Plus className="w-5 h-5 mr-2" /> Nova Refeição
                   </Button>
@@ -919,7 +919,7 @@ export const MealPlanEditor = ({
                   <Button
                     onClick={addCustomMeal}
                     variant="outline"
-                    className="bg-card hover:bg-primary/10 text-primary border-2 border-dashed border-primary/30 rounded-2xl h-14 px-10 font-bold text-sm gap-3 transition-all shadow-[0_10px_30px_rgb(0,0,0,0.02)] hover:shadow-lg hover:border-primary/40 active:scale-95"
+                    className="bg-card hover:bg-primary/10 text-primary border-2 border-dashed border-primary/30 rounded-2xl h-14 px-10 font-bold text-sm gap-3 transition-all hover:border-primary/40 active:scale-95"
                   >
                     <Plus className="w-5 h-5" /> Adicionar Refeição
                   </Button>
