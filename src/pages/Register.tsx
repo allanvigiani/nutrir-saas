@@ -381,7 +381,7 @@ export const Register = () => {
 
         <div className="relative flex flex-col items-center justify-center text-center p-16 w-full">
           <div className="max-w-sm space-y-6">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 border border-white/20 text-white/90 text-xs font-semibold uppercase tracking-widest backdrop-blur-sm">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 border border-white/20 text-white/90 text-xs font-semibold">
               Comece Gratuitamente
             </div>
             <h2 className="text-4xl font-bold text-white leading-tight tracking-tight">
@@ -416,7 +416,7 @@ export const Register = () => {
                 { value: '+15', label: 'Nutricionistas' },
                 { value: 'Grátis', label: 'Para começar' },
               ].map((stat) => (
-                <div key={stat.label} className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/15">
+                <div key={stat.label} className="bg-white/10 rounded-2xl p-4 border border-white/15">
                   <p className="text-2xl font-bold text-white">{stat.value}</p>
                   <p className="text-white/70 text-xs mt-0.5">{stat.label}</p>
                 </div>
