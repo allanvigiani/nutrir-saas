@@ -155,6 +155,24 @@ const SummaryCard = ({ label, value, total, unit, color, progressColor, icon: Ic
   </Card>
 );
 
+const EvolutionTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  const formattedLabel = typeof label === 'string' && label.length === 10
+    ? format(parseISO(label), 'dd/MM/yyyy', { locale: ptBR })
+    : format(new Date(label), 'dd/MM/yyyy', { locale: ptBR });
+  return (
+    <div className="bg-popover border border-border rounded-lg px-3 py-2 shadow-lg text-[13px]">
+      <p className="font-semibold text-foreground mb-1">{formattedLabel}</p>
+      {payload.map((entry: any) => (
+        <p key={entry.dataKey} className="flex items-center gap-1.5 text-muted-foreground">
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.stroke }} />
+          {entry.name}: <span className="font-medium text-foreground">{entry.value}</span>
+        </p>
+      ))}
+    </div>
+  );
+};
+
 const consultationSchema = z.object({
   date: z.string().min(1, 'Data é obrigatória'),
   weight: z.coerce.number().min(0, 'Peso deve ser positivo'),
@@ -1763,7 +1781,7 @@ export const PatientProfile = () => {
                               <div>
                                 <div className="flex items-center gap-3">
                                   <h4 className="font-bold text-xl leading-none">{meal.label}</h4>
-                                  {meal.time && <span className="text-xs font-black opacity-40 bg-black/5 px-2 py-0.5 rounded-full uppercase tracking-tighter">{meal.time}</span>}
+                                  {meal.time && <span className="text-xs font-medium opacity-50 bg-black/5 px-2 py-0.5 rounded-full">{meal.time}</span>}
                                 </div>
                                 <div className="flex items-center gap-2 mt-1.5">
                                   <span className="text-[10px] font-medium opacity-50">{items.length} {items.length === 1 ? 'alimento' : 'alimentos'}</span>
@@ -1833,7 +1851,7 @@ export const PatientProfile = () => {
                 <div className="hidden print:flex flex-col items-center mt-20 pt-10 border-t border-border">
                   <div className="w-64 h-px bg-border mb-4"></div>
                   <p className="text-base font-bold text-foreground">{user?.displayName || 'Nutricionista'}</p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Assinatura do Profissional</p>
+                  <p className="text-xs text-muted-foreground mt-1">Assinatura do Profissional</p>
                 </div>
               </div>
             </div>
@@ -1919,26 +1937,26 @@ export const PatientProfile = () => {
 
             <div className="grid grid-cols-4 gap-4 mb-8">
               <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Calorias</p>
+                <p className="text-xs font-medium text-muted-foreground">Calorias</p>
                 <p className="text-lg font-bold text-foreground">{viewMealTotals.kcal} kcal</p>
               </div>
               <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Proteínas</p>
+                <p className="text-xs font-medium text-muted-foreground">Proteínas</p>
                 <p className="text-lg font-bold text-foreground">{viewMealTotals.protein.toFixed(1)} g</p>
               </div>
               <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Carboidratos</p>
+                <p className="text-xs font-medium text-muted-foreground">Carboidratos</p>
                 <p className="text-lg font-bold text-foreground">{viewMealTotals.carbs.toFixed(1)} g</p>
               </div>
               <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Gorduras</p>
+                <p className="text-xs font-medium text-muted-foreground">Gorduras</p>
                 <p className="text-lg font-bold text-foreground">{viewMealTotals.fat.toFixed(1)} g</p>
               </div>
             </div>
 
             {selectedMealPlan?.generalInstructions && (
               <div className="mb-8">
-                <h4 className="font-bold text-secondary-foreground text-sm uppercase tracking-widest mb-2">Orientações Gerais</h4>
+                <h4 className="font-medium text-secondary-foreground text-sm mb-2">Orientações Gerais</h4>
                 <div className="p-5 bg-card rounded-xl border border-border text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">
                   {selectedMealPlan.generalInstructions}
                 </div>
@@ -1965,13 +1983,13 @@ export const PatientProfile = () => {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="bg-muted/30 text-muted-foreground text-left border-b">
-                            <th className="px-6 py-3 font-bold uppercase text-[10px]">Alimento</th>
-                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Qtd</th>
-                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Unidade</th>
-                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Kcal</th>
-                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">P (g)</th>
-                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">C (g)</th>
-                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">G (g)</th>
+                            <th className="px-6 py-3 font-medium text-[11px]">Alimento</th>
+                            <th className="px-4 py-3 font-medium text-[11px] text-center">Qtd</th>
+                            <th className="px-4 py-3 font-medium text-[11px] text-center">Unidade</th>
+                            <th className="px-4 py-3 font-medium text-[11px] text-center">Kcal</th>
+                            <th className="px-4 py-3 font-medium text-[11px] text-center">P (g)</th>
+                            <th className="px-4 py-3 font-medium text-[11px] text-center">C (g)</th>
+                            <th className="px-4 py-3 font-medium text-[11px] text-center">G (g)</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -1996,7 +2014,7 @@ export const PatientProfile = () => {
             <div className="flex flex-col items-center mt-20 pt-10 border-t border-border">
               <div className="w-64 h-px bg-border mb-4"></div>
               <p className="text-base font-bold text-foreground">{user?.displayName || 'Nutricionista'}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Assinatura do Profissional</p>
+              <p className="text-xs text-muted-foreground mt-1">Assinatura do Profissional</p>
             </div>
           </div>
         </div>
@@ -2564,15 +2582,7 @@ export const PatientProfile = () => {
                             width={38}
                             tick={{ fill: 'var(--muted-foreground)' }}
                           />
-                          <Tooltip
-                            contentStyle={{
-                              borderRadius: '10px',
-                              border: '1px solid hsl(var(--border))',
-                              boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-                              fontSize: '13px',
-                            }}
-                            labelFormatter={(date) => formatDateSafely(date, 'dd/MM/yyyy')}
-                          />
+                          <Tooltip content={<EvolutionTooltip />} />
                           <Legend verticalAlign="top" height={32} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '12px' }} />
 
                           {evolutionMetric === 'weight' && (
