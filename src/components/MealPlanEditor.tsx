@@ -283,19 +283,20 @@ export const MealPlanEditor = ({
   const [initialFoodName, setInitialFoodName] = useState('');
   const [activeMealItemIndex, setActiveMealItemIndex] = useState<number | null>(null);
 
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
-  const isFirstRender = useRef(true);
 
-  // Marca o plano como alterado a partir da segunda renderização (ignora o estado inicial)
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      return;
-    }
-    setHasUnsavedChanges(true);
-  }, [mealPlanName, mealItems, generalInstructions, waterIntake, mealObservations, mealTypes]);
+  const initialMealTypesRef = useRef(JSON.stringify(initialCustomMeals.length > 0 ? initialCustomMeals : DEFAULT_MEAL_TYPES));
+  const initialItemsRef = useRef(JSON.stringify(initialItems));
+
+  const hasUnsavedChanges = useMemo(() => {
+    if (mealPlanName !== initialName) return true;
+    if (generalInstructions !== initialGeneralInstructions) return true;
+    if (waterIntake !== initialWaterIntake) return true;
+    if (JSON.stringify(mealItems) !== initialItemsRef.current) return true;
+    if (JSON.stringify(mealTypes) !== initialMealTypesRef.current) return true;
+    return false;
+  }, [mealPlanName, mealItems, generalInstructions, waterIntake, mealTypes, initialName, initialGeneralInstructions, initialWaterIntake]);
 
   // Avisa o navegador antes de fechar a aba/recarregar com alterações não salvas
   useEffect(() => {
@@ -329,9 +330,7 @@ export const MealPlanEditor = ({
         mealObservations,
         customMeals: mealTypes
       });
-      if (success) {
-        setHasUnsavedChanges(false);
-      }
+      // hasUnsavedChanges é derivado — reseta automaticamente ao voltar para o estado inicial
     } finally {
       setIsSaving(false);
     }

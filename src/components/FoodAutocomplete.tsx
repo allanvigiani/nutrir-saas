@@ -33,7 +33,8 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
 
   const [isOpen, setIsOpen] = useState(false);
   const [filteredFoods, setFilteredFoods] = useState<(TacoFood | TbcaFood | CustomFood)[]>([]);
-  const { data: customFoods = [] } = useApi<CustomFood[]>('/api/custom-foods');
+  const { data: customFoodsData } = useApi<CustomFood[]>('/api/custom-foods');
+  const customFoods = customFoodsData ?? [];
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);

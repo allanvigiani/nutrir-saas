@@ -1331,19 +1331,6 @@ export const PatientProfile = () => {
                           </span>
 
                           <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              className="text-muted-foreground hover:text-primary disabled:opacity-30"
-                                                           onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedConsultationForCalc(consultation);
-                                setIsCalculatorModalOpen(true);
-                              }}
-                              title="Novo Cálculo Nutricional"
-                            >
-                              <Calculator className="w-4 h-4" />
-                            </Button>
                             <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-primary disabled:opacity-30" title="Editar consulta" onClick={(e) => {
                               e.stopPropagation();
                               setSelectedConsultation(consultation);
@@ -1593,17 +1580,9 @@ export const PatientProfile = () => {
                             if (!planDaConsulta) return null;
                             const refeicoes = planDaConsulta.customMeals ?? [];
                             return (
-                              <div className="pt-4 border-t border-border mt-4">
-                                <div className="flex items-center justify-between mb-3">
+                              <div className="mt-4">
+                                <div className="flex items-center mb-3">
                                   <h4 className="text-sm font-bold text-muted-foreground">Plano Alimentar</h4>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-7 text-xs text-primary hover:text-primary px-2"
-                                    onClick={() => navigate(`/patients/${id}/meal-plan/${planDaConsulta.id}`)}
-                                  >
-                                    Abrir plano →
-                                  </Button>
                                 </div>
                                 <div className="bg-muted/30 rounded-xl border border-border p-3 space-y-2">
                                   <div className="flex items-center justify-between">
