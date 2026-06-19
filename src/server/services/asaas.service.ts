@@ -242,7 +242,7 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
       if (userId) {
         subscriptionService.upsert(userId, {
           plan: "free",
-          asaasStatus: "cancelled",
+          asaasStatus: "INACTIVE",
           cancelAtPeriodEnd: false,
         }).catch((err) => logger.error("[verifySubscription] Erro ao sincronizar plano expirado", err));
       }
@@ -323,7 +323,7 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
     if (userDocId) {
       try {
         const updateData: any = {
-          asaasStatus: refunded ? "refunded" : "cancelled",
+          asaasStatus: refunded ? "REFUNDED" : "INACTIVE",
           cancelAtPeriodEnd: !refunded,
         };
         if (refunded) {

@@ -377,7 +377,7 @@ describe('AsaasService.cancelSubscription', () => {
 
     expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ asaasStatus: 'cancelled', cancelAtPeriodEnd: true }),
+        create: expect.objectContaining({ asaasStatus: 'INACTIVE', cancelAtPeriodEnd: true }),
       }),
     );
   });

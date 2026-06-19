@@ -89,17 +89,17 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
         isSidebar ? "p-4 hover:border-primary/20" : "p-4"
       )}
     >
-      <div className={cn("flex items-start justify-between", isSidebar ? "mb-4" : "mb-2")}>
-        <div className={cn("rounded-xl flex items-center justify-center",
-          isSidebar ? "w-10 h-10" : "w-9 h-9",
+      <div className={cn("flex items-center gap-3", isSidebar ? "mb-3" : "mb-2")}>
+        <div className={cn("rounded-xl flex items-center justify-center shrink-0",
+          isSidebar ? "w-9 h-9" : "w-8 h-8",
           iconBg
         )}>
-          <Icon className={cn(isSidebar ? "w-5 h-5" : "w-4.5 h-4.5", color)} />
+          <Icon className={cn("w-4 h-4", color)} />
         </div>
-        <div className="text-right">
-          <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-          <div className="flex items-baseline justify-end gap-1">
-            <span className={cn("font-bold leading-none tracking-tight", isSidebar ? "text-2xl" : "text-lg", color)}>
+        <div>
+          <p className="text-xs font-medium text-muted-foreground">{label}</p>
+          <div className="flex items-baseline gap-1">
+            <span className={cn("font-bold leading-none tracking-tight", isSidebar ? "text-xl" : "text-lg", color)}>
               {Number(value).toFixed(0)}
             </span>
             <span className="text-xs font-medium text-muted-foreground">{unit}</span>
@@ -151,9 +151,9 @@ const MealItemRow = React.memo(({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="group relative bg-card rounded-xl p-4 border border-border hover:border-primary/30 transition-all duration-200"
+      className="group relative bg-card rounded-xl p-2 border border-border hover:border-primary/30 transition-all duration-200"
     >
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
         {/* Food Search */}
         <div className="md:col-span-5">
           <FoodAutocomplete
@@ -163,13 +163,13 @@ const MealItemRow = React.memo(({
             onAddNew={(name) => onAddNewFood(name, index)}
             placeholder="Qual o alimento?"
             dataSource={foodDataSource as any}
-            className="bg-card hover:bg-card border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl transition-all h-10"
+            className="bg-card hover:bg-card border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl transition-all h-8"
           />
         </div>
 
         {/* Quantity & Unit */}
         <div className="md:col-span-3 flex items-center gap-2">
-          <div className="flex-1 bg-card border border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl h-10 px-3 transition-all flex items-center">
+          <div className="flex-1 bg-card border border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl h-8 px-3 transition-all flex items-center">
             <Input
               value={item.quantity}
               onChange={(e) => onUpdate(index, 'quantity', e.target.value)}
@@ -181,7 +181,7 @@ const MealItemRow = React.memo(({
             value={item.unit}
             onValueChange={(v) => onUpdate(index, 'unit', v)}
           >
-            <SelectTrigger className="flex-1 bg-card border border-border focus:border-primary focus:ring-4 focus:ring-primary/10 h-10 rounded-xl px-3 text-muted-foreground font-medium text-xs transition-all">
+            <SelectTrigger className="flex-1 bg-card border border-border focus:border-primary focus:ring-4 focus:ring-primary/10 h-8 rounded-xl px-3 text-muted-foreground font-medium text-xs transition-all">
               <SelectValue>{item.unit}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -472,7 +472,7 @@ export const MealPlanEditor = ({
         animate={{ x: 0, opacity: 1 }}
         className="w-[320px] bg-card border-r border-border flex flex-col h-full hidden lg:flex shrink-0 z-20"
       >
-        <div className="p-5 border-b border-border bg-muted/30">
+        <div className="p-5 bg-muted/30">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
               <Activity className="w-4 h-4 text-primary-foreground" />
@@ -481,6 +481,23 @@ export const MealPlanEditor = ({
               <h2 className="text-sm font-heading font-medium text-foreground tracking-tight">Dashboard</h2>
               <p className="text-xs text-muted-foreground font-medium">Nutricional</p>
             </div>
+          </div>
+          <div
+            className={cn(
+              "flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-colors mt-3",
+              hasUnsavedChanges
+                ? "bg-accent border-accent-foreground/20"
+                : "bg-card border-border"
+            )}
+          >
+            {hasUnsavedChanges ? (
+              <CircleAlert className="w-3.5 h-3.5 text-accent-foreground shrink-0" />
+            ) : (
+              <CircleCheck className="w-3.5 h-3.5 text-primary shrink-0" />
+            )}
+            <p className="text-xs font-medium text-foreground">
+              {hasUnsavedChanges ? 'Alterações não salvas' : 'Tudo salvo'}
+            </p>
           </div>
         </div>
 
@@ -537,9 +554,9 @@ export const MealPlanEditor = ({
                 value={mealTotals.protein}
                 total={selectedCalculation?.result.macronutrientes.ptnG}
                 unit="g"
-                color="text-chart-4"
-                iconBg="bg-chart-4/10"
-                progressColor="bg-chart-4"
+                color="text-emerald-600"
+                iconBg="bg-emerald-500/10"
+                progressColor="bg-emerald-500"
                 icon={Dna}
                 variant="sidebar"
               />
@@ -548,9 +565,9 @@ export const MealPlanEditor = ({
                 value={mealTotals.carbs}
                 total={selectedCalculation?.result.macronutrientes.choG}
                 unit="g"
-                color="text-primary"
-                iconBg="bg-primary/10"
-                progressColor="bg-primary"
+                color="text-blue-600"
+                iconBg="bg-blue-500/10"
+                progressColor="bg-blue-500"
                 icon={Zap}
                 variant="sidebar"
               />
@@ -559,9 +576,9 @@ export const MealPlanEditor = ({
                 value={mealTotals.fat}
                 total={selectedCalculation?.result.macronutrientes.lipG}
                 unit="g"
-                color="text-chart-2"
-                iconBg="bg-chart-2/10"
-                progressColor="bg-chart-2"
+                color="text-red-500"
+                iconBg="bg-red-500/10"
+                progressColor="bg-red-500"
                 icon={Droplets}
                 variant="sidebar"
               />
@@ -570,25 +587,6 @@ export const MealPlanEditor = ({
 
         </div>
 
-        <div className="p-4 border-t border-border bg-muted/30">
-          <div
-            className={cn(
-              "flex items-center gap-2.5 p-3 rounded-xl border transition-colors",
-              hasUnsavedChanges
-                ? "bg-accent border-accent-foreground/20"
-                : "bg-card border-border"
-            )}
-          >
-            {hasUnsavedChanges ? (
-              <CircleAlert className="w-4 h-4 text-accent-foreground shrink-0" />
-            ) : (
-              <CircleCheck className="w-4 h-4 text-primary shrink-0" />
-            )}
-            <p className="text-xs font-medium text-foreground">
-              {hasUnsavedChanges ? 'Alterações não salvas' : 'Tudo salvo'}
-            </p>
-          </div>
-        </div>
       </motion.aside>
 
       {/* Main Editor Area */}
@@ -610,15 +608,10 @@ export const MealPlanEditor = ({
                 <ArrowLeft className="w-4 h-4 text-muted-foreground" />
               </Button>
               
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground mb-0.5">
-                  <span>Plano Alimentar</span>
-                  <ChevronRight className="w-3 h-3" />
-                  <span className="text-primary">Edição</span>
-                </div>
-                <h1 className="text-base font-bold text-foreground tracking-tight leading-none truncate max-w-[200px] lg:max-w-md">
-                  {mealPlanName || 'Novo Plano Alimentar'}
-                </h1>
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <span>Plano Alimentar</span>
+                <ChevronRight className="w-3 h-3" />
+                <span className="text-primary font-semibold">Edição</span>
               </div>
             </div>
 
@@ -695,19 +688,19 @@ export const MealPlanEditor = ({
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar">
-          <div className="max-w-5xl mx-auto w-full p-6 lg:p-10 space-y-12">
+          <div className="max-w-5xl mx-auto w-full p-4 space-y-4">
             
             {/* Top Config Section */}
             <motion.div 
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-card rounded-2xl p-6 border border-border relative overflow-hidden"
+              className="bg-card rounded-2xl p-4 border border-border relative overflow-hidden"
             >
               <div className="absolute top-0 right-0 p-10 opacity-[0.02] pointer-events-none">
                 <Edit2 className="w-48 h-48 text-foreground" />
               </div>
 
-              <div className="space-y-6 relative">
+              <div className="space-y-4 relative">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="sm:col-span-2 space-y-2">
                     <Label className="text-xs font-medium text-muted-foreground ml-1">Nome do Plano</Label>
@@ -732,14 +725,14 @@ export const MealPlanEditor = ({
                   </div>
                 </div>
 
-                <div className="pt-5 border-t border-border">
-                  <div className="flex items-center gap-2 mb-3 px-1">
+                <div className="pt-3 border-t border-border">
+                  <div className="flex items-center gap-2 mb-2 px-1">
                     <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
                     <Label className="text-xs font-medium text-muted-foreground">Orientações Gerais</Label>
                   </div>
                   <Textarea
                     placeholder="Quais as orientações principais para este plano?"
-                    className="min-h-[110px] rounded-xl border-2 border-border bg-card focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 resize-none transition-all text-base font-medium leading-relaxed p-4"
+                    className="min-h-[72px] rounded-xl border-2 border-border bg-card focus:bg-card focus:border-primary focus:ring-4 focus:ring-primary/10 resize-none transition-all text-sm font-medium leading-relaxed p-3"
                     value={generalInstructions}
                     onChange={(e) => setGeneralInstructions(e.target.value)}
                   />
@@ -748,13 +741,13 @@ export const MealPlanEditor = ({
             </motion.div>
 
             {/* Meals Section */}
-            <div className="space-y-12 pb-24">
+            <div className="space-y-4 pb-6">
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-2">
                 <div>
                   <h2 className="text-xl font-bold text-foreground tracking-tight flex items-center gap-3">
                     Cronograma de Refeições
                   </h2>
-                  <p className="text-xs text-muted-foreground font-medium mt-1 ml-11">Estruture os horários e alimentos do paciente</p>
+                  <p className="text-xs text-muted-foreground font-medium mt-1">Estruture os horários e alimentos do paciente</p>
                 </div>
 
                 <div className="flex items-center gap-3">
@@ -893,21 +886,21 @@ export const MealPlanEditor = ({
                 <motion.div 
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="flex flex-col items-center justify-center py-24 px-10 text-center bg-card rounded-2xl border-2 border-dashed border-border"
+                  className="flex flex-col items-center justify-center py-8 px-10 text-center bg-card rounded-2xl border-2 border-dashed border-border"
                 >
-                  <div className="w-20 h-20 bg-primary/10 rounded-2xl flex items-center justify-center mb-6 relative">
-                    <Apple className="w-10 h-10 text-primary" />
+                  <div className="w-14 h-14 bg-primary/10 rounded-2xl flex items-center justify-center mb-4 relative">
+                    <Apple className="w-7 h-7 text-primary" />
                     <div className="absolute -top-1.5 -right-1.5 w-7 h-7 bg-card rounded-full ring-1 ring-border flex items-center justify-center">
                       <Plus className="w-3.5 h-3.5 text-primary" />
                     </div>
                   </div>
                   <h3 className="text-xl font-bold text-foreground mb-2 tracking-tight">O plano está vazio</h3>
-                  <p className="text-muted-foreground max-w-sm mx-auto mb-8 font-medium text-sm leading-relaxed">
+                  <p className="text-muted-foreground max-w-sm mx-auto mb-4 font-medium text-sm leading-relaxed">
                     Comece adicionando a primeira refeição para estruturar a estratégia do seu paciente.
                   </p>
                   <Button
                     onClick={addCustomMeal}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-12 px-10 font-bold transition-all active:scale-95 text-base"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-9 px-6 font-bold transition-all active:scale-95 text-sm"
                   >
                     <Plus className="w-5 h-5 mr-2" /> Nova Refeição
                   </Button>
@@ -919,9 +912,9 @@ export const MealPlanEditor = ({
                   <Button
                     onClick={addCustomMeal}
                     variant="outline"
-                    className="bg-card hover:bg-primary/10 text-primary border-2 border-dashed border-primary/30 rounded-2xl h-14 px-10 font-bold text-sm gap-3 transition-all hover:border-primary/40 active:scale-95"
+                    className="bg-card hover:bg-primary/10 text-primary border border-dashed border-primary/30 rounded-xl h-8 px-4 font-medium text-xs gap-1.5 transition-all hover:border-primary/40 active:scale-95"
                   >
-                    <Plus className="w-5 h-5" /> Adicionar Refeição
+                    <Plus className="w-3.5 h-3.5" /> Adicionar Refeição
                   </Button>
                 </div>
               )}
@@ -941,14 +934,14 @@ export const MealPlanEditor = ({
         />
 
         <Dialog open={showLeaveConfirm} onOpenChange={setShowLeaveConfirm}>
-          <DialogContent>
+          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
             <DialogHeader>
               <DialogTitle>Sair sem salvar?</DialogTitle>
               <DialogDescription>
                 Você tem alterações não salvas neste plano alimentar. Se sair agora, elas serão perdidas.
               </DialogDescription>
             </DialogHeader>
-            <DialogFooter>
+            <DialogFooter className="flex gap-2 sm:justify-end">
               <Button variant="outline" onClick={() => setShowLeaveConfirm(false)}>
                 Continuar editando
               </Button>
