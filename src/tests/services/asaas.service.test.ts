@@ -59,38 +59,38 @@ describe('AsaasService.handleWebhookEvent', () => {
     );
   });
 
-  it('PAYMENT_RECEIVED → atualiza plano para "premium" e status para "active"', async () => {
+  it('PAYMENT_RECEIVED → atualiza plano para "premium" e status para "RECEIVED"', async () => {
     await service.handleWebhookEvent({
       event: 'PAYMENT_RECEIVED',
-      payment: { externalReference: 'user123', dueDate: '2026-05-01' },
+      payment: { externalReference: 'user123', dueDate: '2026-05-01', status: 'RECEIVED' },
     });
     expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ plan: 'premium', asaasStatus: 'active' }),
+        create: expect.objectContaining({ plan: 'premium', asaasStatus: 'RECEIVED' }),
       }),
     );
   });
 
-  it('PAYMENT_CONFIRMED → comporta-se igual ao PAYMENT_RECEIVED', async () => {
+  it('PAYMENT_CONFIRMED → atualiza plano para "premium" e status para "CONFIRMED"', async () => {
     await service.handleWebhookEvent({
       event: 'PAYMENT_CONFIRMED',
-      payment: { externalReference: 'user123' },
+      payment: { externalReference: 'user123', status: 'CONFIRMED' },
     });
     expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ plan: 'premium', asaasStatus: 'active' }),
+        create: expect.objectContaining({ plan: 'premium', asaasStatus: 'CONFIRMED' }),
       }),
     );
   });
 
-  it('PAYMENT_OVERDUE → atualiza asaasStatus para "overdue"', async () => {
+  it('PAYMENT_OVERDUE → atualiza asaasStatus para "OVERDUE"', async () => {
     await service.handleWebhookEvent({
       event: 'PAYMENT_OVERDUE',
-      payment: { externalReference: 'user123' },
+      payment: { externalReference: 'user123', status: 'OVERDUE' },
     });
     expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ asaasStatus: 'overdue' }),
+        create: expect.objectContaining({ asaasStatus: 'OVERDUE' }),
       }),
     );
   });
@@ -107,33 +107,33 @@ describe('AsaasService.handleWebhookEvent', () => {
     );
   });
 
-  it('SUBSCRIPTION_CREATED → salva asaasSubscriptionId', async () => {
+  it('SUBSCRIPTION_CREATED → salva asaasSubscriptionId e status "ACTIVE"', async () => {
     await service.handleWebhookEvent({
       event: 'SUBSCRIPTION_CREATED',
       payment: { externalReference: 'user123' },
-      subscription: { id: 'sub_abc', externalReference: 'user123' },
+      subscription: { id: 'sub_abc', status: 'ACTIVE', externalReference: 'user123' },
     });
     expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ asaasSubscriptionId: 'sub_abc', asaasStatus: 'active' }),
+        create: expect.objectContaining({ asaasSubscriptionId: 'sub_abc', asaasStatus: 'ACTIVE' }),
       }),
     );
   });
 
-  it('SUBSCRIPTION_DELETED → marca cancelAtPeriodEnd e status "cancelled"', async () => {
+  it('SUBSCRIPTION_DELETED → marca cancelAtPeriodEnd e status "INACTIVE"', async () => {
     await service.handleWebhookEvent({
       event: 'SUBSCRIPTION_DELETED',
       payment: { externalReference: 'user123' },
-      subscription: { externalReference: 'user123' },
+      subscription: { status: 'INACTIVE', externalReference: 'user123' },
     });
     expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ asaasStatus: 'cancelled', cancelAtPeriodEnd: true }),
+        create: expect.objectContaining({ asaasStatus: 'INACTIVE', cancelAtPeriodEnd: true }),
       }),
     );
   });
 
-  it('SUBSCRIPTION_UPDATED ACTIVE → mantém plano "premium"', async () => {
+  it('SUBSCRIPTION_UPDATED ACTIVE → mantém plano "premium" e status "ACTIVE"', async () => {
     await service.handleWebhookEvent({
       event: 'SUBSCRIPTION_UPDATED',
       payment: { externalReference: 'user123' },
@@ -141,12 +141,12 @@ describe('AsaasService.handleWebhookEvent', () => {
     });
     expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ plan: 'premium', asaasStatus: 'active' }),
+        create: expect.objectContaining({ plan: 'premium', asaasStatus: 'ACTIVE' }),
       }),
     );
   });
 
-  it('SUBSCRIPTION_UPDATED INACTIVE → rebaixa para "free"', async () => {
+  it('SUBSCRIPTION_UPDATED INACTIVE → rebaixa para "free" e status "INACTIVE"', async () => {
     await service.handleWebhookEvent({
       event: 'SUBSCRIPTION_UPDATED',
       payment: { externalReference: 'user123' },
@@ -154,7 +154,7 @@ describe('AsaasService.handleWebhookEvent', () => {
     });
     expect(mockSubscriptionUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        create: expect.objectContaining({ plan: 'free', asaasStatus: 'inactive' }),
+        create: expect.objectContaining({ plan: 'free', asaasStatus: 'INACTIVE' }),
       }),
     );
   });

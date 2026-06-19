@@ -34,6 +34,7 @@ export interface Nutritionist {
   hasSeenTutorial?: boolean;
   planOverridedByAdmin?: boolean;
   gracePeriodEndAt?: string | null;
+  freeTrialMode?: boolean;
 }
 
 export interface Patient {

@@ -32,7 +32,10 @@ export function createAuthenticateMiddleware({ admin }: AuthMiddlewareDeps) {
       req.user.dbRole = nutritionist?.role ?? "nutritionist";
       req.user.dbPlan = nutritionist?.plan ?? "free";
       req.user.isAdmin = req.user.dbRole === "admin";
-      req.user.isPremium = req.user.isAdmin || req.user.dbPlan === "premium";
+      req.user.isPremium =
+        process.env.FREE_TRIAL_MODE === "true" ||
+        req.user.isAdmin ||
+        req.user.dbPlan === "premium";
       req.user.gracePeriodEndAt = nutritionist?.gracePeriodEndAt ?? null;
 
       return next();

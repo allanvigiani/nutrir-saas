@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { UpgradeModal } from './UpgradeModal';
 import { cn } from '../lib/utils';
 import { useSubscription } from '../hooks/useSubscription';
+import { useAuth } from '../contexts/AuthContext';
 
 interface PremiumBannerProps {
   className?: string;
@@ -11,14 +12,16 @@ interface PremiumBannerProps {
   description?: string;
 }
 
-export const PremiumBanner = ({ 
-  className, 
-  title = "Desbloqueie o Plano Premium", 
+export const PremiumBanner = ({
+  className,
+  title = "Desbloqueie o Plano Premium",
   description = "Remova todos os limites e tenha acesso a recursos exclusivos para o seu consultório."
 }: PremiumBannerProps) => {
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
-
+  const { nutritionist } = useAuth();
   const { verifySubscription, isVerifying } = useSubscription();
+
+  if (nutritionist?.freeTrialMode) return null;
 
   return (
     <>

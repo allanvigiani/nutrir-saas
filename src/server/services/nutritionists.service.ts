@@ -7,6 +7,9 @@ export function createNutritionistsService() {
       include: { subscription: true },
     });
     if (!nutritionist) throw new Error('Nutricionista não encontrado');
+    if (process.env.FREE_TRIAL_MODE === 'true') {
+      return { ...nutritionist, freeTrialMode: true };
+    }
     return nutritionist;
   }
 

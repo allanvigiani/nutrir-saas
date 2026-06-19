@@ -2514,7 +2514,7 @@ export const PatientProfile = () => {
                       {consultations.length} consulta{consultations.length !== 1 ? 's' : ''} registrada{consultations.length !== 1 ? 's' : ''}.
                     </CardDescription>
                   </div>
-                  <div className="flex gap-1.5 flex-wrap">
+                  <div className="inline-flex items-center bg-muted rounded-lg p-[3px] gap-[3px]">
                     {(
                       [
                         ['weight', 'Peso'],
@@ -2527,10 +2527,10 @@ export const PatientProfile = () => {
                         key={val}
                         onClick={() => setEvolutionMetric(val)}
                         className={cn(
-                          'px-3 py-1.5 text-xs font-medium rounded-full transition-all border',
+                          'px-3 py-1 text-sm font-medium rounded-md transition-all whitespace-nowrap',
                           evolutionMetric === val
-                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                            : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
                         )}
                       >
                         {label}

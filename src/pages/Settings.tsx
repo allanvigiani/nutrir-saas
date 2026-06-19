@@ -452,8 +452,8 @@ export const Settings = () => {
           >
             <Shield className="w-4 h-4" /> Segurança
           </TabsTrigger>
-          <TabsTrigger 
-            value="subscription" 
+          <TabsTrigger
+            value="subscription"
             className="relative gap-2 px-3 py-3 md:px-4 md:py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Award className="w-4 h-4" /> Assinatura e Plano
@@ -875,6 +875,28 @@ export const Settings = () => {
             <Card className="border-none shadow-sm pt-0 gap-0">
 
               {/* Header colorido por estado */}
+              {nutritionist?.freeTrialMode ? (
+                <div className="px-6 py-5 bg-gradient-to-br from-emerald-600 to-emerald-500">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <h3 className="text-xl font-bold flex items-center gap-2 text-white">
+                        <Award className="w-6 h-6 text-white/90" />
+                        Acesso Premium Gratuito
+                      </h3>
+                      <p className="text-sm text-white/75">
+                        Você está aproveitando todos os recursos Premium gratuitamente durante o período de avaliação do sistema.
+                      </p>
+                    </div>
+                    <Badge className="shrink-0 text-[10px] font-bold px-2.5 py-1 bg-white/20 text-white border-white/30">
+                      BETA
+                    </Badge>
+                  </div>
+                  <div className="mt-3 bg-black/15 rounded-lg px-3 py-2 flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-white/80 shrink-0" />
+                    <span className="text-xs text-white/85">Sem cobranças durante este período. Aproveite à vontade!</span>
+                  </div>
+                </div>
+              ) : (
               <div className={cn(
                 "px-6 py-5",
                 nutritionist?.role === 'admin'
@@ -970,6 +992,7 @@ export const Settings = () => {
                   })()
                 )}
               </div>
+              )}
 
               <CardContent className="pt-5 space-y-5">
                 {/* Grid de limites/benefícios */}
@@ -1012,7 +1035,7 @@ export const Settings = () => {
                 </div>
 
                 {/* Aviso cancelamento pendente */}
-                {nutritionist?.subscription?.cancelAtPeriodEnd && (
+                {!nutritionist?.freeTrialMode && nutritionist?.subscription?.cancelAtPeriodEnd && (
                   <div className="bg-accent/30 border border-accent-foreground/20 rounded-xl p-4 flex items-start gap-3">
                     <AlertCircle className="w-5 h-5 text-accent-foreground shrink-0 mt-0.5" />
                     <div className="space-y-1">
@@ -1038,7 +1061,7 @@ export const Settings = () => {
                 )}
 
                 {/* Ações premium: gerenciar */}
-                {(nutritionist?.plan === 'premium' || nutritionist?.subscription?.cancelAtPeriodEnd) && (
+                {!nutritionist?.freeTrialMode && (nutritionist?.plan === 'premium' || nutritionist?.subscription?.cancelAtPeriodEnd) && (
                   <div className="space-y-3">
                     <Button
                       variant="outline"
@@ -1123,7 +1146,7 @@ export const Settings = () => {
                 )}
 
                 {/* CTA para plano gratuito */}
-                {!isPremiumOrAdmin && !nutritionist?.subscription?.cancelAtPeriodEnd && (
+                {!nutritionist?.freeTrialMode && !isPremiumOrAdmin && !nutritionist?.subscription?.cancelAtPeriodEnd && (
                   <div className="space-y-3 pt-1">
                     <Button
                       className="w-full bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-11 font-bold text-sm shadow-md shadow-primary/20 transition-all active:scale-95"

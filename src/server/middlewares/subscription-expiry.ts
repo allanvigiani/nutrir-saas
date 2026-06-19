@@ -10,7 +10,7 @@ export function createSubscriptionExpiryMiddleware(
   const subscriptionService: UpsertOnly = deps.subscriptionService ?? createSubscriptionService();
 
   return async (req: any, res: any, next: any) => {
-    if (req.user?.isAdmin || req.user?.dbPlan !== 'premium') {
+    if (process.env.FREE_TRIAL_MODE === 'true' || req.user?.isAdmin || req.user?.dbPlan !== 'premium') {
       return next();
     }
 
