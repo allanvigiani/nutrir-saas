@@ -111,14 +111,22 @@ export const Register = () => {
         }
       }
 
-      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
-      const user = userCredential.user;
+      // Se o usuário já existe no Firebase (tentativa anterior falhou no banco),
+      // reutiliza a sessão em vez de criar nova conta
+      let firebaseUser = auth.currentUser;
+      let isNewFirebaseUser = false;
 
-      await updateProfile(user, {
-        displayName: data.name
-      });
+      if (firebaseUser && firebaseUser.email === data.email) {
+        // Recuperação: usuário Firebase já existe, só falta o perfil no banco
+        await firebaseUser.getIdToken(true);
+      } else {
+        const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+        firebaseUser = userCredential.user;
+        isNewFirebaseUser = true;
+        await updateProfile(firebaseUser, { displayName: data.name });
+      }
 
-      const idToken = await user.getIdToken();
+      const idToken = await firebaseUser.getIdToken();
 
       const profileRes = await fetch('/api/auth/register-profile', {
         method: 'POST',
@@ -137,9 +145,15 @@ export const Register = () => {
       });
 
       if (!profileRes.ok) {
+        // Se criamos o usuário Firebase agora, remove para permitir nova tentativa limpa
+        if (isNewFirebaseUser) {
+          await firebaseUser.delete().catch(() => {});
+        }
         const err = await profileRes.json().catch(() => ({}));
         throw new Error(err.error || 'Erro ao salvar perfil.');
       }
+
+      const user = firebaseUser;
 
       remoteLogger.info("Novo usuário cadastrado (Email/Senha)", { userId: user.uid, email: data.email });
 
