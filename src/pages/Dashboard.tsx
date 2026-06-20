@@ -67,7 +67,7 @@ export const Dashboard = () => {
     return val || 'oklch(0.50 0 0)';
   }, [resolvedTheme]);
 
-  const { data: stats, loading } = useApi<DashboardStats>('/api/dashboard/stats', {
+  const { data: stats, loading } = useApi<DashboardStats>('/api/dashboard', {
     immediate: isAuthReady && !!user,
   });
 

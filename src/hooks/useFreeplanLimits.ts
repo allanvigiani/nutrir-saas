@@ -27,7 +27,7 @@ export function useFreeplanLimits(patientId?: string): FreePlanLimits {
 
     setIsLoading(true);
 
-    apiRequest<any>('/api/dashboard/stats', 'GET')
+    apiRequest<any>('/api/dashboard', 'GET')
       .then(async (stats) => {
         const count = stats?.consultationsThisMonth ?? 0;
         setConsultationsThisMonth(count);
