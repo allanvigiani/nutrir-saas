@@ -2,7 +2,7 @@
   "cleanUrls": false,
   "trailingSlash": false,
   "functions": {
-    "api/index.ts": {
+    "api/index.js": {
       "includeFiles": "node_modules/.prisma/**"
     }
   },
