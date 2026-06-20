@@ -25,6 +25,16 @@ export function registerNutritionCalculationsRoutes(deps: BaseRouteDeps) {
     }
   });
 
+  deps.app.put('/api/calculations/:id', deps.authenticate, async (req: any, res: any) => {
+    try {
+      await withNutritionistRLS(req.user.uid, async () => {
+        res.json(await service.update(req.user.uid, req.params.id, req.body));
+      });
+    } catch (err: any) {
+      return res.status(400).json({ error: err.message });
+    }
+  });
+
   deps.app.delete('/api/calculations/:id', deps.authenticate, async (req: any, res: any) => {
     try {
       await withNutritionistRLS(req.user.uid, async () => {

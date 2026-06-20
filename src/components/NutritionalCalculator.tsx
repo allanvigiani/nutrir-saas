@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Card, CardContent, CardHeader } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
@@ -7,7 +7,8 @@ import { Button } from './ui/button';
 import { toast } from 'sonner';
 import { Patient, Consultation } from '../types';
 import { useAuth } from '../contexts/AuthContext';
-import { Activity, Beaker, Calculator, AlertCircle, RefreshCw } from 'lucide-react';
+import { Activity, Beaker, Calculator, AlertCircle, RefreshCw, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { cn } from '../lib/utils';
 import { NutritionCalculationInput, NutritionCalculationOutput } from '../server/services/nutrition.service'; // We will import the interface
 
@@ -16,37 +17,43 @@ import { NutritionCalculationInput, NutritionCalculationOutput } from '../server
 interface CalculatorProps {
   patient: Patient;
   latestConsultation?: Consultation;
+  existingCalculation?: { id: string; input: any; result: any } | null;
   onSaveCalculation?: (input: NutritionCalculationInput, result: NutritionCalculationOutput, name: string) => Promise<void>;
   onCreateMealPlan?: (input: NutritionCalculationInput, result: NutritionCalculationOutput) => void;
 }
 
-export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalculation, onCreateMealPlan }: CalculatorProps) => {
+export const NutritionalCalculator = ({ patient, latestConsultation, existingCalculation, onSaveCalculation, onCreateMealPlan }: CalculatorProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<NutritionCalculationOutput | null>(null);
-  const [calculationName, setCalculationName] = useState('Cálculo Padrão');
+  const [result, setResult] = useState<NutritionCalculationOutput | null>(existingCalculation?.result ?? null);
+  const calculationName = latestConsultation
+    ? `Cálculo - ${new Date(latestConsultation.date).toLocaleDateString('pt-BR')}`
+    : 'Cálculo Padrão';
   const [isSaving, setIsSaving] = useState(false);
 
-  // Form State
-  const [peso, setPeso] = useState<string>(latestConsultation?.weight?.toString() || '');
-  const [altura, setAltura] = useState<string>(latestConsultation?.height?.toString() || '');
+  const ex = existingCalculation?.input;
+
+  // Form State — pré-populado com cálculo existente quando disponível
+  const [peso, setPeso] = useState<string>(ex?.peso?.toString() || latestConsultation?.weight?.toString() || '');
+  const [altura, setAltura] = useState<string>(ex?.altura?.toString() || latestConsultation?.height?.toString() || '');
   const [idade, setIdade] = useState<string>(
-    patient.birthDate ? Math.floor((new Date().getTime() - new Date(patient.birthDate).getTime()) / 31557600000).toString() : ''
+    ex?.idade?.toString() ||
+    (patient.birthDate ? Math.floor((new Date().getTime() - new Date(patient.birthDate).getTime()) / 31557600000).toString() : '')
   );
   const [sexo, setSexo] = useState<'masculino' | 'feminino'>(
-    patient.gender === 'female' ? 'feminino' : 'masculino'
+    ex?.sexo || (patient.gender === 'female' ? 'feminino' : 'masculino')
   );
-  const [nivelAtividade, setNivelAtividade] = useState<string>('1.2'); // default sedentário
-  const [objetivo, setObjetivo] = useState<string>('manutencao');
-  const [condicoesClinicas, setCondicoesClinicas] = useState<string[]>([]);
-  const [formulaOverride, setFormulaOverride] = useState<string>('');
-  
+  const [nivelAtividade, setNivelAtividade] = useState<string>(ex?.nivelAtividade?.toString() || '1.2');
+  const [objetivo, setObjetivo] = useState<string>(ex?.objetivo || 'manutencao');
+  const [condicoesClinicas, setCondicoesClinicas] = useState<string[]>(ex?.condicoesClinicas || []);
+  const [formulaOverride, setFormulaOverride] = useState<string>(ex?.formulaOverride || '');
+
   // Advanced options
-  const [ajusteObjetivoValor, setAjusteObjetivoValor] = useState<string>('');
-  const [percentualLip, setPercentualLip] = useState<string>('');
-  const [percentualPtn, setPercentualPtn] = useState<string>('');
-  const [percentualCho, setPercentualCho] = useState<string>('');
-  const [trimestreGestacao, setTrimestreGestacao] = useState<string>('');
+  const [ajusteObjetivoValor, setAjusteObjetivoValor] = useState<string>(ex?.ajusteObjetivoValor?.toString() || '');
+  const [percentualLip, setPercentualLip] = useState<string>(ex?.percentualLip?.toString() || '');
+  const [percentualPtn, setPercentualPtn] = useState<string>(ex?.percentualPtn?.toString() || '');
+  const [percentualCho, setPercentualCho] = useState<string>(ex?.percentualCho?.toString() || '');
+  const [trimestreGestacao, setTrimestreGestacao] = useState<string>(ex?.trimestreGestacao?.toString() || '');
 
   const condicoesOpcoes = [
     { id: 'saudavel', label: 'Saudável' },
@@ -169,17 +176,17 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
       {/* Formulário de Entrada */}
-      <div className="lg:col-span-1 space-y-6">
-        <Card className="border-primary/20 shadow-sm">
-          <CardHeader className="bg-primary/10 pb-4 border-b border-primary/20">
-            <CardTitle className="text-secondary-foreground flex items-center gap-2 text-lg">
-              <Calculator className="w-5 h-5" />
+      <div className="lg:col-span-1 space-y-4">
+        <Card className="bg-muted/40">
+          <CardHeader className="pb-3 border-b border-border">
+            <div className="text-sm font-medium text-foreground flex items-center gap-2">
+              <Calculator className="w-4 h-4 text-primary" />
               Parâmetros do Paciente
-            </CardTitle>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4 pt-6">
+          <CardContent className="space-y-4 pt-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label>Peso</Label>
@@ -189,7 +196,17 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                 </div>
               </div>
               <div className="space-y-1.5">
-                <Label>Altura</Label>
+                <div className="flex items-center gap-1">
+                  <Label>Altura</Label>
+                  <Tooltip>
+                    <TooltipTrigger className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Sobre o campo altura">
+                      <Info className="w-3.5 h-3.5" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      Aceita metros (ex: 1,70) ou centímetros (ex: 170) — a conversão é automática.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <div className="relative">
                   <Input type="number" step="0.01" value={altura} onChange={e => setAltura(e.target.value)} className="pr-8" />
                   <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">m</span>
@@ -279,22 +296,64 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
             )}
 
             <div className="space-y-2 pt-2">
-              <Label>Condições Clínicas</Label>
-              <div className="flex flex-wrap gap-2">
-                {condicoesOpcoes.map(cond => (
-                  <button
-                    key={cond.id}
-                    onClick={() => toggleCondicao(cond.id)}
-                    className={cn(
-                      "px-3 py-1.5 text-xs font-medium rounded-full border transition-colors",
-                      (condicoesClinicas.includes(cond.id) || (condicoesClinicas.length === 0 && cond.id === 'saudavel'))
-                        ? "bg-primary/15 text-secondary-foreground border-primary/30"
-                        : "bg-card text-muted-foreground border-border hover:bg-muted/30"
-                    )}
-                  >
-                    {cond.label}
-                  </button>
-                ))}
+              <div className="flex items-center gap-1">
+                <Label>Condições Clínicas</Label>
+                <Tooltip>
+                  <TooltipTrigger className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Sobre condições clínicas">
+                    <Info className="w-3.5 h-3.5" />
+                  </TooltipTrigger>
+                  <TooltipContent side="top" className="max-w-[260px]">
+                    Influenciam a fórmula sugerida e o fator de estresse metabólico aplicado ao cálculo.
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="space-y-2">
+                <div className="space-y-1.5">
+                  <p className="text-[11px] text-muted-foreground">Estado fisiológico</p>
+                  <div className="flex flex-wrap justify-start gap-2">
+                    {condicoesOpcoes.slice(0, 3).map(cond => {
+                      const isActive = condicoesClinicas.includes(cond.id) || (condicoesClinicas.length === 0 && cond.id === 'saudavel');
+                      return (
+                        <button
+                          key={cond.id}
+                          onClick={() => toggleCondicao(cond.id)}
+                          aria-pressed={isActive}
+                          className={cn(
+                            "px-3 py-1.5 text-xs font-medium rounded-full border transition-colors",
+                            isActive
+                              ? "bg-primary/15 text-secondary-foreground border-primary/30"
+                              : "bg-card text-muted-foreground border-border hover:bg-muted/30"
+                          )}
+                        >
+                          {cond.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="space-y-1.5 pt-1.5 border-t border-dashed border-border">
+                  <p className="text-[11px] text-muted-foreground">Quadro clínico / hospitalar</p>
+                  <div className="flex flex-wrap justify-start gap-2">
+                    {condicoesOpcoes.slice(3).map(cond => {
+                      const isActive = condicoesClinicas.includes(cond.id);
+                      return (
+                        <button
+                          key={cond.id}
+                          onClick={() => toggleCondicao(cond.id)}
+                          aria-pressed={isActive}
+                          className={cn(
+                            "px-3 py-1.5 text-xs font-medium rounded-full border transition-colors",
+                            isActive
+                              ? "bg-primary/15 text-secondary-foreground border-primary/30"
+                              : "bg-card text-muted-foreground border-border hover:bg-muted/30"
+                          )}
+                        >
+                          {cond.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -322,7 +381,17 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
               <Label className="text-primary">Ajustes Avançados</Label>
               <div className="grid grid-cols-2 gap-4 mt-2">
                 <div className="space-y-2 col-span-2">
-                  <Label className="text-xs">Fórmula Base</Label>
+                  <div className="flex items-center gap-1">
+                    <Label className="text-xs">Fórmula Base</Label>
+                    <Tooltip>
+                      <TooltipTrigger className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Sobre a fórmula base">
+                        <Info className="w-3.5 h-3.5" />
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="max-w-[260px]">
+                        Automática escolhe Mifflin-St Jeor por padrão, OMS/FAO para pacientes com menos de 18 ou 60+ anos, e Kcal/kg para internados, críticos ou pós-cirúrgicos.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   <Select value={formulaOverride} onValueChange={setFormulaOverride}>
                     <SelectTrigger className="h-8 text-xs">
                       <SelectValue placeholder="Automática">
@@ -362,7 +431,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
                           <Input
                             className={cn("h-8 text-xs pr-6", isPercentError && "border-destructive focus-visible:ring-destructive/20")}
                             type="number"
-                            placeholder="Auto"
+                            placeholder="%"
                             value={value}
                             onChange={e => set(e.target.value)}
                           />
@@ -382,8 +451,8 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
       {/* Painel de Resultados */}
       <div className="lg:col-span-2 relative">
         {loading && (
-          <div className="absolute inset-0 bg-card/60 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
-            <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-4 py-2 shadow-sm">
+          <div className="absolute inset-0 bg-card/70 backdrop-blur-sm z-10 flex items-center justify-center rounded-xl">
+            <div className="flex items-center gap-2 bg-card border border-border rounded-lg px-4 py-2">
               <RefreshCw className="w-4 h-4 text-primary animate-spin" />
               <span className="text-sm text-muted-foreground">Calculando...</span>
             </div>
@@ -391,109 +460,109 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
         )}
 
         {result ? (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="border-border shadow-sm">
-                <CardContent className="p-4 flex flex-col justify-center">
-                  <p className="text-xs font-medium text-muted-foreground mb-1">IMC</p>
-                  <span className="text-3xl font-bold text-foreground">{result.imc}</span>
+          <div className="space-y-4">
+
+            {/* Linha 1: IMC + GET + Ações */}
+            <div className="grid grid-cols-3 gap-4">
+              {/* IMC */}
+              <Card>
+                <CardContent className="p-4">
+                  <p className="text-xs font-medium text-muted-foreground mb-2">IMC</p>
+                  <p className="text-2xl font-bold text-foreground tabular-nums">{result.imc}</p>
                   <span className={cn(
-                    "text-xs font-medium mt-2 px-2 py-1 rounded-md inline-block w-fit",
-                    result.classificacaoImc.includes('obesidade') || result.classificacaoImc.includes('Baixo') ? "bg-destructive/10 text-destructive" :
-                    result.classificacaoImc.includes('Sobrepeso') ? "bg-accent/20 text-accent-foreground" :
-                    "bg-primary/15 text-primary"
+                    "inline-block text-xs font-medium mt-2 px-2 py-0.5 rounded-md",
+                    result.classificacaoImc.toLowerCase().includes('obesi') || result.classificacaoImc.toLowerCase().includes('baixo')
+                      ? "bg-destructive/10 text-destructive"
+                      : result.classificacaoImc.toLowerCase().includes('sobrepeso')
+                      ? "bg-accent/30 text-accent-foreground"
+                      : "bg-primary/10 text-primary"
                   )}>
                     {result.classificacaoImc}
                   </span>
                 </CardContent>
               </Card>
 
-              <Card className="border-border shadow-sm md:col-span-2">
-                <CardContent className="p-5">
-                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
+              {/* Gasto Energético */}
+              <Card className="col-span-2">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="text-xs font-medium text-muted-foreground mb-1">Gasto Energético Alvo</p>
-                      <div className="flex items-end gap-2">
-                        <span className="text-4xl font-bold text-primary tabular-nums">{result.getAjustado}</span>
-                        <span className="text-base font-medium text-muted-foreground mb-1">kcal/dia</span>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-3xl font-bold text-primary tabular-nums">{result.getAjustado}</span>
+                        <span className="text-sm font-medium text-muted-foreground">kcal/dia</span>
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1.5">
+                      <p className="text-xs text-muted-foreground mt-1.5">
                         Base: {result.get} kcal · TMB: {result.tmb} kcal
                       </p>
                     </div>
-                    {onSaveCalculation && (
-                      <div className="flex flex-col items-end gap-2 shrink-0">
-                        <Input
-                          value={calculationName}
-                          onChange={(e) => setCalculationName(e.target.value)}
-                          placeholder="Nome do Cálculo"
-                          className="h-8 text-sm text-right max-w-[200px]"
-                        />
-                        <Button
-                          onClick={handleSave}
-                          disabled={isSaving || !latestConsultation}
-                          className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-9 px-5 rounded-xl shadow-sm shrink-0 transition-all active:scale-95"
-                        >
-                          {isSaving ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
-                          Salvar Cálculo
-                        </Button>
-                        {onCreateMealPlan && (
-                          <Button
-                            variant="outline"
-                            onClick={() => onCreateMealPlan(result as any, result as any)}
-                            className="text-xs h-8 px-4 rounded-lg"
-                          >
-                            Criar Plano com este Cálculo
-                          </Button>
-                        )}
-                        {!latestConsultation && <span className="text-xs text-accent-foreground/80">Requer consulta base</span>}
-                      </div>
-                    )}
                   </div>
                 </CardContent>
               </Card>
             </div>
 
-            <Card className="border-border shadow-sm">
-              <CardHeader className="border-b bg-muted/30 pb-4">
-                <CardTitle className="text-foreground text-lg">Distribuição de Macronutrientes</CardTitle>
+            {/* Linha 2: Macronutrientes */}
+            <Card>
+              <CardHeader className="pb-3 border-b border-border">
+                <div className="text-sm font-medium text-foreground">Distribuição de Macronutrientes</div>
               </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-3 gap-3">
                   {/* Proteínas */}
-                  <div className="bg-card p-4 rounded-xl border border-border">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="font-medium text-foreground">Proteínas</span>
-                      <span className="text-xs font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{Math.round((result.macronutrientes.ptnKcal / result.getAjustado) * 100)}%</span>
+                  <div className="rounded-xl border border-border bg-card p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        <span className="text-xs font-medium text-foreground">Proteínas</span>
+                      </div>
+                      <span className="text-[11px] font-medium bg-emerald-500/10 text-emerald-600 px-1.5 py-0.5 rounded-md">
+                        {Math.round((result.macronutrientes.ptnKcal / result.getAjustado) * 100)}%
+                      </span>
                     </div>
-                    <p className="text-2xl font-bold text-foreground tabular-nums">{result.macronutrientes.ptnG} <span className="text-sm font-normal text-muted-foreground">g</span></p>
-                    <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
+                    <p className="text-xl font-bold text-emerald-600 tabular-nums">
+                      {result.macronutrientes.ptnG}<span className="text-sm font-normal text-muted-foreground ml-1">g</span>
+                    </p>
+                    <div className="flex justify-between mt-2 text-xs text-muted-foreground">
                       <span>{result.macronutrientes.ptnGKg} g/kg</span>
                       <span>{result.macronutrientes.ptnKcal} kcal</span>
                     </div>
                   </div>
 
                   {/* Carboidratos */}
-                  <div className="bg-card p-4 rounded-xl border border-border">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="font-medium text-foreground">Carboidratos</span>
-                      <span className="text-xs font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{Math.round((result.macronutrientes.choKcal / result.getAjustado) * 100)}%</span>
+                  <div className="rounded-xl border border-border bg-card p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                        <span className="text-xs font-medium text-foreground">Carboidratos</span>
+                      </div>
+                      <span className="text-[11px] font-medium bg-blue-500/10 text-blue-600 px-1.5 py-0.5 rounded-md">
+                        {Math.round((result.macronutrientes.choKcal / result.getAjustado) * 100)}%
+                      </span>
                     </div>
-                    <p className="text-2xl font-bold text-foreground tabular-nums">{result.macronutrientes.choG} <span className="text-sm font-normal text-muted-foreground">g</span></p>
-                    <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
+                    <p className="text-lg font-bold text-blue-600 tabular-nums">
+                      {result.macronutrientes.choG}<span className="text-xs font-normal text-muted-foreground ml-1">g</span>
+                    </p>
+                    <div className="flex justify-between mt-1.5 text-[11px] text-muted-foreground">
                       <span>{result.macronutrientes.choGKg} g/kg</span>
                       <span>{result.macronutrientes.choKcal} kcal</span>
                     </div>
                   </div>
 
-                  {/* Lipídios */}
-                  <div className="bg-card p-4 rounded-xl border border-border">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="font-medium text-foreground">Gorduras</span>
-                      <span className="text-xs font-medium bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{result.macronutrientes.lipPercentual}%</span>
+                  {/* Gorduras */}
+                  <div className="rounded-xl border border-border bg-card p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                        <span className="text-xs font-medium text-foreground">Gorduras</span>
+                      </div>
+                      <span className="text-[11px] font-medium bg-red-500/10 text-red-500 px-1.5 py-0.5 rounded-md">
+                        {result.macronutrientes.lipPercentual}%
+                      </span>
                     </div>
-                    <p className="text-2xl font-bold text-foreground tabular-nums">{result.macronutrientes.lipG} <span className="text-sm font-normal text-muted-foreground">g</span></p>
-                    <div className="flex justify-between items-center mt-2 text-xs text-muted-foreground">
+                    <p className="text-lg font-bold text-red-500 tabular-nums">
+                      {result.macronutrientes.lipG}<span className="text-xs font-normal text-muted-foreground ml-1">g</span>
+                    </p>
+                    <div className="flex justify-between mt-1.5 text-[11px] text-muted-foreground">
                       <span>{Math.round((result.macronutrientes.lipG / result.pesoUtilizado) * 100) / 100} g/kg</span>
                       <span>{result.macronutrientes.lipKcal} kcal</span>
                     </div>
@@ -502,56 +571,87 @@ export const NutritionalCalculator = ({ patient, latestConsultation, onSaveCalcu
               </CardContent>
             </Card>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="border-border shadow-sm h-full">
-                <CardHeader className="pb-3 border-b">
-                  <CardTitle className="text-sm font-bold text-muted-foreground">Informações do Cálculo</CardTitle>
+            {/* Linha 3: Informações + Alertas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader className="pb-3 border-b border-border">
+                  <div className="text-sm font-medium text-muted-foreground">Informações do Cálculo</div>
                 </CardHeader>
-                <CardContent className="p-4 space-y-3 text-sm">
-                  <div className="flex justify-between border-b pb-2 border-dashed">
-                    <span className="text-muted-foreground">Faixa Etária</span>
-                    <span className="font-medium">{result.faixaEtaria}</span>
-                  </div>
-                  <div className="flex justify-between border-b pb-2 border-dashed">
-                    <span className="text-muted-foreground">Fórmula Utilizada</span>
-                    <span className="font-medium">{result.formulaUtilizada.replace('_', '/')}</span>
-                  </div>
-                  <div className="flex justify-between border-b pb-2 border-dashed">
-                    <span className="text-muted-foreground">Peso Utilizado</span>
-                    <span className="font-medium text-primary">{result.pesoUtilizado} kg</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground italic text-right mt-1">{result.justificativaPeso}</p>
+                <CardContent className="p-4 space-y-2.5">
+                  {[
+                    { label: 'Faixa Etária', value: result.faixaEtaria },
+                    { label: 'Fórmula Utilizada', value: result.formulaUtilizada.replace('_', '/') },
+                    { label: 'Peso Utilizado', value: `${result.pesoUtilizado} kg`, highlight: true },
+                  ].map(({ label, value, highlight }) => (
+                    <div key={label} className="flex items-center justify-between text-sm py-1 border-b border-border/50 last:border-0">
+                      <span className="text-muted-foreground">{label}</span>
+                      <span className={cn("font-medium", highlight && "text-primary")}>{value}</span>
+                    </div>
+                  ))}
+                  {result.justificativaPeso && (
+                    <p className="text-xs text-muted-foreground pt-1">{result.justificativaPeso}</p>
+                  )}
                 </CardContent>
               </Card>
 
-              {result.alertas.length > 0 && (
-                <Card className="border-accent-foreground/20 shadow-sm bg-accent/20 h-full">
+              {result.alertas.length > 0 ? (
+                <Card className="border-accent-foreground/20 bg-accent/10">
                   <CardHeader className="pb-3 border-b border-accent-foreground/10">
-                    <CardTitle className="text-sm font-bold text-accent-foreground flex items-center gap-2">
+                    <div className="text-sm font-medium text-accent-foreground flex items-center gap-2">
                       <AlertCircle className="w-4 h-4" />
                       Alertas Clínicos
-                    </CardTitle>
+                    </div>
                   </CardHeader>
                   <CardContent className="p-4">
                     <ul className="space-y-2">
                       {result.alertas.map((alerta, i) => (
-                        <li key={i} className="text-xs text-accent-foreground flex items-start gap-2 bg-accent/20 p-2 rounded-lg">
-                          <span className="w-1.5 h-1.5 rounded-full bg-accent-foreground/60 mt-1 shrink-0" />
+                        <li key={i} className="text-xs text-accent-foreground flex items-start gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-accent-foreground/50 mt-1.5 shrink-0" />
                           <span>{alerta}</span>
                         </li>
                       ))}
                     </ul>
                   </CardContent>
                 </Card>
+              ) : (
+                <div className="rounded-xl border border-border bg-muted/20 flex items-center justify-center p-6">
+                  <p className="text-xs text-muted-foreground text-center">Nenhum alerta clínico para os parâmetros informados.</p>
+                </div>
               )}
             </div>
 
+            {/* Linha 4: Ações */}
+            {onSaveCalculation && (
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                {!latestConsultation && (
+                  <span className="text-xs text-muted-foreground mr-auto">Requer consulta base</span>
+                )}
+                {onCreateMealPlan && (
+                  <Button
+                    variant="outline"
+                    onClick={() => onCreateMealPlan(result as any, result as any)}
+                    className="h-9 text-sm px-4"
+                  >
+                    Criar Plano com este Cálculo
+                  </Button>
+                )}
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving || !latestConsultation}
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground h-9 px-5 text-sm font-semibold transition-all active:scale-95 gap-1.5"
+                >
+                  {isSaving && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  {existingCalculation ? 'Atualizar Cálculo' : 'Salvar Cálculo'}
+                </Button>
+              </div>
+            )}
+
           </div>
         ) : (
-          <div className="h-full min-h-[400px] border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground p-8 text-center bg-muted/30">
-            <Calculator className="w-12 h-12 mb-4 text-muted-foreground" />
-            <h3 className="font-bold text-muted-foreground mb-2">Motor de Cálculo Nutricional</h3>
-            <p className="max-w-md text-sm">Insira o peso, altura e idade do paciente para visualizar o gasto energético e distribuição de macronutrientes recomendados.</p>
+          <div className="h-full min-h-[360px] border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center text-muted-foreground p-8 text-center bg-muted/20">
+            <Calculator className="w-10 h-10 mb-3 opacity-30" />
+            <p className="font-medium text-sm mb-1">Resultado aparece aqui</p>
+            <p className="text-xs max-w-xs">Preencha peso, altura e idade para calcular automaticamente o gasto energético e a distribuição de macros.</p>
           </div>
         )}
       </div>

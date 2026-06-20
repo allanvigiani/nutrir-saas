@@ -122,11 +122,14 @@ model MealPlan {
   id                  String   @id @default(cuid())
   patientId           String
   patient             Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  consultationId      String?
+  calculationId       String?
   nutritionistId      String
   name                String
   generalInstructions String?
   waterIntake         String?
   mealObservations    Json?
+  customMeals         Json?
   status              String   @default("active")
   accessToken         String?
   createdAt           DateTime @default(now())

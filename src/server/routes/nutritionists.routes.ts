@@ -2,6 +2,7 @@ import type { BaseRouteDeps } from '../types.ts';
 import { createNutritionistsService } from '../services/nutritionists.service.ts';
 import { prisma } from '../lib/prisma.ts';
 import { withNutritionistRLS } from '../lib/rls-context.ts';
+import { hashField } from '../lib/crypto.ts';
 
 export function registerNutritionistsRoutes(deps: BaseRouteDeps) {
   const service = createNutritionistsService();
@@ -36,10 +37,15 @@ export function registerNutritionistsRoutes(deps: BaseRouteDeps) {
     if (!allowed.includes(field)) return res.status(400).json({ error: 'Campo inválido' });
     try {
       await withNutritionistRLS(req.user.uid, async () => {
-        const existing = await prisma.nutritionist.findFirst({
-          where: { [field]: value, NOT: { id: req.user.uid } },
-          select: { id: true },
-        });
+        let where: any;
+        if (field === 'cpf') {
+          where = { cpfHash: hashField(value), NOT: { id: req.user.uid } };
+        } else if (field === 'cnpj') {
+          where = { cnpjHash: hashField(value), NOT: { id: req.user.uid } };
+        } else {
+          where = { [field]: value, NOT: { id: req.user.uid } };
+        }
+        const existing = await prisma.nutritionist.findFirst({ where, select: { id: true } });
         res.json({ isDuplicate: !!existing });
       });
     } catch (err: any) {
@@ -54,7 +60,16 @@ export function registerNutritionistsRoutes(deps: BaseRouteDeps) {
     const allowed = ['crn', 'cpf', 'cnpj'];
     if (!allowed.includes(field)) return res.status(400).json({ error: 'Campo inválido' });
     try {
-      const where: any = { [field]: value };
+      // CPF e CNPJ são buscados pelo hash normalizado (igual ao register-profile)
+      // evita inconsistência entre dados com/sem máscara
+      let where: any;
+      if (field === 'cpf') {
+        where = { cpfHash: hashField(value) };
+      } else if (field === 'cnpj') {
+        where = { cnpjHash: hashField(value) };
+      } else {
+        where = { [field]: value };
+      }
       if (excludeUid) where.NOT = { id: excludeUid };
       const existing = await prisma.nutritionist.findFirst({ where, select: { id: true } });
       return res.json({ isDuplicate: !!existing });

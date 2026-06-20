@@ -364,7 +364,7 @@ export const PatientAccess = () => {
       doc.setFontSize(8);
       doc.setTextColor(148, 163, 184); // slate-400
       
-      const mainFooter = `Gerado por NutriCare Pro em ${format(new Date(), 'dd/MM/yyyy HH:mm')} - Página ${i} de ${pageCount}`;
+      const mainFooter = `Gerado por Nutrir em ${format(new Date(), 'dd/MM/yyyy HH:mm')} - Página ${i} de ${pageCount}`;
       const patientDisclaimer = 'Este documento foi gerado pelo paciente através de link exclusivo de acesso.';
       
       doc.text(mainFooter, pageWidth / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' });
@@ -461,7 +461,7 @@ export const PatientAccess = () => {
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <Card className="w-full max-w-md rounded-2xl border-none shadow-xl overflow-hidden">
           <div className="bg-primary p-8 text-center text-primary-foreground">
-            <div className="w-16 h-16 bg-card/20 rounded-full flex items-center justify-center mx-auto mb-4 backdrop-blur-sm">
+            <div className="w-16 h-16 bg-card/20 rounded-full flex items-center justify-center mx-auto mb-4">
               <Lock className="w-8 h-8 text-primary-foreground" />
             </div>
             <h1 className="text-2xl font-bold">Acesso Restrito</h1>

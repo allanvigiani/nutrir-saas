@@ -19,6 +19,10 @@ export const Layout = () => {
     return <Navigate to="/login" replace />;
   }
 
+  if (!nutritionist) {
+    return <Navigate to="/register" replace />;
+  }
+
   return (
     <TooltipProvider>
       <div className="flex h-screen bg-background overflow-hidden text-foreground">

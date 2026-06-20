@@ -162,7 +162,7 @@ export const Dashboard = () => {
         <Card className="lg:col-span-3">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <h2 className="font-heading text-base leading-snug font-medium flex items-center gap-2">
+              <h2 className="text-base leading-snug font-medium flex items-center gap-2">
                 <Clock className="w-4 h-4 text-accent-foreground" aria-hidden="true" />
                 Agenda de hoje
               </h2>
@@ -371,7 +371,7 @@ export const Dashboard = () => {
         {/* Bar chart */}
         <Card className="lg:col-span-3">
           <CardHeader className="pb-2">
-            <h2 className="font-heading text-base leading-snug font-medium">Consultas realizadas</h2>
+            <h2 className="text-base leading-snug font-medium">Consultas realizadas</h2>
             <CardDescription>Últimos 7 dias</CardDescription>
           </CardHeader>
           <CardContent className="pt-2">
@@ -425,7 +425,7 @@ export const Dashboard = () => {
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <h2 className="font-heading text-base leading-snug font-medium">Pacientes recentes</h2>
+              <h2 className="text-base leading-snug font-medium">Pacientes recentes</h2>
               <Button
                 nativeButton={false}
                 variant="ghost"

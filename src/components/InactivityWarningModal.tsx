@@ -42,8 +42,8 @@ export function InactivityWarningModal() {
 
         {/* Ícone + título */}
         <div className="flex flex-col items-center text-center space-y-3">
-          <div className="w-14 h-14 rounded-full bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center">
-            <ShieldAlert className="w-7 h-7 text-amber-600 dark:text-amber-400" />
+          <div className="w-14 h-14 rounded-full bg-accent flex items-center justify-center">
+            <ShieldAlert className="w-7 h-7 text-accent-foreground" />
           </div>
           <div>
             <h2 className="text-xl font-bold text-foreground">Sessão por encerrar</h2>

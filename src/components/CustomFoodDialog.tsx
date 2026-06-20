@@ -136,7 +136,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                 placeholder="Ex: Pão de Queijo Caseiro"
                 className="bg-muted/30 border-none rounded-xl h-8 text-sm"
               />
-              {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -149,7 +149,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   {...register('baseQuantity', { valueAsNumber: true })} 
                   className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
-                {errors.baseQuantity && <p className="text-xs text-red-500">{errors.baseQuantity.message}</p>}
+                {errors.baseQuantity && <p className="text-xs text-destructive">{errors.baseQuantity.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="baseUnit">Unidade Base</Label>
@@ -183,7 +183,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   {...register('kcal', { valueAsNumber: true })} 
                   className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
-                {errors.kcal && <p className="text-xs text-red-500">{errors.kcal.message}</p>}
+                {errors.kcal && <p className="text-xs text-destructive">{errors.kcal.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="protein">Proteínas (g)</Label>
@@ -194,7 +194,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   {...register('protein', { valueAsNumber: true })} 
                   className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
-                {errors.protein && <p className="text-xs text-red-500">{errors.protein.message}</p>}
+                {errors.protein && <p className="text-xs text-destructive">{errors.protein.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="carbs">Carboidratos (g)</Label>
@@ -205,7 +205,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   {...register('carbs', { valueAsNumber: true })} 
                   className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
-                {errors.carbs && <p className="text-xs text-red-500">{errors.carbs.message}</p>}
+                {errors.carbs && <p className="text-xs text-destructive">{errors.carbs.message}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="fat">Gorduras (g)</Label>
@@ -216,7 +216,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                   {...register('fat', { valueAsNumber: true })} 
                   className="bg-muted/30 border-none rounded-xl h-8 text-sm"
                 />
-                {errors.fat && <p className="text-xs text-red-500">{errors.fat.message}</p>}
+                {errors.fat && <p className="text-xs text-destructive">{errors.fat.message}</p>}
               </div>
             </div>
           </div>
@@ -260,7 +260,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
             </Button>
             <Button 
               type="submit" 
-              className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-8 px-5 font-bold text-sm transition-all shadow-sm active:scale-95"
               disabled={isSubmitting}
             >
               {isSubmitting ? 'Salvando...' : 'Salvar Alimento'}

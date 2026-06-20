@@ -45,6 +45,7 @@ import {
   CardDescription
 } from '../components/ui/card';
 import { Button } from '../components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../components/ui/tooltip';
 import { useAuth } from '../contexts/AuthContext';
 import { FREE_PLAN_LIMITS, isAdminOrPremium } from '../lib/planLimits';
 import { auth } from '../lib/firebase';
@@ -93,7 +94,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  Tooltip,
+  Tooltip as RechartsTooltip,
   ResponsiveContainer,
   Legend,
   ReferenceLine,
@@ -155,6 +156,24 @@ const SummaryCard = ({ label, value, total, unit, color, progressColor, icon: Ic
   </Card>
 );
 
+const EvolutionTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  const formattedLabel = typeof label === 'string' && label.length === 10
+    ? format(parseISO(label), 'dd/MM/yyyy', { locale: ptBR })
+    : format(new Date(label), 'dd/MM/yyyy', { locale: ptBR });
+  return (
+    <div className="bg-popover border border-border rounded-lg px-3 py-2 shadow-lg text-[13px]">
+      <p className="font-semibold text-foreground mb-1">{formattedLabel}</p>
+      {payload.map((entry: any) => (
+        <p key={entry.dataKey} className="flex items-center gap-1.5 text-muted-foreground">
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: entry.stroke }} />
+          {entry.name}: <span className="font-medium text-foreground">{entry.value}</span>
+        </p>
+      ))}
+    </div>
+  );
+};
+
 const consultationSchema = z.object({
   date: z.string().min(1, 'Data é obrigatória'),
   weight: z.coerce.number().min(0, 'Peso deve ser positivo'),
@@ -188,6 +207,7 @@ export const PatientProfile = () => {
   const [isConsultationModalOpen, setIsConsultationModalOpen] = useState(false);
   const [isCalculatorModalOpen, setIsCalculatorModalOpen] = useState(false);
   const [selectedConsultationForCalc, setSelectedConsultationForCalc] = useState<Consultation | null>(null);
+  const [selectedExistingCalc, setSelectedExistingCalc] = useState<NutritionCalculation | null>(null);
   const [isCustomFoodDialogOpen, setIsCustomFoodDialogOpen] = useState(false);
   const [initialFoodName, setInitialFoodName] = useState('');
   const [activeMealItemIndex, setActiveMealItemIndex] = useState<number | null>(null);
@@ -777,16 +797,21 @@ export const PatientProfile = () => {
   const handleSaveCalculation = async (input: any, result: any, name: string) => {
     if (!selectedConsultationForCalc || !user || !id) return;
     try {
-      const created = await apiRequest<NutritionCalculation>(`/api/patients/${id}/calculations`, 'POST', {
-        patientId: id,
-        consultationId: selectedConsultationForCalc.id,
-        nutritionistId: user.uid,
-        name,
-        input,
-        result,
-      });
-      setCalculations(prev => [created, ...prev]);
+      if (selectedExistingCalc) {
+        await apiRequest(`/api/calculations/${selectedExistingCalc.id}`, 'PUT', { input, result });
+      } else {
+        await apiRequest<NutritionCalculation>(`/api/patients/${id}/calculations`, 'POST', {
+          patientId: id,
+          consultationId: selectedConsultationForCalc.id,
+          nutritionistId: user.uid,
+          name,
+          input,
+          result,
+        });
+      }
       setIsCalculatorModalOpen(false);
+      setSelectedExistingCalc(null);
+      await refetchPatientData();
     } catch (error) {
       console.error(error);
       throw error;
@@ -1245,7 +1270,7 @@ export const PatientProfile = () => {
           </div>
         </TabsContent>
 
-        <TabsContent value="consultations" className="mt-6">
+        <TabsContent value="consultations" className="mt-0">
           <Card className="border-none shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between border-b border-border pb-6">
               <div>
@@ -1306,19 +1331,6 @@ export const PatientProfile = () => {
                           </span>
 
                           <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              className="text-muted-foreground hover:text-primary disabled:opacity-30"
-                                                           onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedConsultationForCalc(consultation);
-                                setIsCalculatorModalOpen(true);
-                              }}
-                              title="Novo Cálculo Nutricional"
-                            >
-                              <Calculator className="w-4 h-4" />
-                            </Button>
                             <Button variant="ghost" size="icon-sm" className="text-muted-foreground hover:text-primary disabled:opacity-30" title="Editar consulta" onClick={(e) => {
                               e.stopPropagation();
                               setSelectedConsultation(consultation);
@@ -1422,36 +1434,73 @@ export const PatientProfile = () => {
 
                           <div className="pt-6 border-t border-border mt-6">
                             <div className="flex justify-between items-center mb-4">
-                              <h4 className="text-sm font-bold text-muted-foreground flex items-center gap-2">
-                                <Calculator className="w-4 h-4 text-primary" /> Cálculos Nutricionais
+                              <h4 className="text-sm font-bold text-muted-foreground">
+                                Cálculos Nutricionais
                               </h4>
                                 <div className="flex items-center gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-primary border-primary/30 hover:bg-primary/10 h-8 text-xs"
-                                    disabled={isPatientReadOnly}
-                                    onClick={() => navigate(`/patients/${id}/meal-plan/new`, { state: { consultationId: consultation.id } })}
-                                  >
-                                    <Plus className="w-3.5 h-3.5 mr-1" /> Criar Plano
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-primary border-primary/30 hover:bg-primary/10 h-8 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                                    title={
-                                      !isPremium && calculations.some(c => c.consultation_id === consultation.id)
-                                        ? 'Plano gratuito: 1 cálculo por consulta'
-                                        : undefined
-                                    }
-                                    disabled={!isPremium && calculations.some(c => c.consultation_id === consultation.id)}
-                                    onClick={() => {
-                                      setSelectedConsultationForCalc(consultation);
-                                      setIsCalculatorModalOpen(true);
-                                    }}
-                                  >
-                                    <Calculator className="w-3.5 h-3.5 mr-1" /> Novo Cálculo
-                                  </Button>
+                                  {(() => {
+                                    const planDaConsulta = mealPlans.find(p => p.consultation_id === consultation.id);
+                                    return (
+                                      <TooltipProvider>
+                                        <Tooltip>
+                                          <TooltipTrigger render={<span />}>
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="text-primary border-primary/60 bg-primary/5 hover:bg-primary/15 hover:border-primary h-8 text-xs font-semibold gap-1.5 shadow-sm"
+                                              disabled={isPatientReadOnly}
+                                              onClick={() => {
+                                                if (planDaConsulta) {
+                                                  navigate(`/patients/${id}/meal-plan/${planDaConsulta.id}`);
+                                                } else {
+                                                  const calcDaConsulta = calculations.find(c => c.consultation_id === consultation.id);
+                                                  navigate(`/patients/${id}/meal-plan/new`, {
+                                                    state: {
+                                                      consultationId: consultation.id,
+                                                      ...(calcDaConsulta ? { calculation: calcDaConsulta } : {}),
+                                                    },
+                                                  });
+                                                }
+                                              }}
+                                            >
+                                              <Plus className="w-3.5 h-3.5" />
+                                              {planDaConsulta ? 'Editar Plano' : 'Criar Plano'}
+                                            </Button>
+                                          </TooltipTrigger>
+                                          <TooltipContent side="bottom">
+                                            {planDaConsulta
+                                              ? 'Editar o plano alimentar desta consulta'
+                                              : 'Criar plano alimentar vinculado a esta consulta'}
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      </TooltipProvider>
+                                    );
+                                  })()}
+                                  <TooltipProvider>
+                                    <Tooltip>
+                                      <TooltipTrigger render={<span />}>
+                                        <Button
+                                          size="sm"
+                                          variant="outline"
+                                          className="text-primary border-primary/60 bg-primary/5 hover:bg-primary/15 hover:border-primary h-8 text-xs font-semibold gap-1.5 shadow-sm"
+                                          onClick={() => {
+                                            const existing = calculations.find(c => c.consultation_id === consultation.id) ?? null;
+                                            setSelectedConsultationForCalc(consultation);
+                                            setSelectedExistingCalc(existing);
+                                            setIsCalculatorModalOpen(true);
+                                          }}
+                                        >
+                                          <Calculator className="w-3.5 h-3.5" />
+                                          {calculations.some(c => c.consultation_id === consultation.id) ? 'Editar Cálculo' : 'Novo Cálculo'}
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="bottom">
+                                        {calculations.some(c => c.consultation_id === consultation.id)
+                                          ? 'Editar o cálculo nutricional desta consulta'
+                                          : 'Calcular necessidades nutricionais do paciente'}
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  </TooltipProvider>
                                 </div>
                             </div>
 
@@ -1517,16 +1566,6 @@ export const PatientProfile = () => {
                                       </div>
                                     )}
 
-                                    <div className="flex justify-end pt-2">
-                                      <Button
-                                        size="sm"
-                                        className="bg-primary hover:bg-primary/90 text-white rounded-lg shadow-sm text-xs h-8"
-                                        disabled={isPatientReadOnly}
-                                        onClick={() => navigate(`/patients/${id}/meal-plan/new`, { state: { calculation: calc } })}
-                                      >
-                                        Criar Plano Alimentar
-                                      </Button>
-                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -1534,6 +1573,43 @@ export const PatientProfile = () => {
                               <p className="text-xs text-muted-foreground italic bg-muted/30 p-4 rounded-xl border border-border text-center">Nenhum cálculo realizado para esta consulta.</p>
                             )}
                           </div>
+
+                          {/* Plano Alimentar da Consulta */}
+                          {(() => {
+                            const planDaConsulta = mealPlans.find(p => p.consultation_id === consultation.id);
+                            if (!planDaConsulta) return null;
+                            const refeicoes = planDaConsulta.customMeals ?? [];
+                            return (
+                              <div className="mt-4">
+                                <div className="flex items-center mb-3">
+                                  <h4 className="text-sm font-bold text-muted-foreground">Plano Alimentar</h4>
+                                </div>
+                                <div className="bg-muted/30 rounded-xl border border-border p-3 space-y-2">
+                                  <div className="flex items-center justify-between">
+                                    <p className="text-sm font-medium text-foreground">{planDaConsulta.name}</p>
+                                    <span className={cn(
+                                      "text-[10px] font-medium px-2 py-0.5 rounded-md",
+                                      planDaConsulta.status === 'active' ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
+                                    )}>
+                                      {planDaConsulta.status === 'active' ? 'Ativo' : 'Arquivado'}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1.5 pt-1">
+                                    {refeicoes.length > 0 ? refeicoes.map((r: any) => (
+                                      <span key={r.id} className="text-[11px] bg-card border border-border rounded-md px-2 py-0.5 text-muted-foreground">
+                                        {r.label}{r.time ? ` · ${r.time}` : ''}
+                                      </span>
+                                    )) : (
+                                      <span className="text-xs text-muted-foreground">Nenhuma refeição adicionada</span>
+                                    )}
+                                  </div>
+                                  {planDaConsulta.waterIntake && (
+                                    <p className="text-[11px] text-muted-foreground pt-1">💧 Ingestão de água: {planDaConsulta.waterIntake}</p>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </div>
                       )}
                     </div>
@@ -1570,7 +1646,7 @@ export const PatientProfile = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="mealplans" className="mt-6">
+        <TabsContent value="mealplans" className="mt-0">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -1763,7 +1839,7 @@ export const PatientProfile = () => {
                               <div>
                                 <div className="flex items-center gap-3">
                                   <h4 className="font-bold text-xl leading-none">{meal.label}</h4>
-                                  {meal.time && <span className="text-xs font-black opacity-40 bg-black/5 px-2 py-0.5 rounded-full uppercase tracking-tighter">{meal.time}</span>}
+                                  {meal.time && <span className="text-xs font-medium opacity-50 bg-black/5 px-2 py-0.5 rounded-full">{meal.time}</span>}
                                 </div>
                                 <div className="flex items-center gap-2 mt-1.5">
                                   <span className="text-[10px] font-medium opacity-50">{items.length} {items.length === 1 ? 'alimento' : 'alimentos'}</span>
@@ -1833,7 +1909,7 @@ export const PatientProfile = () => {
                 <div className="hidden print:flex flex-col items-center mt-20 pt-10 border-t border-border">
                   <div className="w-64 h-px bg-border mb-4"></div>
                   <p className="text-base font-bold text-foreground">{user?.displayName || 'Nutricionista'}</p>
-                  <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Assinatura do Profissional</p>
+                  <p className="text-xs text-muted-foreground mt-1">Assinatura do Profissional</p>
                 </div>
               </div>
             </div>
@@ -1919,26 +1995,26 @@ export const PatientProfile = () => {
 
             <div className="grid grid-cols-4 gap-4 mb-8">
               <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Calorias</p>
+                <p className="text-xs font-medium text-muted-foreground">Calorias</p>
                 <p className="text-lg font-bold text-foreground">{viewMealTotals.kcal} kcal</p>
               </div>
               <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Proteínas</p>
+                <p className="text-xs font-medium text-muted-foreground">Proteínas</p>
                 <p className="text-lg font-bold text-foreground">{viewMealTotals.protein.toFixed(1)} g</p>
               </div>
               <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Carboidratos</p>
+                <p className="text-xs font-medium text-muted-foreground">Carboidratos</p>
                 <p className="text-lg font-bold text-foreground">{viewMealTotals.carbs.toFixed(1)} g</p>
               </div>
               <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-[10px] uppercase font-bold text-muted-foreground">Gorduras</p>
+                <p className="text-xs font-medium text-muted-foreground">Gorduras</p>
                 <p className="text-lg font-bold text-foreground">{viewMealTotals.fat.toFixed(1)} g</p>
               </div>
             </div>
 
             {selectedMealPlan?.generalInstructions && (
               <div className="mb-8">
-                <h4 className="font-bold text-secondary-foreground text-sm uppercase tracking-widest mb-2">Orientações Gerais</h4>
+                <h4 className="font-medium text-secondary-foreground text-sm mb-2">Orientações Gerais</h4>
                 <div className="p-5 bg-card rounded-xl border border-border text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">
                   {selectedMealPlan.generalInstructions}
                 </div>
@@ -1965,13 +2041,13 @@ export const PatientProfile = () => {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="bg-muted/30 text-muted-foreground text-left border-b">
-                            <th className="px-6 py-3 font-bold uppercase text-[10px]">Alimento</th>
-                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Qtd</th>
-                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Unidade</th>
-                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">Kcal</th>
-                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">P (g)</th>
-                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">C (g)</th>
-                            <th className="px-4 py-3 font-bold uppercase text-[10px] text-center">G (g)</th>
+                            <th className="px-6 py-3 font-medium text-[11px]">Alimento</th>
+                            <th className="px-4 py-3 font-medium text-[11px] text-center">Qtd</th>
+                            <th className="px-4 py-3 font-medium text-[11px] text-center">Unidade</th>
+                            <th className="px-4 py-3 font-medium text-[11px] text-center">Kcal</th>
+                            <th className="px-4 py-3 font-medium text-[11px] text-center">P (g)</th>
+                            <th className="px-4 py-3 font-medium text-[11px] text-center">C (g)</th>
+                            <th className="px-4 py-3 font-medium text-[11px] text-center">G (g)</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
@@ -1996,12 +2072,12 @@ export const PatientProfile = () => {
             <div className="flex flex-col items-center mt-20 pt-10 border-t border-border">
               <div className="w-64 h-px bg-border mb-4"></div>
               <p className="text-base font-bold text-foreground">{user?.displayName || 'Nutricionista'}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Assinatura do Profissional</p>
+              <p className="text-xs text-muted-foreground mt-1">Assinatura do Profissional</p>
             </div>
           </div>
         </div>
 
-        <TabsContent value="exams" className="mt-6">
+        <TabsContent value="exams" className="mt-0">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
@@ -2324,9 +2400,9 @@ export const PatientProfile = () => {
           </Card>
         </TabsContent>
 
-        <TabsContent value="evolution" className="mt-6">
+        <TabsContent value="evolution" className="mt-0">
           <PremiumFeature>
-            <div className="grid grid-cols-1 gap-6">
+            <div className="grid grid-cols-1 gap-4">
 
               {/* Resumo Geral do Acompanhamento */}
               {consultations.length > 0 && (() => {
@@ -2467,9 +2543,9 @@ export const PatientProfile = () => {
                 return (
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                     {cards.map((card) => (
-                      <div key={card.label} className="rounded-xl p-4 border border-border bg-card shadow-sm">
-                        <p className="text-xs font-medium text-muted-foreground mb-2">{card.label}</p>
-                        <p className="text-2xl font-bold leading-tight text-foreground">{card.value}</p>
+                      <div key={card.label} className="rounded-xl p-3 border border-border bg-card shadow-sm">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">{card.label}</p>
+                        <p className="text-lg font-bold leading-tight text-foreground">{card.value}</p>
                         {card.badge && (
                           <span className={cn('inline-block text-xs font-medium px-2 py-0.5 rounded-md mt-1.5', card.badge.cls)}>
                             {card.badge.label}
@@ -2489,14 +2565,14 @@ export const PatientProfile = () => {
 
               {/* Chart Card */}
               <Card>
-                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3">
                   <div>
-                    <CardTitle className="text-lg">Evolução ao Longo do Tempo</CardTitle>
+                    <CardTitle className="text-base">Evolução ao Longo do Tempo</CardTitle>
                     <CardDescription>
                       {consultations.length} consulta{consultations.length !== 1 ? 's' : ''} registrada{consultations.length !== 1 ? 's' : ''}.
                     </CardDescription>
                   </div>
-                  <div className="flex gap-1.5 flex-wrap">
+                  <div className="inline-flex items-center bg-muted rounded-lg p-[3px] gap-[3px]">
                     {(
                       [
                         ['weight', 'Peso'],
@@ -2509,10 +2585,10 @@ export const PatientProfile = () => {
                         key={val}
                         onClick={() => setEvolutionMetric(val)}
                         className={cn(
-                          'px-3 py-1.5 text-xs font-medium rounded-full transition-all border',
+                          'px-3 py-1 text-sm font-medium rounded-md transition-all whitespace-nowrap',
                           evolutionMetric === val
-                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                            : 'bg-background text-muted-foreground border-border hover:text-foreground hover:border-foreground/30'
+                            ? 'bg-background text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground'
                         )}
                       >
                         {label}
@@ -2521,7 +2597,7 @@ export const PatientProfile = () => {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="h-[380px] w-full">
+                  <div className="h-[260px] w-full">
                     {consultations.length > 0 && activeTab === 'evolution' ? (
                       <ResponsiveContainer width="100%" height="100%" debounce={100}>
                         <AreaChart
@@ -2564,15 +2640,7 @@ export const PatientProfile = () => {
                             width={38}
                             tick={{ fill: 'var(--muted-foreground)' }}
                           />
-                          <Tooltip
-                            contentStyle={{
-                              borderRadius: '10px',
-                              border: '1px solid hsl(var(--border))',
-                              boxShadow: '0 4px 16px rgba(0,0,0,0.08)',
-                              fontSize: '13px',
-                            }}
-                            labelFormatter={(date) => formatDateSafely(date, 'dd/MM/yyyy')}
-                          />
+                          <RechartsTooltip content={<EvolutionTooltip />} />
                           <Legend verticalAlign="top" height={32} iconType="circle" iconSize={8} wrapperStyle={{ fontSize: '12px' }} />
 
                           {evolutionMetric === 'weight' && (
@@ -2678,7 +2746,7 @@ export const PatientProfile = () => {
                 return (
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-lg">Histórico Completo de Medidas</CardTitle>
+                      <CardTitle className="text-base">Histórico Completo de Medidas</CardTitle>
                       <CardDescription>
                         Todas as consultas com variação em relação à consulta anterior. {rows.length} registro{rows.length !== 1 ? 's' : ''}.
                       </CardDescription>
@@ -2768,7 +2836,7 @@ export const PatientProfile = () => {
 
       {/* Modals */}
       <Dialog open={isCalculatorModalOpen} onOpenChange={setIsCalculatorModalOpen}>
-        <DialogContent showCloseButton={false} className="w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col bg-muted/30 rounded-2xl shadow-2xl">
+        <DialogContent showCloseButton={false} className="w-[calc(100vw-2rem)] sm:max-w-6xl max-h-[90vh] p-0 gap-0 overflow-hidden flex flex-col bg-background rounded-2xl shadow-2xl">
           <div className="bg-card px-6 py-4 border-b flex justify-between items-center shadow-sm z-10 shrink-0">
             <div>
               <h2 className="text-xl font-bold text-foreground">Cálculo Nutricional</h2>
@@ -2783,6 +2851,7 @@ export const PatientProfile = () => {
               <NutritionalCalculator
                 patient={patient}
                 latestConsultation={selectedConsultationForCalc}
+                existingCalculation={selectedExistingCalc}
                 onSaveCalculation={handleSaveCalculation}
                 onCreateMealPlan={(input, result) => {
                   setIsCalculatorModalOpen(false);

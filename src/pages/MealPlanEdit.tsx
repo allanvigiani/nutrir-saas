@@ -131,15 +131,28 @@ export function MealPlanEdit() {
     );
   }
 
+  if (!patient) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-muted-foreground">Paciente não encontrado.</p>
+      </div>
+    );
+  }
+
+  const safeCustomMeals = Array.isArray(mealPlan?.customMeals) ? mealPlan.customMeals : [];
+  const safeMealObservations = (mealPlan?.mealObservations && typeof mealPlan.mealObservations === 'object' && !Array.isArray(mealPlan.mealObservations))
+    ? mealPlan.mealObservations as Record<string, string>
+    : {};
+
   return (
     <div className="h-screen flex flex-col">
-      <MealPlanEditor 
+      <MealPlanEditor
         initialName={mealPlan?.name || (calculation ? `Plano - ${calculation.result.getAjustado} kcal` : '')}
         initialItems={mealItems}
         initialGeneralInstructions={mealPlan?.generalInstructions || ''}
         initialWaterIntake={mealPlan?.waterIntake || ''}
-        initialMealObservations={mealPlan?.mealObservations || {}}
-        initialCustomMeals={mealPlan?.customMeals || []}
+        initialMealObservations={safeMealObservations}
+        initialCustomMeals={safeCustomMeals}
         selectedCalculation={calculation}
         foodDataSource="Todas"
         isNew={!planId || planId === 'new'}

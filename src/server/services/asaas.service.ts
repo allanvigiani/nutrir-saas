@@ -24,7 +24,7 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
 
     switch (event.event) {
       case "PAYMENT_CREATED":
-        await updateUserData({ asaasStatus: "pending" });
+        await updateUserData({ asaasStatus: payment?.status ?? "PENDING" });
         break;
 
       // Cartão de crédito: CONFIRMED chega imediatamente ao pagar;
@@ -40,7 +40,7 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
         }
         await updateUserData({
           plan: "premium",
-          asaasStatus: "active",
+          asaasStatus: payment?.status ?? event.event.replace("PAYMENT_", ""),
           currentPeriodEnd: nextPeriodEnd,
           cancelAtPeriodEnd: false,
           lastCheckedAt: new Date(),
@@ -72,27 +72,18 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
       }
 
       case "PAYMENT_OVERDUE":
-        await updateUserData({ asaasStatus: "overdue" });
+        await updateUserData({ asaasStatus: payment?.status ?? "OVERDUE" });
         break;
 
       // Análise de risco — específico de cartão de crédito
       case "PAYMENT_AWAITING_RISK_ANALYSIS":
-        await updateUserData({ asaasStatus: "pending_risk_analysis" });
-        break;
       case "PAYMENT_APPROVED_BY_RISK_ANALYSIS":
-        // Aprovado pela análise — pagamento segue para CONFIRMED automaticamente; apenas loga
-        logger.info(`[Asaas Webhook] Pagamento aprovado pela análise de risco`, { userId });
-        break;
       case "PAYMENT_REPROVED_BY_RISK_ANALYSIS":
-        // Reprovado — cartão rejeitado, acesso não liberado
-        await updateUserData({
-          plan: "free",
-          asaasStatus: "payment_failed",
-        });
-        break;
       case "PAYMENT_CREDIT_CARD_CAPTURE_REFUSED":
-        // Falha na captura do cartão (ex: cartão sem limite, recusado pela operadora)
-        await updateUserData({ asaasStatus: "payment_failed" });
+        await updateUserData({ asaasStatus: payment?.status ?? "AWAITING_RISK_ANALYSIS" });
+        if (event.event === "PAYMENT_REPROVED_BY_RISK_ANALYSIS") {
+          await updateUserData({ plan: "free" });
+        }
         break;
 
       // Estornos e chargebacks
@@ -101,25 +92,26 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
       case "PAYMENT_CHARGEBACK_REQUESTED":
         await updateUserData({
           plan: "free",
-          asaasStatus: "refunded",
+          asaasStatus: payment?.status ?? event.event.replace("PAYMENT_", ""),
           hadRefundBefore: true,
         });
         break;
 
       // Cobrança deletada (PAYMENT_CANCELLED não é um evento válido do Asaas)
       case "PAYMENT_DELETED":
-        await updateUserData({ asaasStatus: "cancelled" });
+        await updateUserData({ asaasStatus: payment?.status ?? "DELETED" });
         break;
+
       case "SUBSCRIPTION_CREATED":
         await updateUserData({
           asaasSubscriptionId: event.subscription.id,
-          asaasStatus: "active",
+          asaasStatus: event.subscription.status,
         });
         break;
       case "SUBSCRIPTION_DELETED":
       case "SUBSCRIPTION_INACTIVATED":
         await updateUserData({
-          asaasStatus: "cancelled",
+          asaasStatus: event.subscription?.status ?? "INACTIVE",
           cancelAtPeriodEnd: true,
         });
         break;
@@ -129,7 +121,7 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
           const isSubActive = sub.status === "ACTIVE";
           await updateUserData({
             plan: isSubActive ? "premium" : "free",
-            asaasStatus: sub.status.toLowerCase(),
+            asaasStatus: sub.status,
             currentPeriodEnd: sub.nextDueDate || null,
           });
         }
@@ -250,7 +242,7 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
       if (userId) {
         subscriptionService.upsert(userId, {
           plan: "free",
-          asaasStatus: "cancelled",
+          asaasStatus: "INACTIVE",
           cancelAtPeriodEnd: false,
         }).catch((err) => logger.error("[verifySubscription] Erro ao sincronizar plano expirado", err));
       }
@@ -331,7 +323,7 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
     if (userDocId) {
       try {
         const updateData: any = {
-          asaasStatus: refunded ? "refunded" : "cancelled",
+          asaasStatus: refunded ? "REFUNDED" : "INACTIVE",
           cancelAtPeriodEnd: !refunded,
         };
         if (refunded) {

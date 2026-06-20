@@ -7,6 +7,6 @@ export const FREE_PLAN_LIMITS = {
   historyMonths: 3,
 } as const;
 
-export function isAdminOrPremium(nutritionist: { role?: string; plan?: string } | null): boolean {
-  return nutritionist?.role === "admin" || nutritionist?.plan === "premium";
+export function isAdminOrPremium(nutritionist: { role?: string; plan?: string; freeTrialMode?: boolean } | null): boolean {
+  return !!nutritionist?.freeTrialMode || nutritionist?.role === "admin" || nutritionist?.plan === "premium";
 }

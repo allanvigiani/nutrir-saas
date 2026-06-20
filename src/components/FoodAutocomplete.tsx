@@ -33,7 +33,8 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
 
   const [isOpen, setIsOpen] = useState(false);
   const [filteredFoods, setFilteredFoods] = useState<(TacoFood | TbcaFood | CustomFood)[]>([]);
-  const { data: customFoods = [] } = useApi<CustomFood[]>('/api/custom-foods');
+  const { data: customFoodsData } = useApi<CustomFood[]>('/api/custom-foods');
+  const customFoods = customFoodsData ?? [];
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
@@ -117,7 +118,7 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
       {isOpen && dropdownRect && createPortal(
         <div 
           ref={dropdownRef}
-          className="fixed bg-card rounded-xl border border-border shadow-2xl z-[9999] max-h-[350px] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
+          className="fixed bg-card rounded-xl border border-border shadow-2xl z-50 max-h-[350px] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
           style={{
             top: dropdownRect.bottom + 8,
             left: dropdownRect.left,
@@ -139,12 +140,12 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
                   <div className="flex items-center gap-2">
                     <span className="font-semibold text-foreground text-sm">{food.name}</span>
                     {('nutritionist_id' in food) && (
-                      <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold uppercase">Próprio</span>
+                      <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-bold">Próprio</span>
                     )}
                   </div>
                   {value === food.name && <Check className="w-4 h-4 text-primary" />}
                 </div>
-                <div className="flex gap-3 text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
+                <div className="flex gap-3 text-[10px] text-muted-foreground font-bold">
                   <span>{formatKcal(food.kcal)} kcal</span>
                   <span>P: {formatMacro(food.protein)}g</span>
                   <span>C: {formatMacro(food.carbs)}g</span>
