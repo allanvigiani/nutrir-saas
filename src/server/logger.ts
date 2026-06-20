@@ -12,18 +12,20 @@ const axiomToken = process.env.AXIOM_TOKEN;
 // Cliente Axiom (usado apenas em nuvem)
 const axiom = axiomToken ? new Axiom({ token: axiomToken }) : null;
 
-// Logger para Console (usado em Dev para debug visual)
-const consoleLogger = pino({
-  transport: {
-    target: "pino-pretty",
-    options: {
-      colorize: true,
-      translateTime: "HH:MM:ss Z",
-      ignore: "pid,hostname",
-    },
-  },
-  level: "debug",
-});
+// pino-pretty usa worker threads incompatíveis com serverless — só em dev
+const consoleLogger = isCloudEnv
+  ? pino({ level: "info" })
+  : pino({
+      transport: {
+        target: "pino-pretty",
+        options: {
+          colorize: true,
+          translateTime: "HH:MM:ss Z",
+          ignore: "pid,hostname",
+        },
+      },
+      level: "debug",
+    });
 
 /**
  * Interface Genérica de Logger
