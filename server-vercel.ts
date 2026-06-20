@@ -2,13 +2,13 @@ import express from "express";
 import { createRequire } from "module";
 import admin from "firebase-admin";
 import { google } from "googleapis";
-import { registerApiRoutes } from "../src/server/register-api-routes.ts";
-import { createAuthenticateMiddleware, requirePremiumOrAdmin } from "../src/server/middlewares/auth.ts";
-import { createSubscriptionExpiryMiddleware } from "../src/server/middlewares/subscription-expiry.ts";
-import { logger } from "../src/server/logger.ts";
+import { registerApiRoutes } from "./src/server/register-api-routes.ts";
+import { createAuthenticateMiddleware, requirePremiumOrAdmin } from "./src/server/middlewares/auth.ts";
+import { createSubscriptionExpiryMiddleware } from "./src/server/middlewares/subscription-expiry.ts";
+import { logger } from "./src/server/logger.ts";
 
 const require = createRequire(import.meta.url);
-const firebaseConfig = require("../firebase-applet-config.json");
+const firebaseConfig = require("./firebase-applet-config.json");
 
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY || "";
 const ASAAS_API_URL = process.env.ASAAS_API_URL || "https://sandbox.asaas.com/api/v3";

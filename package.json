@@ -7,7 +7,7 @@
     "dev": "tsx server.ts",
     "start": "node server.ts",
     "build": "vite build",
-    "vercel-build": "npx prisma generate && vite build",
+    "vercel-build": "npx prisma generate && ./node_modules/.bin/esbuild server-vercel.ts --bundle --platform=node --format=esm --packages=external --outfile=api/index.js && vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "NODE_OPTIONS=--max-old-space-size=4096 tsc --noEmit",
