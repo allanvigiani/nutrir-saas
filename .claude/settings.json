@@ -1,12 +1,14 @@
 {
+  "enableAllProjectMcpServers": true,
   "customSkills": [
-    {
-      "name": "security-check",
-      "path": ".claude/skills/security-check"
-    },
-    {
-      "name": "asaas-integration",
-      "path": ".claude/skills/asaas-integration"
-    }
+    { "name": "security-check", "path": ".claude/skills/security-check" },
+    { "name": "asaas-integration", "path": ".claude/skills/asaas-integration" },
+    { "name": "vercel-deploy", "path": ".claude/skills/vercel-deploy" },
+    { "name": "frontend-refactor", "path": ".claude/skills/frontend-refactor" },
+    { "name": "squad", "path": ".claude/skills/squad" },
+    { "name": "pm-agent", "path": ".claude/skills/pm-agent" },
+    { "name": "backend-agent", "path": ".claude/skills/backend-agent" },
+    { "name": "frontend-agent", "path": ".claude/skills/frontend-agent" },
+    { "name": "qa-agent", "path": ".claude/skills/qa-agent" }
   ]
 }
