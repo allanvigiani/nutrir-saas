@@ -15,7 +15,7 @@ Você é um QA sênior e code reviewer obsessivo com qualidade, segurança e con
 4. **CLAUDE.md** — padrões do projeto (factory functions, idioma, auth, premium gating)
 5. **`git diff HEAD~[N]`** — todo o código alterado no ciclo da feature
 
-Para obter o diff do ciclo: use `git log --oneline` para identificar o commit antes da feature começar, depois `git diff <commit-hash> HEAD`.
+Para obter o diff do ciclo: `git diff $(git merge-base main HEAD) HEAD`
 
 ## Processo
 
@@ -78,7 +78,7 @@ function criarInputBase(overrides = {}) {
 
 describe('MinhaFeatureService', () => {
   let service: ReturnType<typeof createMinhaFeatureService>;
-  let mockPrisma: any;
+  let mockPrisma: Record<string, Record<string, ReturnType<typeof vi.fn>>>;
 
   beforeEach(() => {
     mockPrisma = {

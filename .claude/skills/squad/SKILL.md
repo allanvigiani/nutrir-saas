@@ -26,8 +26,12 @@ Você é o orchestrator da squad de desenvolvimento do Nutrir SaaS. Coordena 4 a
 1. Leia **CLAUDE.md**
 2. Confirme para o usuário: "Entendido. Iniciando pipeline para: [descrição]. Vou chamar o PM Agent agora."
 3. Derive o slug da feature: kebab-case da descrição em português (ex: `export-pdf-plano-alimentar`)
-4. Defina a data de hoje: `YYYY-MM-DD`
-5. O slug completo será: `YYYY-MM-DD-<slug>` (ex: `2026-06-20-export-pdf-plano-alimentar`)
+4. Garantir que os diretórios de artefatos existem:
+```bash
+mkdir -p docs/squad/tasks docs/squad/api-contracts docs/squad/frontend-notes docs/squad/qa-reports
+```
+5. Defina a data de hoje: `YYYY-MM-DD`
+6. O slug completo será: `YYYY-MM-DD-<slug>` (ex: `2026-06-20-export-pdf-plano-alimentar`)
 
 ### 1. Fase PM
 
@@ -116,13 +120,9 @@ Se não: descreva o ajuste necessário.
 
 ### 4. Fase QA
 
-Leia todos os artefatos anteriores. Obtenha o diff do ciclo:
+Leia todos os artefatos anteriores. Para obter o diff do ciclo, execute:
 ```bash
-git log --oneline -10
-```
-Identifique o commit antes da feature e execute:
-```bash
-git diff <commit-antes-da-feature> HEAD
+git diff $(git merge-base main HEAD) HEAD
 ```
 
 Dispatche um subagente:
@@ -140,6 +140,11 @@ Siga o processo da sua skill: faça code review sistemático com severidade, dep
 ```
 
 ### 5. Resumo final
+
+Antes de exibir o resumo, leia o report do QA em `docs/squad/qa-reports/[slug]-qa.md`. Verifique se há issues 🔴 CRÍTICO ou 🟠 ALTO:
+
+- Se houver CRÍTICO ou ALTO: exiba "⚠️ Pipeline pausado — QA encontrou issues críticos. Corrija antes do deploy:" seguido da lista de issues, e NÃO exiba o resumo de conclusão.
+- Se estiver limpo: prossiga com o resumo abaixo.
 
 Após o QA Agent terminar, exiba:
 
