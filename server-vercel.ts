@@ -1,5 +1,4 @@
 import express from "express";
-import { createRequire } from "module";
 import admin from "firebase-admin";
 import { google } from "googleapis";
 import { registerApiRoutes } from "./src/server/register-api-routes";
@@ -7,8 +6,7 @@ import { createAuthenticateMiddleware, requirePremiumOrAdmin } from "./src/serve
 import { createSubscriptionExpiryMiddleware } from "./src/server/middlewares/subscription-expiry";
 import { logger } from "./src/server/logger";
 
-const require = createRequire(import.meta.url);
-const firebaseConfig = require("./firebase-applet-config.json");
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "ai-studio-applet-webapp-667b6";
 
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY || "";
 const ASAAS_API_URL = process.env.ASAAS_API_URL || "https://sandbox.asaas.com/api/v3";
@@ -35,7 +33,7 @@ if (!admin.apps.length) {
     credential: serviceAccount
       ? admin.credential.cert(serviceAccount)
       : admin.credential.applicationDefault(),
-    projectId: firebaseConfig.projectId,
+    projectId: FIREBASE_PROJECT_ID,
   });
 }
 
