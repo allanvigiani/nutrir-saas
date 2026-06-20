@@ -1,7 +1,6 @@
 {
   "cleanUrls": false,
   "trailingSlash": false,
-  "toolbar": false,
   "functions": {
     "api/index.ts": {
       "includeFiles": "node_modules/.prisma/**"
