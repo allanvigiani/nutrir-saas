@@ -25,13 +25,18 @@ function isSuperAdmin(user: { email?: string | null }) {
 }
 
 if (!admin.apps.length) {
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-    : null;
+  let serviceAccount: object | null = null;
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+    } catch (e) {
+      console.error("[Firebase] FIREBASE_SERVICE_ACCOUNT não é JSON válido — verifique a variável no painel da Vercel.", e);
+    }
+  }
 
   admin.initializeApp({
     credential: serviceAccount
-      ? admin.credential.cert(serviceAccount)
+      ? admin.credential.cert(serviceAccount as admin.ServiceAccount)
       : admin.credential.applicationDefault(),
     projectId: FIREBASE_PROJECT_ID,
   });

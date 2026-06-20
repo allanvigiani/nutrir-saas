@@ -1,6 +1,11 @@
 {
   "cleanUrls": false,
   "trailingSlash": false,
+  "functions": {
+    "api/index.ts": {
+      "includeFiles": "node_modules/.prisma/**"
+    }
+  },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/index" },
     { "source": "/(.*)", "destination": "/index.html" }
