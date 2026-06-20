@@ -1,6 +1,7 @@
 import express from "express";
 import { createRequire } from "module";
 import admin from "firebase-admin";
+import { google } from "googleapis";
 import { registerApiRoutes } from "../src/server/register-api-routes.ts";
 import { createAuthenticateMiddleware, requirePremiumOrAdmin } from "../src/server/middlewares/auth.ts";
 import { createSubscriptionExpiryMiddleware } from "../src/server/middlewares/subscription-expiry.ts";
@@ -78,8 +79,6 @@ async function authenticate(req: any, res: any, next: any): Promise<void> {
   }).then(() => checkSubscriptionExpiry(req, res, next))
     .catch((err) => next(err));
 }
-
-const { google } = await import("googleapis");
 
 registerApiRoutes({
   app,
