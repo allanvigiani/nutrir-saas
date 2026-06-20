@@ -2,10 +2,10 @@ import express from "express";
 import { createRequire } from "module";
 import admin from "firebase-admin";
 import { google } from "googleapis";
-import { registerApiRoutes } from "./src/server/register-api-routes.ts";
-import { createAuthenticateMiddleware, requirePremiumOrAdmin } from "./src/server/middlewares/auth.ts";
-import { createSubscriptionExpiryMiddleware } from "./src/server/middlewares/subscription-expiry.ts";
-import { logger } from "./src/server/logger.ts";
+import { registerApiRoutes } from "./src/server/register-api-routes";
+import { createAuthenticateMiddleware, requirePremiumOrAdmin } from "./src/server/middlewares/auth";
+import { createSubscriptionExpiryMiddleware } from "./src/server/middlewares/subscription-expiry";
+import { logger } from "./src/server/logger";
 
 const require = createRequire(import.meta.url);
 const firebaseConfig = require("./firebase-applet-config.json");
