@@ -13,7 +13,8 @@ import {
   Leaf,
   BookOpen,
   ArrowRightLeft,
-  Lock
+  Lock,
+  ChefHat,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
@@ -99,6 +100,7 @@ export const Sidebar = () => {
       { icon: Users, label: 'Pacientes', to: '/patients' },
       { icon: Calendar, label: 'Agenda', to: '/schedule' },
       { icon: DollarSign, label: 'Financeiro', to: '/financial' },
+      { icon: ChefHat, label: 'Receitas', to: '/recipes' },
       ...(nutritionist?.role === 'admin' ? [{ icon: ShieldCheck, label: 'Admin', to: '/admin' }] : []),
       { icon: Settings, label: 'Configurações', to: '/settings' },
     );

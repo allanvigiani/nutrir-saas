@@ -30,6 +30,7 @@ const Schedule = lazy(() => import('./pages/Schedule').then(m => ({ default: m.S
 const Financial = lazy(() => import('./pages/Financial').then(m => ({ default: m.Financial })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const Recipes = lazy(() => import('./pages/Recipes').then(m => ({ default: m.Recipes })));
 
 export default function App() {
   return (
@@ -62,6 +63,7 @@ export default function App() {
                   <Route path="/financial" element={<Financial />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/recipes" element={<Recipes />} />
                 </Route>
 
                 <Route path="*" element={<Navigate to="/" replace />} />

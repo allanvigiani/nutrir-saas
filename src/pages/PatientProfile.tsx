@@ -263,7 +263,7 @@ export const PatientProfile = () => {
 
   const defaultMealTypes: any[] = [];
 
-  const generateMealPlanPDF = (plan: MealPlan, items: MealPlanItem[]) => {
+  const generateMealPlanPDF = (plan: MealPlan, items: MealPlanItem[], receitasVinculadas?: Array<{ meal: string; recipe: { name: string; ingredients: Array<{ name: string; quantity: string; unit: string }>; prepMode?: string } }>) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -468,6 +468,113 @@ export const PatientProfile = () => {
 
     currentY = (doc as any).lastAutoTable.finalY + 15;
 
+    // Receitas vinculadas ao plano — agrupadas por refeição
+    if (receitasVinculadas && receitasVinculadas.length > 0) {
+      // Agrupa mantendo a ordem de aparição, deduplicando receita dentro de cada grupo
+      const grupos = new Map<string, typeof receitasVinculadas>();
+      for (const link of receitasVinculadas) {
+        if (!grupos.has(link.meal)) grupos.set(link.meal, []);
+        const grupo = grupos.get(link.meal)!;
+        const jaExiste = grupo.some((l) => l.recipe.name === link.recipe.name);
+        if (!jaExiste) grupo.push(link);
+      }
+
+      if (currentY > doc.internal.pageSize.getHeight() - 60) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RECEITAS', 14, currentY + 10);
+      doc.line(14, currentY + 12, pageWidth - 14, currentY + 12);
+      currentY += 20;
+
+      for (const [meal, links] of grupos) {
+        if (currentY > doc.internal.pageSize.getHeight() - 40) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        // Cabeçalho da refeição
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(71, 85, 105);
+        doc.text(meal.toUpperCase(), 14, currentY);
+        currentY += 3;
+        doc.setDrawColor(203, 213, 225);
+        doc.line(14, currentY, pageWidth - 14, currentY);
+        currentY += 6;
+
+        for (const { recipe } of links) {
+          if (currentY > doc.internal.pageSize.getHeight() - 50) {
+            doc.addPage();
+            currentY = 20;
+          }
+
+          // Título da receita
+          doc.setFillColor(241, 245, 249);
+          doc.rect(14, currentY, pageWidth - 28, 10, 'F');
+          doc.setTextColor(15, 23, 42);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.text(recipe.name, 18, currentY + 7);
+          currentY += 14;
+
+          // Ingredientes
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9);
+          doc.setTextColor(71, 85, 105);
+          doc.text('Ingredientes:', 14, currentY);
+          currentY += 5;
+
+          recipe.ingredients.forEach((ing) => {
+            if (currentY > doc.internal.pageSize.getHeight() - 20) {
+              doc.addPage();
+              currentY = 20;
+            }
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(51, 65, 85);
+            doc.text(`• ${ing.quantity} ${ing.unit} de ${ing.name}`, 18, currentY);
+            currentY += 5;
+          });
+
+          // Modo de preparo
+          if (recipe.prepMode) {
+            currentY += 3;
+            if (currentY > doc.internal.pageSize.getHeight() - 30) {
+              doc.addPage();
+              currentY = 20;
+            }
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.setTextColor(71, 85, 105);
+            doc.text('Modo de Preparo:', 14, currentY);
+            currentY += 5;
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(51, 65, 85);
+            const splitPrepMode = doc.splitTextToSize(recipe.prepMode, pageWidth - 28);
+            splitPrepMode.forEach((linha: string) => {
+              if (currentY > doc.internal.pageSize.getHeight() - 15) {
+                doc.addPage();
+                currentY = 20;
+              }
+              doc.text(linha, 14, currentY);
+              currentY += 5;
+            });
+          }
+
+          currentY += 8;
+        }
+
+        currentY += 6;
+      }
+    }
+
     // Signature and Stamp Area
     if (currentY > doc.internal.pageSize.getHeight() - 60) {
       doc.addPage();
@@ -506,8 +613,8 @@ export const PatientProfile = () => {
     return doc;
   };
 
-  const handleExportPDF = (plan: MealPlan, items: MealPlanItem[]) => {
-    const doc = generateMealPlanPDF(plan, items);
+  const handleExportPDF = (plan: MealPlan, items: MealPlanItem[], receitasVinculadas?: Array<{ meal: string; recipe: { name: string; ingredients: Array<{ name: string; quantity: string; unit: string }>; prepMode?: string } }>) => {
+    const doc = generateMealPlanPDF(plan, items, receitasVinculadas);
     doc.save(`Plano_Alimentar_${patient?.name.replace(/\s+/g, '_')}_${format(new Date(), 'ddMMyyyy')}.pdf`);
   };
 
@@ -517,12 +624,18 @@ export const PatientProfile = () => {
 
     try {
       const token = await auth.currentUser?.getIdToken();
-      const itemsRes = await fetch(`/api/meal-plans/${plan.id}/items`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [itemsRes, receitasEmailRes] = await Promise.all([
+        fetch(`/api/meal-plans/${plan.id}/items`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`/api/meal-plans/${plan.id}/recipes`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
       const items: MealPlanItem[] = itemsRes.ok ? await itemsRes.json() : [];
+      const receitasEmail = receitasEmailRes.ok ? await receitasEmailRes.json() : [];
 
-      const doc = generateMealPlanPDF(plan, items);
+      const doc = generateMealPlanPDF(plan, items, receitasEmail);
       const pdfBase64 = doc.output('datauristring').split(',')[1];
       const fileName = `Plano_Alimentar_${patient.name.replace(/\s+/g, '_')}.pdf`;
 
@@ -556,12 +669,18 @@ export const PatientProfile = () => {
     setSelectedMealPlan(plan);
     try {
       const token = await auth.currentUser?.getIdToken();
-      const itemsRes = await fetch(`/api/meal-plans/${plan.id}/items`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [itemsRes, receitasRes] = await Promise.all([
+        fetch(`/api/meal-plans/${plan.id}/items`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`/api/meal-plans/${plan.id}/recipes`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
       const items: MealPlanItem[] = itemsRes.ok ? await itemsRes.json() : [];
+      const receitasVinculadas = receitasRes.ok ? await receitasRes.json() : [];
 
-      handleExportPDF(plan, items);
+      handleExportPDF(plan, items, receitasVinculadas);
       void logEvent('exportar_pdf_plano_alimentar');
       toast.success("PDF gerado com sucesso!", { id: toastId });
     } catch (error) {

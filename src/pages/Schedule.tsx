@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Calendar as CalendarIcon,
+  CalendarDays,
   Plus,
   Clock,
   User,
@@ -71,6 +72,7 @@ import { logEvent } from '../lib/firebase';
 import { cn } from '../lib/utils';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { apiRequest } from '../hooks/useApi';
+import { PageHeader } from '../components/PageHeader';
 
 // Tipo estendido para incluir o objeto patient retornado pela API
 type AppointmentWithPatient = Appointment & { patient?: { name: string } };
@@ -286,12 +288,12 @@ export const Schedule = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl md:text-3xl font-bold text-foreground tracking-tight">Agenda</h1>
-          <p className="text-muted-foreground">Gerencie seus horários e atendimentos.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
+      <PageHeader
+        icon={CalendarDays}
+        title="Agenda"
+        description="Visualize e gerencie seus agendamentos."
+      />
+      <div className="flex flex-wrap items-center gap-3">
           <Tabs value={view} onValueChange={(val: any) => setView(val)} className="w-auto">
             <TabsList className="flex items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto overflow-x-auto">
               <TabsTrigger
@@ -502,7 +504,6 @@ export const Schedule = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </div>
       </div>
 
       <Card className="overflow-hidden border-none shadow-sm">

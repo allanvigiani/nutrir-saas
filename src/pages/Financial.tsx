@@ -60,6 +60,7 @@ import { logEvent } from '../lib/firebase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from '../lib/utils';
+import { PageHeader } from '../components/PageHeader';
 
 
 const maskCurrency = (value: string) => {
@@ -378,21 +379,22 @@ export const Financial = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Financeiro</h1>
-          <p className="text-muted-foreground">Gerencie pagamentos e emita recibos para seus pacientes.</p>
-        </div>
-        <Button
-          className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95"
-          onClick={() => {
-            reset();
-            setIsModalOpen(true);
-          }}
-        >
-          <Plus className="w-4 h-4" /> Novo Pagamento
-        </Button>
-      </div>
+      <PageHeader
+        icon={DollarSign}
+        title="Financeiro"
+        description="Gerencie pagamentos e emita recibos para seus pacientes."
+        action={
+          <Button
+            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95"
+            onClick={() => {
+              reset();
+              setIsModalOpen(true);
+            }}
+          >
+            <Plus className="w-4 h-4" /> Novo Pagamento
+          </Button>
+        }
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

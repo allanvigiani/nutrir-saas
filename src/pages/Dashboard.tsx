@@ -9,7 +9,9 @@ import {
   ChevronRight,
   Zap,
   Video,
+  LayoutDashboard,
 } from 'lucide-react';
+import { PageHeader } from '../components/PageHeader';
 import { Card, CardContent, CardHeader, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { useAuth } from '../contexts/AuthContext';
@@ -133,17 +135,11 @@ export const Dashboard = () => {
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl md:text-2xl font-bold text-foreground tracking-tight text-balance">
-              {greeting}, {firstName}
-            </h1>
-            <span className="text-xl" aria-hidden="true">👋</span>
-          </div>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}
-          </p>
-        </div>
+        <PageHeader
+          icon={LayoutDashboard}
+          title={`${greeting}, ${firstName}`}
+          description={format(new Date(), "EEEE, d 'de' MMMM", { locale: ptBR }).replace(/^\w/, c => c.toUpperCase())}
+        />
         <PremiumFeature active={activePatients >= FREE_PLAN_LIMITS.maxPatients}>
           <Button
             nativeButton={false}

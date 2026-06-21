@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Calendar, DollarSign, Settings, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Calendar, DollarSign, Settings, ShieldCheck, ChefHat } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -9,6 +9,7 @@ const baseNavItems = [
   { icon: Users, label: 'Pacientes', to: '/patients' },
   { icon: Calendar, label: 'Agenda', to: '/schedule' },
   { icon: DollarSign, label: 'Financeiro', to: '/financial' },
+  { icon: ChefHat, label: 'Receitas', to: '/recipes' },
   { icon: Settings, label: 'Config', to: '/settings' },
 ];
 

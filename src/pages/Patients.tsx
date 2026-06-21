@@ -49,6 +49,7 @@ import { toast } from 'sonner';
 import { logEvent } from '../lib/firebase';
 import { PremiumFeature } from '../components/PremiumFeature';
 import { PremiumBanner } from '../components/PremiumBanner';
+import { PageHeader } from '../components/PageHeader';
 import { maskCPF, maskPhone } from '../lib/masks';
 import { Skeleton } from '../components/ui/skeleton';
 
@@ -307,28 +308,23 @@ export const Patients = () => {
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight text-balance">Pacientes</h1>
-          {!loading && (
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {patients.length} {patients.length === 1 ? 'paciente cadastrado' : 'pacientes cadastrados'}
-            </p>
-          )}
-        </div>
-
-        <Dialog open={isModalOpen} onOpenChange={(open) => {
-          setIsModalOpen(open);
-          if (!open) setEditingPatient(null);
-        }}>
-          <PremiumFeature active={isLimitReached}>
-            <DialogTrigger
-              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-9 px-4 gap-2 font-medium text-sm transition-all active:scale-95" onClick={openNewModal} />}
-              nativeButton={true}
-            >
-              <UserPlus className="w-4 h-4" aria-hidden="true" /> Novo Paciente
-            </DialogTrigger>
-          </PremiumFeature>
+      <PageHeader
+        icon={Users}
+        title="Pacientes"
+        description={!loading ? `${patients.length} ${patients.length === 1 ? 'paciente cadastrado' : 'pacientes cadastrados'}` : undefined}
+        action={
+          <Dialog open={isModalOpen} onOpenChange={(open) => {
+            setIsModalOpen(open);
+            if (!open) setEditingPatient(null);
+          }}>
+            <PremiumFeature active={isLimitReached}>
+              <DialogTrigger
+                render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-9 px-4 gap-2 font-medium text-sm transition-all active:scale-95" onClick={openNewModal} />}
+                nativeButton={true}
+              >
+                <UserPlus className="w-4 h-4" aria-hidden="true" /> Novo Paciente
+              </DialogTrigger>
+            </PremiumFeature>
 
           <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl p-4">
             <DialogHeader className="mb-4">
@@ -459,8 +455,9 @@ export const Patients = () => {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
-      </div>
+          </Dialog>
+        }
+      />
 
       {!isPremium && isLimitReached && (
         <PremiumBanner

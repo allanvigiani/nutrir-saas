@@ -136,9 +136,52 @@ model MealPlan {
   updatedAt           DateTime @updatedAt
   deletedAt           DateTime?
 
-  items MealPlanItem[]
+  items        MealPlanItem[]
+  recipeLinks  MealPlanRecipe[]
 
   @@map("meal_plans")
+}
+
+model Recipe {
+  id             String   @id @default(cuid())
+  nutritionistId String?
+  name           String
+  description    String?
+  prepMode       String?
+  isSuggested    Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  deletedAt      DateTime?
+
+  ingredients   RecipeIngredient[]
+  mealPlanLinks MealPlanRecipe[]
+
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id       String @id @default(cuid())
+  recipeId String
+  recipe   Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  name     String
+  quantity String
+  unit     String
+
+  @@map("recipe_ingredients")
+}
+
+model MealPlanRecipe {
+  id         String   @id @default(cuid())
+  mealPlanId String
+  mealPlan   MealPlan @relation(fields: [mealPlanId], references: [id], onDelete: Cascade)
+  recipeId   String
+  recipe     Recipe   @relation(fields: [recipeId], references: [id])
+  meal       String
+  position   Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([mealPlanId, recipeId, meal])
+  @@map("meal_plan_recipes")
 }
 
 model MealPlanItem {

@@ -22,6 +22,7 @@ import { registerPatientPortalRoutes } from "./routes/patient-portal.routes.ts";
 import { registerAdminRoutes } from "./routes/admin.routes.ts";
 import { registerSubscriptionRoutes } from "./routes/subscription.routes.ts";
 import { registerAccountExportRoutes } from "./routes/account-export.routes.ts";
+import { registerRecipesRoutes } from "./routes/recipes.routes.ts";
 import { logger } from "./logger.ts";
 import { createAuditMiddleware } from "./middlewares/audit.ts";
 import {
@@ -87,6 +88,7 @@ export function registerApiRoutes(deps: RegisterApiRoutesDeps) {
   registerPatientPortalRoutes(deps);
   registerAdminRoutes(deps);
   registerSubscriptionRoutes(deps);
+  registerRecipesRoutes(deps);
 
   logger.info("Rotas da API registradas com sucesso (rate limiting ativo)");
 }

@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Patient, MealPlan, MealPlanItem, NutritionCalculation } from '../types';
 import { MealPlanEditor } from '../components/MealPlanEditor';
+import { ReceitasVinculadasPanel } from '../components/ReceitasVinculadasPanel';
 import { toast } from 'sonner';
 import { logEvent } from '../lib/firebase';
 import { apiRequest } from '../hooks/useApi';
@@ -144,21 +145,35 @@ export function MealPlanEdit() {
     ? mealPlan.mealObservations as Record<string, string>
     : {};
 
+  // Tipos de refeição para o painel de receitas vinculadas
+  const mealTypesForPanel = safeCustomMeals.length > 0
+    ? safeCustomMeals.map((m: any) => ({ id: m.id, label: m.label || m.id }))
+    : [];
+
   return (
-    <div className="h-screen flex flex-col">
-      <MealPlanEditor
-        initialName={mealPlan?.name || (calculation ? `Plano - ${calculation.result.getAjustado} kcal` : '')}
-        initialItems={mealItems}
-        initialGeneralInstructions={mealPlan?.generalInstructions || ''}
-        initialWaterIntake={mealPlan?.waterIntake || ''}
-        initialMealObservations={safeMealObservations}
-        initialCustomMeals={safeCustomMeals}
-        selectedCalculation={calculation}
-        foodDataSource="Todas"
-        isNew={!planId || planId === 'new'}
-        onSave={handleSave}
-        onClose={() => navigate(`/patients/${patientId}`)}
-      />
+    <div className="flex flex-col min-h-screen">
+      <div className="flex-1 h-screen">
+        <MealPlanEditor
+          initialName={mealPlan?.name || (calculation ? `Plano - ${calculation.result.getAjustado} kcal` : '')}
+          initialItems={mealItems}
+          initialGeneralInstructions={mealPlan?.generalInstructions || ''}
+          initialWaterIntake={mealPlan?.waterIntake || ''}
+          initialMealObservations={safeMealObservations}
+          initialCustomMeals={safeCustomMeals}
+          selectedCalculation={calculation}
+          foodDataSource="Todas"
+          isNew={!planId || planId === 'new'}
+          onSave={handleSave}
+          onClose={() => navigate(`/patients/${patientId}`)}
+        />
+      </div>
+      {/* Receitas vinculadas — visível apenas em planos existentes */}
+      {planId && planId !== 'new' && (
+        <ReceitasVinculadasPanel
+          planId={planId}
+          mealTypes={mealTypesForPanel}
+        />
+      )}
     </div>
   );
 }

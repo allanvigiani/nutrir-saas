@@ -21,8 +21,10 @@ import {
   Calendar,
   AlertCircle,
   RefreshCw,
-  ShieldCheck
+  ShieldCheck,
+  Settings2
 } from 'lucide-react';
+import { PageHeader } from '../components/PageHeader';
 import { 
   Card, 
   CardContent, 
@@ -428,10 +430,11 @@ export const Settings = () => {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground">Gerencie seu perfil e preferências do sistema.</p>
-      </div>
+      <PageHeader
+        icon={Settings2}
+        title="Configurações"
+        description="Gerencie seu perfil e preferências do sistema."
+      />
 
       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto mb-8 overflow-x-auto">

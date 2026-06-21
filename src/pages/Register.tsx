@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { createUserWithEmailAndPassword, updateProfile, signInWithPopup } from 'firebase/auth';
+import { createUserWithEmailAndPassword, updateProfile, signInWithPopup, linkWithCredential, EmailAuthProvider } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
 import { Eye, EyeOff, ChevronLeft, Moon, Sun } from 'lucide-react';
 import { useTheme } from 'next-themes';
@@ -111,13 +111,19 @@ export const Register = () => {
         }
       }
 
-      // Se o usuário já existe no Firebase (tentativa anterior falhou no banco),
-      // reutiliza a sessão em vez de criar nova conta
       let firebaseUser = auth.currentUser;
       let isNewFirebaseUser = false;
 
       if (firebaseUser && firebaseUser.email === data.email) {
-        // Recuperação: usuário Firebase já existe, só falta o perfil no banco
+        // Usuário Firebase já existe (ex: veio do login Google).
+        // Vincula o provider email/senha para que ambos os métodos funcionem.
+        const credential = EmailAuthProvider.credential(data.email, data.password);
+        try {
+          await linkWithCredential(firebaseUser, credential);
+        } catch (linkErr: any) {
+          // provider-already-linked = senha já estava configurada, segue normalmente
+          if (linkErr.code !== 'auth/provider-already-linked') throw linkErr;
+        }
         await firebaseUser.getIdToken(true);
       } else {
         const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
