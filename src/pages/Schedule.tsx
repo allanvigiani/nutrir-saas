@@ -377,12 +377,15 @@ export const Schedule = () => {
                         className="bg-muted/30 rounded-lg"
                         value={selectedDate ? format(selectedDate, 'yyyy-MM-dd') : ''}
                         onChange={(e) => {
+                          if (!e.target.value) return;
+                          setSelectedDate(parseISO(e.target.value));
+                        }}
+                        onBlur={(e) => {
+                          if (!e.target.value) return;
                           const newDate = parseISO(e.target.value);
                           if (newDate < startOfDay(new Date())) {
                             toast.error('Não é possível agendar consultas no passado.');
-                            return;
                           }
-                          setSelectedDate(newDate);
                         }}
                       />
                     )}
