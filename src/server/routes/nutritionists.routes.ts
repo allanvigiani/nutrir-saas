@@ -1,5 +1,5 @@
 import type { BaseRouteDeps } from '../types.ts';
-import { createNutritionistsService } from '../services/nutritionists.service.ts';
+import { createNutritionistsService, NUTRITIONIST_NOT_FOUND } from '../services/nutritionists.service.ts';
 import { prisma } from '../lib/prisma.ts';
 import { withNutritionistRLS } from '../lib/rls-context.ts';
 import { hashField } from '../lib/crypto.ts';
@@ -25,6 +25,9 @@ export function registerNutritionistsRoutes(deps: BaseRouteDeps) {
         res.json(data);
       });
     } catch (err: any) {
+      if (err.message === NUTRITIONIST_NOT_FOUND) {
+        return res.status(404).json({ error: err.message });
+      }
       return res.status(500).json({ error: err.message });
     }
   });

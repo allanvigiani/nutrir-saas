@@ -81,7 +81,7 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export const Settings = () => {
-  const { nutritionist, user } = useAuth();
+  const { nutritionist, user, reloadNutritionist } = useAuth();
   const isPremiumOrAdmin = isAdminOrPremium(nutritionist);
   const [searchParams] = useSearchParams();
   const { 
@@ -281,11 +281,11 @@ export const Settings = () => {
   };
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
-        toast.success('Google Agenda conectado com sucesso!');
-        // Refresh nutritionist data if needed, or just let the snapshot handle it
         setIsConnectingGoogle(false);
+        await reloadNutritionist();
+        toast.success('Google Agenda conectado com sucesso!');
       }
     };
     window.addEventListener('message', handleMessage);
@@ -325,6 +325,7 @@ export const Settings = () => {
         googleCalendarConnected: false,
         googleCalendarTokens: null,
       });
+      await reloadNutritionist();
       toast.success('Google Agenda desconectado.', { id: toastId });
     } catch (error) {
       console.error("Error disconnecting Google:", error);

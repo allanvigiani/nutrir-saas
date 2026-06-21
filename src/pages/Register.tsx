@@ -69,7 +69,7 @@ export const Register = () => {
       const meRes = await fetch('/api/me', { headers: { Authorization: `Bearer ${idToken}` } });
       if (meRes.ok) {
         toast.success('Você já possui uma conta. Entrando...');
-        navigate('/');
+        navigate('/dashboard');
         return;
       }
 
