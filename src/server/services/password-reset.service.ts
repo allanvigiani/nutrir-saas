@@ -8,8 +8,8 @@ export function createPasswordResetService() {
     let resetLink: string;
     try {
       resetLink = await getAuth().generatePasswordResetLink(email, { url: continueUrl });
-    } catch (err: any) {
-      if (err?.code === 'auth/user-not-found') return;
+    } catch (err: unknown) {
+      if ((err as { code?: string })?.code === 'auth/user-not-found') return;
       throw err;
     }
 
