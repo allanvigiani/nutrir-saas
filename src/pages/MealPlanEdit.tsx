@@ -48,6 +48,13 @@ export function MealPlanEdit() {
             const { items, ...plan } = planData;
             setMealPlan(plan as MealPlan);
             setMealItems(items || []);
+
+            // Busca o cálculo nutricional vinculado para exibir as metas de macros
+            if (planData.calculation_id) {
+              const calcs = await apiRequest<NutritionCalculation[]>(`/api/patients/${patientId}/calculations`, 'GET');
+              const linked = calcs?.find(c => c.id === planData.calculation_id) ?? null;
+              setCalculation(linked);
+            }
           }
         } else if (stateCalculation) {
           setCalculation(stateCalculation);
