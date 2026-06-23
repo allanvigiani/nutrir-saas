@@ -1,4 +1,5 @@
 import rateLimit from 'express-rate-limit';
+import type { Request, Response } from 'express';
 import type { BaseRouteDeps } from '../types.ts';
 import { createPasswordResetService } from '../services/password-reset.service.ts';
 
@@ -28,10 +29,11 @@ const ipLimiter = rateLimit({
 export function registerPasswordResetRoutes(deps: BaseRouteDeps) {
   const service = createPasswordResetService();
 
-  deps.app.post('/api/auth/forgot-password', ipLimiter, async (req: any, res: any) => {
+  deps.app.post('/api/auth/forgot-password', ipLimiter, async (req: Request, res: Response) => {
     const { email } = req.body;
 
-    if (!email || typeof email !== 'string' || !email.includes('@') || !email.includes('.')) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || typeof email !== 'string' || !emailRegex.test(email)) {
       return res.status(400).json({ error: 'E-mail inválido.' });
     }
 
