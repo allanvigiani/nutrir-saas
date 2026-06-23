@@ -1,5 +1,54 @@
-import type { BaseRouteDeps } from "../types.ts";
+import rateLimit from 'express-rate-limit';
+import type { BaseRouteDeps } from '../types.ts';
+import { createPasswordResetService } from '../services/password-reset.service.ts';
 
-// Password reset now uses Firebase Auth directly in the frontend.
-// Keep this no-op route file only to avoid stale editor imports/errors.
-export function registerPasswordResetRoutes(_deps: BaseRouteDeps) {}
+// Rate limit por email em memória — reseta junto com o processo
+const emailAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function checkEmailRateLimit(email: string): boolean {
+  const now = Date.now();
+  const entry = emailAttempts.get(email);
+  if (!entry || now > entry.resetAt) {
+    emailAttempts.set(email, { count: 1, resetAt: now + 60 * 60 * 1000 });
+    return true;
+  }
+  if (entry.count >= 3) return false;
+  entry.count++;
+  return true;
+}
+
+const ipLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas. Tente novamente em 1 hora.' },
+});
+
+export function registerPasswordResetRoutes(deps: BaseRouteDeps) {
+  const service = createPasswordResetService();
+
+  deps.app.post('/api/auth/forgot-password', ipLimiter, async (req: any, res: any) => {
+    const { email } = req.body;
+
+    if (!email || typeof email !== 'string' || !email.includes('@') || !email.includes('.')) {
+      return res.status(400).json({ error: 'E-mail inválido.' });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!checkEmailRateLimit(normalizedEmail)) {
+      return res.status(429).json({ error: 'Muitas tentativas para este e-mail. Tente novamente em 1 hora.' });
+    }
+
+    try {
+      await service.sendResetEmail(normalizedEmail);
+    } catch (_err) {
+      // Silencia erros internos — não revela informação ao cliente
+    }
+
+    return res.status(200).json({
+      message: 'Se este e-mail estiver cadastrado, você receberá um link de redefinição em breve.',
+    });
+  });
+}
