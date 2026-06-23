@@ -8,8 +8,6 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
 import { ArrowLeft, Mail, CheckCircle2 } from 'lucide-react';
-import { sendPasswordResetEmail } from 'firebase/auth';
-import { auth } from '../lib/firebase';
 
 const forgotSchema = z.object({
   email: z.string().email('E-mail inválido'),
@@ -30,21 +28,16 @@ export const ForgotPassword = () => {
   const onSubmit = async (data: ForgotFormValues) => {
     setIsLoading(true);
     try {
-      await sendPasswordResetEmail(auth, data.email);
+      await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email }),
+      });
       setEmail(data.email);
       setStep('success');
       toast.success('E-mail de redefinição enviado!');
-    } catch (error: any) {
-      console.error("[Auth] Erro ao enviar reset:", error);
-      let message = "Erro ao enviar e-mail de redefinição.";
-      
-      if (error.code === 'auth/user-not-found') {
-        message = "Usuário não encontrado com este e-mail.";
-      } else if (error.code === 'auth/too-many-requests') {
-        message = "Muitas tentativas. Tente novamente mais tarde.";
-      }
-      
-      toast.error(message);
+    } catch (_error) {
+      toast.error('Erro ao enviar e-mail de redefinição. Tente novamente.');
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +88,7 @@ export const ForgotPassword = () => {
             <div className="space-y-2">
               <h1 className="text-2xl font-bold text-foreground tracking-tight">Esqueceu a senha?</h1>
               <p className="text-muted-foreground text-sm">
-                Informe seu e-mail e enviaremos um link oficial do Firebase para você redefinir sua senha com segurança.
+                Informe seu e-mail e enviaremos um link para você redefinir sua senha. Verifique sua caixa de entrada e spam.
               </p>
             </div>
 
