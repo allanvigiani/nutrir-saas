@@ -6,6 +6,7 @@ import { PageLoader } from './components/PageLoader';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { Landing } from './pages/Landing';
 import { PatientAccess } from './pages/PatientAccess';
 import { SubscriptionSuccess } from './pages/SubscriptionSuccess';
@@ -47,6 +48,7 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/subscription-success" element={<SubscriptionSuccess />} />
                 <Route path="/patient-access/:id" element={<PatientAccess />} />
                 <Route path="/privacidade" element={<Privacidade />} />
