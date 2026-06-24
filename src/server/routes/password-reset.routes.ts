@@ -23,11 +23,11 @@ const ipLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
-  message: { error: 'Muitas tentativas. Tente novamente em 1 hora.' },
+  message: { error: 'Muitas tentativas. Tente novamente em breve.' },
 });
 
 export function registerPasswordResetRoutes(deps: BaseRouteDeps) {
-  const service = createPasswordResetService();
+  const service = createPasswordResetService({ admin: deps.admin });
 
   deps.app.post('/api/auth/forgot-password', ipLimiter, async (req: Request, res: Response) => {
     const { email } = req.body;
