@@ -3,15 +3,20 @@ import { sendEmail, getPasswordResetTemplate } from '../../lib/mail.ts';
 
 export function createPasswordResetService() {
   async function sendResetEmail(email: string): Promise<void> {
-    const continueUrl = (process.env.APP_URL || 'http://localhost:3000') + '/login';
+    const appUrl = process.env.APP_URL || 'http://localhost:3000';
 
-    let resetLink: string;
+    let firebaseLink: string;
     try {
-      resetLink = await getAuth().generatePasswordResetLink(email, { url: continueUrl });
+      // continueUrl é apenas fallback do Firebase — o link real é construído abaixo
+      firebaseLink = await getAuth().generatePasswordResetLink(email, { url: appUrl + '/login' });
     } catch (err: unknown) {
       if ((err as { code?: string })?.code === 'auth/user-not-found') return;
       throw err;
     }
+
+    // Extrai o oobCode gerado pelo Firebase e monta o link apontando para nossa página
+    const oobCode = new URL(firebaseLink).searchParams.get('oobCode') ?? '';
+    const resetLink = `${appUrl}/reset-password?oobCode=${encodeURIComponent(oobCode)}`;
 
     await sendEmail({
       to: email,
