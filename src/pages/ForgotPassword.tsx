@@ -28,11 +28,12 @@ export const ForgotPassword = () => {
   const onSubmit = async (data: ForgotFormValues) => {
     setIsLoading(true);
     try {
-      await fetch('/api/auth/forgot-password', {
+      const res = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: data.email }),
       });
+      if (!res.ok) throw new Error(String(res.status));
       setEmail(data.email);
       setStep('success');
       toast.success('E-mail de redefinição enviado!');

@@ -45,8 +45,8 @@ export function registerPasswordResetRoutes(deps: BaseRouteDeps) {
 
     try {
       await service.sendResetEmail(normalizedEmail);
-    } catch (_err) {
-      // Silencia erros internos — não revela informação ao cliente
+    } catch (err: unknown) {
+      console.error('[password-reset] erro interno ao enviar email:', err);
     }
 
     return res.status(200).json({
