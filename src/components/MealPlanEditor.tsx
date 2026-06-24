@@ -64,6 +64,7 @@ interface MealPlanEditorProps {
   selectedCalculation?: NutritionCalculation | null;
   foodDataSource: 'Todas' | 'TACO' | 'TBCA' | 'Custom';
   isNew?: boolean;
+  children?: React.ReactNode;
   onSave: (data: {
     name: string;
     items: any[];
@@ -86,12 +87,12 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
       whileHover={isSidebar ? { x: 4 } : { y: -2, scale: 1.01 }}
       className={cn(
         "bg-card rounded-xl border border-border relative overflow-hidden transition-all duration-300",
-        isSidebar ? "p-4 hover:border-primary/20" : "p-4"
+        isSidebar ? "p-3 hover:border-primary/20" : "p-4"
       )}
     >
-      <div className={cn("flex items-center gap-3", isSidebar ? "mb-3" : "mb-2")}>
-        <div className={cn("rounded-xl flex items-center justify-center shrink-0",
-          isSidebar ? "w-9 h-9" : "w-8 h-8",
+      <div className={cn("flex items-center gap-2.5", isSidebar ? "mb-2.5" : "mb-2")}>
+        <div className={cn("rounded-lg flex items-center justify-center shrink-0",
+          isSidebar ? "w-8 h-8" : "w-8 h-8",
           iconBg
         )}>
           <Icon className={cn("w-4 h-4", color)} />
@@ -268,6 +269,7 @@ export const MealPlanEditor = ({
   selectedCalculation,
   foodDataSource,
   isNew = false,
+  children,
   onSave,
   onClose
 }: MealPlanEditorProps) => {
@@ -466,10 +468,10 @@ export const MealPlanEditor = ({
   return (
     <div className="flex h-full bg-background overflow-hidden">
       {/* Left Sidebar - Nutritional Intelligence */}
-      <motion.aside 
-        initial={{ x: -320, opacity: 0 }}
+      <motion.aside
+        initial={{ x: -270, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        className="w-[320px] bg-card border-r border-border flex flex-col h-full hidden lg:flex shrink-0 z-20"
+        className="w-[270px] bg-card border-r border-border flex flex-col h-full hidden lg:flex shrink-0 z-20"
       >
         <div className="p-5 bg-muted/30">
           <div className="flex items-center gap-3">
@@ -500,9 +502,9 @@ export const MealPlanEditor = ({
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-muted/20">
-          {selectedCalculation && (
-            <motion.div 
+        {selectedCalculation && (
+          <div className="shrink-0 p-4 bg-muted/20">
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="p-5 rounded-xl bg-primary text-primary-foreground relative overflow-hidden group"
@@ -528,62 +530,61 @@ export const MealPlanEditor = ({
                 </p>
               </div>
             </motion.div>
-          )}
+          </div>
+        )}
 
-          <div className="space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <span className="text-xs font-medium text-muted-foreground">Macronutrientes</span>
-              <div className="w-12 h-px bg-muted" />
-            </div>
-
-            <div className="grid gap-3">
-              <SummaryCard
-                label="Energia Total"
-                value={mealTotals.kcal}
-                total={selectedCalculation?.result.getAjustado}
-                unit="kcal"
-                color="text-chart-3"
-                iconBg="bg-chart-3/10"
-                progressColor="bg-chart-3"
-                icon={Activity}
-                variant="sidebar"
-              />
-              <SummaryCard
-                label="Proteínas"
-                value={mealTotals.protein}
-                total={selectedCalculation?.result.macronutrientes.ptnG}
-                unit="g"
-                color="text-emerald-600"
-                iconBg="bg-emerald-500/10"
-                progressColor="bg-emerald-500"
-                icon={Dna}
-                variant="sidebar"
-              />
-              <SummaryCard
-                label="Carboidratos"
-                value={mealTotals.carbs}
-                total={selectedCalculation?.result.macronutrientes.choG}
-                unit="g"
-                color="text-blue-600"
-                iconBg="bg-blue-500/10"
-                progressColor="bg-blue-500"
-                icon={Zap}
-                variant="sidebar"
-              />
-              <SummaryCard
-                label="Gorduras"
-                value={mealTotals.fat}
-                total={selectedCalculation?.result.macronutrientes.lipG}
-                unit="g"
-                color="text-red-500"
-                iconBg="bg-red-500/10"
-                progressColor="bg-red-500"
-                icon={Droplets}
-                variant="sidebar"
-              />
-            </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar bg-muted/20 border-t border-border">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-xs font-medium text-muted-foreground">Macronutrientes</span>
+            <div className="w-12 h-px bg-muted" />
           </div>
 
+          <div className="grid gap-3">
+            <SummaryCard
+              label="Energia Total"
+              value={mealTotals.kcal}
+              total={selectedCalculation?.result.getAjustado}
+              unit="kcal"
+              color="text-chart-3"
+              iconBg="bg-chart-3/10"
+              progressColor="bg-chart-3"
+              icon={Activity}
+              variant="sidebar"
+            />
+            <SummaryCard
+              label="Proteínas"
+              value={mealTotals.protein}
+              total={selectedCalculation?.result.macronutrientes.ptnG}
+              unit="g"
+              color="text-emerald-600"
+              iconBg="bg-emerald-500/10"
+              progressColor="bg-emerald-500"
+              icon={Dna}
+              variant="sidebar"
+            />
+            <SummaryCard
+              label="Carboidratos"
+              value={mealTotals.carbs}
+              total={selectedCalculation?.result.macronutrientes.choG}
+              unit="g"
+              color="text-blue-600"
+              iconBg="bg-blue-500/10"
+              progressColor="bg-blue-500"
+              icon={Zap}
+              variant="sidebar"
+            />
+            <SummaryCard
+              label="Gorduras"
+              value={mealTotals.fat}
+              total={selectedCalculation?.result.macronutrientes.lipG}
+              unit="g"
+              color="text-red-500"
+              iconBg="bg-red-500/10"
+              progressColor="bg-red-500"
+              icon={Droplets}
+              variant="sidebar"
+            />
+          </div>
         </div>
 
       </motion.aside>
@@ -917,6 +918,8 @@ export const MealPlanEditor = ({
                   </Button>
                 </div>
               )}
+
+              {children}
             </div>
           </div>
         </div>

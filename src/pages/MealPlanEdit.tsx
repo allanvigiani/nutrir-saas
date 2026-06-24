@@ -158,29 +158,27 @@ export function MealPlanEdit() {
     : [];
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <div className="flex-1 h-screen">
-        <MealPlanEditor
-          initialName={mealPlan?.name || (calculation ? `Plano - ${calculation.result.getAjustado} kcal` : '')}
-          initialItems={mealItems}
-          initialGeneralInstructions={mealPlan?.generalInstructions || ''}
-          initialWaterIntake={mealPlan?.waterIntake || ''}
-          initialMealObservations={safeMealObservations}
-          initialCustomMeals={safeCustomMeals}
-          selectedCalculation={calculation}
-          foodDataSource="Todas"
-          isNew={!planId || planId === 'new'}
-          onSave={handleSave}
-          onClose={() => navigate(`/patients/${patientId}`)}
-        />
-      </div>
-      {/* Receitas vinculadas — visível apenas em planos existentes */}
-      {planId && planId !== 'new' && (
-        <ReceitasVinculadasPanel
-          planId={planId}
-          mealTypes={mealTypesForPanel}
-        />
-      )}
+    <div className="h-screen overflow-hidden">
+      <MealPlanEditor
+        initialName={mealPlan?.name || (calculation ? `Plano - ${calculation.result.getAjustado} kcal` : '')}
+        initialItems={mealItems}
+        initialGeneralInstructions={mealPlan?.generalInstructions || ''}
+        initialWaterIntake={mealPlan?.waterIntake || ''}
+        initialMealObservations={safeMealObservations}
+        initialCustomMeals={safeCustomMeals}
+        selectedCalculation={calculation}
+        foodDataSource="Todas"
+        isNew={!planId || planId === 'new'}
+        onSave={handleSave}
+        onClose={() => navigate(`/patients/${patientId}`)}
+      >
+        {planId && planId !== 'new' && (
+          <ReceitasVinculadasPanel
+            planId={planId}
+            mealTypes={mealTypesForPanel}
+          />
+        )}
+      </MealPlanEditor>
     </div>
   );
 }

@@ -42,26 +42,28 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
 
   useEffect(() => {
     if (value.length > 1) {
+      const normalize = (s: string) =>
+        s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+      const terms = normalize(value).split(/\s+/).filter(Boolean);
+      const matchesAllTerms = (name: string) => {
+        const normalized = normalize(name);
+        return terms.every(term => normalized.includes(term));
+      };
+
       let tacoFiltered: any[] = [];
       let tbcaFiltered: any[] = [];
 
       if (dataSource === 'TACO' || dataSource === 'Todas') {
-        tacoFiltered = tacoData.filter(food =>
-          food.name.toLowerCase().includes(value.toLowerCase())
-        );
+        tacoFiltered = tacoData.filter(food => matchesAllTerms(food.name));
       }
 
       if (dataSource === 'TBCA' || dataSource === 'Todas') {
-        tbcaFiltered = tbcaData.filter(food =>
-          food.name.toLowerCase().includes(value.toLowerCase())
-        );
+        tbcaFiltered = tbcaData.filter(food => matchesAllTerms(food.name));
       }
-      
+
       let customFiltered: any[] = [];
       if (dataSource === 'Custom' || dataSource === 'Todas') {
-        customFiltered = customFoods.filter(food =>
-          food.name.toLowerCase().includes(value.toLowerCase())
-        );
+        customFiltered = customFoods.filter(food => matchesAllTerms(food.name));
       }
 
       const combined = [...customFiltered, ...tacoFiltered, ...tbcaFiltered].slice(0, 15);

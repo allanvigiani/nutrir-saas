@@ -424,9 +424,13 @@ export const Settings = () => {
     }
   };
 
-  const filteredFoods = customFoods.filter(food => 
-    food.name.toLowerCase().includes(foodSearch.toLowerCase())
-  );
+  const filteredFoods = customFoods.filter(food => {
+    const normalize = (s: string) =>
+      s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const terms = normalize(foodSearch).split(/\s+/).filter(Boolean);
+    const normalized = normalize(food.name);
+    return terms.every(term => normalized.includes(term));
+  });
 
   return (
     <div className="space-y-8">
