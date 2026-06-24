@@ -35,8 +35,13 @@ async function startServer() {
   const { google } = await import("googleapis");
 
   if (!admin.apps.length) {
+    const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
+      ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
+      : undefined;
     admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
+      credential: serviceAccount
+        ? admin.credential.cert(serviceAccount)
+        : admin.credential.applicationDefault(),
       projectId: firebaseConfig.projectId,
     });
   }

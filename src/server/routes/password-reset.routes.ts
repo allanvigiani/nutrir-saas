@@ -23,6 +23,7 @@ const ipLimiter = rateLimit({
   max: 3,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
   message: { error: 'Muitas tentativas. Tente novamente em breve.' },
 });
 
