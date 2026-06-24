@@ -1,17 +1,20 @@
 import nodemailer from 'nodemailer';
 
-/**
- * Configuração do transportador de e-mail usando Brevo (SMTP)
- */
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || '',
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false, // true para 465, false para outras portas
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
+// Criado sob demanda para garantir que dotenv já foi carregado
+function getTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || '',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
+
+// Mantido para compatibilidade com `export default transporter`
+const transporter = { sendMail: (...args: any[]) => getTransporter().sendMail(...args) } as any;
 
 interface SendEmailOptions {
   to: string;
@@ -26,7 +29,7 @@ interface SendEmailOptions {
  */
 export async function sendEmail({ to, subject, text, html, attachments }: SendEmailOptions) {
   try {
-    const info = await transporter.sendMail({
+    const info = await getTransporter().sendMail({
       from: process.env.SMTP_FROM || '',
       to,
       subject,
