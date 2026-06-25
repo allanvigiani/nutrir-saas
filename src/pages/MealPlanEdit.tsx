@@ -119,7 +119,9 @@ export function MealPlanEdit() {
 
       void logEvent(planId && planId !== 'new' ? 'plano_alimentar_atualizado' : 'novo_plano_alimentar');
       toast.success(planId && planId !== 'new' ? "Plano alimentar atualizado!" : "Plano alimentar criado!");
-      navigate(`/patients/${patientId}`);
+      if ((!planId || planId === 'new') && currentPlanId) {
+        navigate(`/patients/${patientId}/meal-plan/${currentPlanId}`, { replace: true });
+      }
       return true;
     } catch (error) {
       console.error("Error saving meal plan:", error);
@@ -157,6 +159,13 @@ export function MealPlanEdit() {
     ? safeCustomMeals.map((m: any) => ({ id: m.id, label: m.label || m.id }))
     : [];
 
+  // Chave de rascunho: edit:{planId} ou new:{patientId}
+  const draftKey = planId && planId !== 'new'
+    ? `nutrir:draft:mealplan:edit:${planId}`
+    : patientId
+    ? `nutrir:draft:mealplan:new:${patientId}`
+    : 'nutrir:draft:mealplan:new';
+
   return (
     <div className="h-screen overflow-hidden">
       <MealPlanEditor
@@ -169,6 +178,7 @@ export function MealPlanEdit() {
         selectedCalculation={calculation}
         foodDataSource="Todas"
         isNew={!planId || planId === 'new'}
+        draftKey={draftKey}
         onSave={handleSave}
         onClose={() => navigate(`/patients/${patientId}`)}
       >

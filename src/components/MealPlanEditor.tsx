@@ -16,10 +16,16 @@ import {
   Calculator,
   Search,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   CircleAlert,
   CircleCheck,
-  Loader2
+  Loader2,
+  History,
+  X
 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -54,6 +60,16 @@ interface MealType {
   color: string;
 }
 
+interface DraftData {
+  name: string;
+  items: any[];
+  generalInstructions: string;
+  waterIntake: string;
+  mealObservations: Record<string, string>;
+  customMeals: any[];
+  savedAt: string;
+}
+
 interface MealPlanEditorProps {
   initialName?: string;
   initialItems?: any[];
@@ -64,6 +80,8 @@ interface MealPlanEditorProps {
   selectedCalculation?: NutritionCalculation | null;
   foodDataSource: 'Todas' | 'TACO' | 'TBCA' | 'Custom';
   isNew?: boolean;
+  /** Chave do localStorage para o rascunho. Ex: 'nutrir:draft:mealplan:new:abc123' */
+  draftKey?: string;
   children?: React.ReactNode;
   onSave: (data: {
     name: string;
@@ -87,20 +105,20 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
       whileHover={isSidebar ? { x: 4 } : { y: -2, scale: 1.01 }}
       className={cn(
         "bg-card rounded-xl border border-border relative overflow-hidden transition-all duration-300",
-        isSidebar ? "p-3 hover:border-primary/20" : "p-4"
+        isSidebar ? "p-2.5 xl:p-3 hover:border-primary/20" : "p-4"
       )}
     >
-      <div className={cn("flex items-center gap-2.5", isSidebar ? "mb-2.5" : "mb-2")}>
+      <div className={cn("flex items-center", isSidebar ? "gap-2 mb-2 xl:gap-2.5 xl:mb-2.5" : "gap-3 mb-2")}>
         <div className={cn("rounded-lg flex items-center justify-center shrink-0",
-          isSidebar ? "w-8 h-8" : "w-8 h-8",
+          isSidebar ? "w-7 h-7 xl:w-8 xl:h-8" : "w-8 h-8",
           iconBg
         )}>
-          <Icon className={cn("w-4 h-4", color)} />
+          <Icon className={cn("w-3.5 h-3.5 xl:w-4 xl:h-4", color)} />
         </div>
         <div>
-          <p className="text-xs font-medium text-muted-foreground">{label}</p>
+          <p className="text-[11px] xl:text-xs font-medium text-muted-foreground">{label}</p>
           <div className="flex items-baseline gap-1">
-            <span className={cn("font-bold leading-none tracking-tight", isSidebar ? "text-xl" : "text-lg", color)}>
+            <span className={cn("font-bold leading-none tracking-tight", isSidebar ? "text-lg xl:text-xl" : "text-lg", color)}>
               {Number(value).toFixed(0)}
             </span>
             <span className="text-xs font-medium text-muted-foreground">{unit}</span>
@@ -119,7 +137,7 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
             <span className="text-muted-foreground">Sem meta</span>
           )}
         </div>
-        <div className="w-full bg-muted h-2 rounded-full overflow-hidden ring-1 ring-border/50">
+        <div className="w-full bg-muted h-1.5 xl:h-2 rounded-full overflow-hidden ring-1 ring-border/50">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${percentage}%` }}
@@ -147,16 +165,84 @@ const MealItemRow = React.memo(({
   onAddNewFood: (name: string, index: number) => void,
   foodDataSource: string
 }) => {
+  const unitOptions = (
+    <>
+      <SelectItem value="g">g</SelectItem>
+      <SelectItem value="un">un</SelectItem>
+      <SelectItem value="ml">ml</SelectItem>
+      <SelectItem value="colher">colher</SelectItem>
+      <SelectItem value="fatia">fatia</SelectItem>
+      {item.serving_name && !['g', 'un', 'ml', 'colher', 'fatia', 'unidade'].includes(item.serving_name) && (
+        <SelectItem value={item.serving_name}>{item.serving_name}</SelectItem>
+      )}
+      {item.serving_name === 'unidade' && (
+        <SelectItem value="unidade">unidade</SelectItem>
+      )}
+    </>
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="group relative bg-card rounded-xl p-2 border border-border hover:border-primary/30 transition-all duration-200"
+      className="group relative bg-card rounded-xl p-1.5 xl:p-2 border border-border hover:border-primary/30 transition-all duration-200"
     >
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center">
+      {/* Mobile layout (< md) */}
+      <div className="md:hidden space-y-1.5">
+        <FoodAutocomplete
+          value={item.food}
+          onChange={(v) => onUpdate(index, 'food', v)}
+          onSelect={(food) => onUpdate(index, 'food_object', food)}
+          onAddNew={(name) => onAddNewFood(name, index)}
+          placeholder="Qual o alimento?"
+          dataSource={foodDataSource as any}
+          className="bg-card hover:bg-card border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl transition-all h-8"
+        />
+        <div className="flex items-center gap-1.5">
+          <div className="w-14 bg-card border border-border focus-within:border-primary rounded-xl h-7 px-2 flex items-center">
+            <Input
+              value={item.quantity}
+              onChange={(e) => onUpdate(index, 'quantity', e.target.value)}
+              className="border-none p-0 h-auto focus-visible:ring-0 bg-transparent text-foreground font-semibold text-center w-full placeholder:text-muted-foreground text-xs"
+              placeholder="Qtd"
+            />
+          </div>
+          <Select value={item.unit} onValueChange={(v) => onUpdate(index, 'unit', v)}>
+            <SelectTrigger className="w-16 bg-card border border-border h-7 rounded-xl px-2 text-muted-foreground font-medium text-xs">
+              <SelectValue>{item.unit}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>{unitOptions}</SelectContent>
+          </Select>
+          <div className="flex items-center gap-1 ml-auto">
+            <div className="text-center">
+              <Input type="number" value={item.kcal} onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
+                className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 rounded-lg text-center text-foreground font-bold w-10 mx-auto text-xs" />
+            </div>
+            <div className="text-center border-l border-border pl-1">
+              <Input type="number" value={item.protein} onChange={(e) => onUpdate(index, 'protein', Number(e.target.value))}
+                className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 rounded-lg text-center text-muted-foreground font-semibold w-8 mx-auto text-xs" />
+            </div>
+            <div className="text-center border-l border-border pl-1">
+              <Input type="number" value={item.carbs} onChange={(e) => onUpdate(index, 'carbs', Number(e.target.value))}
+                className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 rounded-lg text-center text-muted-foreground font-semibold w-8 mx-auto text-xs" />
+            </div>
+            <div className="text-center border-l border-border pl-1">
+              <Input type="number" value={item.fat} onChange={(e) => onUpdate(index, 'fat', Number(e.target.value))}
+                className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 rounded-lg text-center text-muted-foreground font-semibold w-8 mx-auto text-xs" />
+            </div>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => onRemove(index)}
+            className="h-7 w-7 rounded-xl hover:bg-destructive/10 hover:text-destructive text-muted-foreground/50 transition-all shrink-0">
+            <Trash2 className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+      </div>
+
+      {/* Tablet + Desktop layout (md+) */}
+      <div className="hidden md:grid grid-cols-12 gap-1.5 xl:gap-2 items-center">
         {/* Food Search */}
-        <div className="md:col-span-5">
+        <div className="col-span-5">
           <FoodAutocomplete
             value={item.food}
             onChange={(v) => onUpdate(index, 'food', v)}
@@ -164,92 +250,57 @@ const MealItemRow = React.memo(({
             onAddNew={(name) => onAddNewFood(name, index)}
             placeholder="Qual o alimento?"
             dataSource={foodDataSource as any}
-            className="bg-card hover:bg-card border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl transition-all h-8"
+            className="bg-card hover:bg-card border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl transition-all h-7 xl:h-8"
           />
         </div>
 
         {/* Quantity & Unit */}
-        <div className="md:col-span-3 flex items-center gap-2">
-          <div className="flex-1 bg-card border border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl h-8 px-3 transition-all flex items-center">
+        <div className="col-span-3 flex items-center gap-1.5 xl:gap-2">
+          <div className="flex-1 bg-card border border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 rounded-xl h-7 xl:h-8 px-2 xl:px-3 transition-all flex items-center">
             <Input
               value={item.quantity}
               onChange={(e) => onUpdate(index, 'quantity', e.target.value)}
-              className="border-none p-0 h-auto focus-visible:ring-0 bg-transparent text-foreground font-semibold text-center w-full placeholder:text-muted-foreground"
+              className="border-none p-0 h-auto focus-visible:ring-0 bg-transparent text-foreground font-semibold text-center w-full placeholder:text-muted-foreground text-xs"
               placeholder="Qtd."
             />
           </div>
-          <Select
-            value={item.unit}
-            onValueChange={(v) => onUpdate(index, 'unit', v)}
-          >
-            <SelectTrigger className="flex-1 bg-card border border-border focus:border-primary focus:ring-4 focus:ring-primary/10 h-8 rounded-xl px-3 text-muted-foreground font-medium text-xs transition-all">
+          <Select value={item.unit} onValueChange={(v) => onUpdate(index, 'unit', v)}>
+            <SelectTrigger className="flex-1 bg-card border border-border focus:border-primary focus:ring-4 focus:ring-primary/10 h-7 xl:h-8 rounded-xl px-2 xl:px-3 text-muted-foreground font-medium text-xs transition-all">
               <SelectValue>{item.unit}</SelectValue>
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="g">g</SelectItem>
-              <SelectItem value="un">un</SelectItem>
-              <SelectItem value="ml">ml</SelectItem>
-              <SelectItem value="colher">colher</SelectItem>
-              <SelectItem value="fatia">fatia</SelectItem>
-              {item.serving_name && !['g', 'un', 'ml', 'colher', 'fatia', 'unidade'].includes(item.serving_name) && (
-                <SelectItem value={item.serving_name}>{item.serving_name}</SelectItem>
-              )}
-              {item.serving_name === 'unidade' && (
-                <SelectItem value="unidade">unidade</SelectItem>
-              )}
-            </SelectContent>
+            <SelectContent>{unitOptions}</SelectContent>
           </Select>
         </div>
 
         {/* Macros Summary */}
-        <div className="md:col-span-3 flex items-center justify-around gap-2 px-2">
+        <div className="col-span-3 flex items-center justify-around gap-1 xl:gap-2 px-1 xl:px-2">
           <div className="text-center">
-            <p className="text-xs font-medium text-chart-3 mb-0.5">Kcal</p>
-            <Input
-              type="number"
-              value={item.kcal}
-              onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-foreground font-bold w-14 mx-auto transition-all"
-            />
+            <p className="text-[10px] font-medium text-chart-3 mb-0.5 hidden xl:block">Kcal</p>
+            <Input type="number" value={item.kcal} onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-foreground font-bold w-10 xl:w-14 mx-auto transition-all text-xs" />
           </div>
-          <div className="text-center border-l border-border pl-2">
-            <p className="text-xs font-medium text-chart-4 mb-0.5">Prot</p>
-            <Input
-              type="number"
-              value={item.protein}
-              onChange={(e) => onUpdate(index, 'protein', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all"
-            />
+          <div className="text-center border-l border-border pl-1 xl:pl-2">
+            <p className="text-[10px] font-medium text-chart-4 mb-0.5 hidden xl:block">Prot</p>
+            <Input type="number" value={item.protein} onChange={(e) => onUpdate(index, 'protein', Number(e.target.value))}
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-8 xl:w-10 mx-auto transition-all text-xs" />
           </div>
-          <div className="text-center border-l border-border pl-2">
-            <p className="text-xs font-medium text-primary mb-0.5">Carb</p>
-            <Input
-              type="number"
-              value={item.carbs}
-              onChange={(e) => onUpdate(index, 'carbs', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all"
-            />
+          <div className="text-center border-l border-border pl-1 xl:pl-2">
+            <p className="text-[10px] font-medium text-primary mb-0.5 hidden xl:block">Carb</p>
+            <Input type="number" value={item.carbs} onChange={(e) => onUpdate(index, 'carbs', Number(e.target.value))}
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-8 xl:w-10 mx-auto transition-all text-xs" />
           </div>
-          <div className="text-center border-l border-border pl-2">
-            <p className="text-xs font-medium text-chart-2 mb-0.5">Gord</p>
-            <Input
-              type="number"
-              value={item.fat}
-              onChange={(e) => onUpdate(index, 'fat', Number(e.target.value))}
-              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-10 mx-auto transition-all"
-            />
+          <div className="text-center border-l border-border pl-1 xl:pl-2">
+            <p className="text-[10px] font-medium text-chart-2 mb-0.5 hidden xl:block">Gord</p>
+            <Input type="number" value={item.fat} onChange={(e) => onUpdate(index, 'fat', Number(e.target.value))}
+              className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 hover:bg-muted/50 focus:bg-card rounded-lg text-center text-muted-foreground font-semibold w-8 xl:w-10 mx-auto transition-all text-xs" />
           </div>
         </div>
 
         {/* Actions */}
-        <div className="md:col-span-1 flex justify-end">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => onRemove(index)}
-            className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive text-muted-foreground/50 transition-all"
-          >
-            <Trash2 className="w-4 h-4" />
+        <div className="col-span-1 flex justify-end">
+          <Button variant="ghost" size="icon" onClick={() => onRemove(index)}
+            className="h-7 w-7 xl:h-9 xl:w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive text-muted-foreground/50 transition-all">
+            <Trash2 className="w-3.5 h-3.5 xl:w-4 xl:h-4" />
           </Button>
         </div>
       </div>
@@ -258,6 +309,43 @@ const MealItemRow = React.memo(({
 });
 
 MealItemRow.displayName = 'MealItemRow';
+
+// Helpers de localStorage com try/catch silencioso
+function isValidDraft(d: unknown): d is DraftData {
+  return (
+    typeof d === 'object' && d !== null &&
+    typeof (d as Record<string, unknown>).name === 'string' &&
+    Array.isArray((d as Record<string, unknown>).items) &&
+    typeof (d as Record<string, unknown>).savedAt === 'string'
+  );
+}
+
+function readDraft(key: string): DraftData | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    return isValidDraft(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(key: string, data: DraftData): void {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch {
+    // silencioso — localStorage pode estar indisponível
+  }
+}
+
+function removeDraft(key: string): void {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    // silencioso
+  }
+}
 
 export const MealPlanEditor = ({
   initialName = '',
@@ -269,6 +357,7 @@ export const MealPlanEditor = ({
   selectedCalculation,
   foodDataSource,
   isNew = false,
+  draftKey,
   children,
   onSave,
   onClose
@@ -288,17 +377,91 @@ export const MealPlanEditor = ({
   const [isSaving, setIsSaving] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
-  const initialMealTypesRef = useRef(JSON.stringify(initialCustomMeals.length > 0 ? initialCustomMeals : DEFAULT_MEAL_TYPES));
-  const initialItemsRef = useRef(JSON.stringify(initialItems));
+  // --- Autosave / rascunho ---
+  const [hasDraft, setHasDraft] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
+  // Controla se já verificamos o rascunho ao montar (evitar re-verificação)
+  const draftCheckedRef = useRef(false);
+  // Ref para o debounce timer
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Ao montar: verifica rascunho existente
+  useEffect(() => {
+    if (!draftKey || draftCheckedRef.current) return;
+    draftCheckedRef.current = true;
+
+    const draft = readDraft(draftKey);
+    if (draft) {
+      setHasDraft(true);
+      setDraftSavedAt(draft.savedAt);
+    }
+  }, [draftKey]);
+
+  const handleContinueDraft = useCallback(() => {
+    if (!draftKey) return;
+    const draft = readDraft(draftKey);
+    if (!draft) return;
+
+    setMealPlanName(draft.name);
+    setMealItems(draft.items);
+    setGeneralInstructions(draft.generalInstructions);
+    setWaterIntake(draft.waterIntake);
+    setMealObservations(draft.mealObservations || {});
+    setMealTypes(draft.customMeals?.length > 0 ? draft.customMeals : DEFAULT_MEAL_TYPES);
+    setHasDraft(false);
+    setDraftSavedAt(null);
+  }, [draftKey]);
+
+  const handleDiscardDraft = useCallback(() => {
+    if (draftKey) removeDraft(draftKey);
+    setHasDraft(false);
+    setDraftSavedAt(null);
+  }, [draftKey]);
+
+  const [savedSnapshot, setSavedSnapshot] = useState(() => ({
+    name: initialName,
+    instructions: initialGeneralInstructions,
+    waterIntake: initialWaterIntake,
+    items: JSON.stringify(initialItems),
+    mealTypes: JSON.stringify(initialCustomMeals.length > 0 ? initialCustomMeals : DEFAULT_MEAL_TYPES),
+  }));
+
+  // Mantido para compatibilidade com o autosave (lê via savedSnapshot.items e savedSnapshot.mealTypes)
+  const initialItemsRef = useRef(savedSnapshot.items);
+  const initialMealTypesRef = useRef(savedSnapshot.mealTypes);
 
   const hasUnsavedChanges = useMemo(() => {
-    if (mealPlanName !== initialName) return true;
-    if (generalInstructions !== initialGeneralInstructions) return true;
-    if (waterIntake !== initialWaterIntake) return true;
-    if (JSON.stringify(mealItems) !== initialItemsRef.current) return true;
-    if (JSON.stringify(mealTypes) !== initialMealTypesRef.current) return true;
+    if (mealPlanName !== savedSnapshot.name) return true;
+    if (generalInstructions !== savedSnapshot.instructions) return true;
+    if (waterIntake !== savedSnapshot.waterIntake) return true;
+    if (JSON.stringify(mealItems) !== savedSnapshot.items) return true;
+    if (JSON.stringify(mealTypes) !== savedSnapshot.mealTypes) return true;
     return false;
-  }, [mealPlanName, mealItems, generalInstructions, waterIntake, mealTypes, initialName, initialGeneralInstructions, initialWaterIntake]);
+  }, [mealPlanName, mealItems, generalInstructions, waterIntake, mealTypes, savedSnapshot]);
+
+  // Autosave com debounce de 1000ms — só grava quando há mudanças reais (hasUnsavedChanges)
+  // e enquanto o banner de rascunho estiver visível (hasDraft), o autosave fica pausado
+  useEffect(() => {
+    if (!draftKey || !draftCheckedRef.current || hasDraft || !hasUnsavedChanges) return;
+
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+
+    autosaveTimerRef.current = setTimeout(() => {
+      writeDraft(draftKey, {
+        name: mealPlanName,
+        items: mealItems,
+        generalInstructions,
+        waterIntake,
+        mealObservations,
+        customMeals: mealTypes,
+        savedAt: new Date().toISOString(),
+      });
+    }, 1000);
+
+    return () => {
+      if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    };
+  }, [draftKey, hasDraft, hasUnsavedChanges, mealPlanName, mealItems, generalInstructions, waterIntake, mealObservations, mealTypes]);
 
   // Avisa o navegador antes de fechar a aba/recarregar com alterações não salvas
   useEffect(() => {
@@ -332,11 +495,20 @@ export const MealPlanEditor = ({
         mealObservations,
         customMeals: mealTypes
       });
-      // hasUnsavedChanges é derivado — reseta automaticamente ao voltar para o estado inicial
+      if (success) {
+        setSavedSnapshot({
+          name: mealPlanName,
+          instructions: generalInstructions,
+          waterIntake,
+          items: JSON.stringify(mealItems),
+          mealTypes: JSON.stringify(mealTypes),
+        });
+        if (draftKey) removeDraft(draftKey);
+      }
     } finally {
       setIsSaving(false);
     }
-  }, [onSave, mealPlanName, mealItems, generalInstructions, waterIntake, mealObservations, mealTypes]);
+  }, [onSave, mealPlanName, mealItems, generalInstructions, waterIntake, mealObservations, mealTypes, draftKey]);
 
   const mealTotals = useMemo(() => mealItems.reduce((acc, item) => ({
     kcal: acc.kcal + (Number(item.kcal) || 0),
@@ -455,6 +627,18 @@ export const MealPlanEditor = ({
     setMealItems(prev => prev.filter(item => item.meal !== id));
   };
 
+  const moveMealType = (id: string, direction: 'up' | 'down') => {
+    setMealTypes(prev => {
+      const idx = prev.findIndex(m => m.id === id);
+      if (direction === 'up' && idx === 0) return prev;
+      if (direction === 'down' && idx === prev.length - 1) return prev;
+      const next = [...prev];
+      const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+      [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+      return next;
+    });
+  };
+
 
   const calculateMealTotals = (mealId: string) => {
     return mealItems.filter(i => i.meal === mealId).reduce((acc, item) => ({
@@ -471,7 +655,7 @@ export const MealPlanEditor = ({
       <motion.aside
         initial={{ x: -270, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
-        className="w-[270px] bg-card border-r border-border flex flex-col h-full hidden lg:flex shrink-0 z-20"
+        className="w-[270px] bg-card border-r border-border flex flex-col h-full hidden md:flex shrink-0 z-20"
       >
         <div className="p-5 bg-muted/30">
           <div className="flex items-center gap-3">
@@ -539,7 +723,7 @@ export const MealPlanEditor = ({
             <div className="w-12 h-px bg-muted" />
           </div>
 
-          <div className="grid gap-3">
+          <div className="grid gap-2 xl:gap-3">
             <SummaryCard
               label="Energia Total"
               value={mealTotals.kcal}
@@ -595,9 +779,9 @@ export const MealPlanEditor = ({
         <motion.div 
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border px-6 py-3 print:hidden"
+          className="sticky top-0 z-50 bg-card/90 backdrop-blur-xl border-b border-border px-3 py-2 md:px-4 xl:px-6 xl:py-3 print:hidden"
         >
-          <div className="max-w-7xl mx-auto flex items-center justify-between gap-8">
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 md:gap-3 xl:gap-8">
             <div className="flex items-center gap-5">
               <Button
                 variant="outline"
@@ -615,7 +799,24 @@ export const MealPlanEditor = ({
               </div>
             </div>
 
-            <div className="hidden lg:flex items-center gap-1.5 p-1 bg-muted/80 rounded-xl border border-border/60">
+            {/* Tablet: compact Select (md–xl) */}
+            <div className="hidden md:flex xl:hidden items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground font-medium shrink-0">Base:</span>
+              <Select value={currentFoodDataSource} onValueChange={(v) => setCurrentFoodDataSource(v as any)}>
+                <SelectTrigger className="h-7 w-24 bg-card border border-border rounded-lg text-xs font-bold text-muted-foreground px-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Todas">Todas</SelectItem>
+                  <SelectItem value="TACO">TACO</SelectItem>
+                  <SelectItem value="TBCA">TBCA</SelectItem>
+                  <SelectItem value="Custom">Própria</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Desktop: tab buttons (xl+) */}
+            <div className="hidden xl:flex items-center gap-1.5 p-1 bg-muted/80 rounded-xl border border-border/60">
               <div className="px-3 text-xs font-medium text-muted-foreground border-r border-border mr-1">
                 Base de Dados
               </div>
@@ -645,21 +846,70 @@ export const MealPlanEditor = ({
               <Button
                 onClick={handleSaveClick}
                 disabled={isSaving}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-10 px-6 font-bold text-xs gap-2 transition-all active:scale-95 group"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-8 xl:h-10 px-3 xl:px-6 font-bold text-xs gap-2 transition-all active:scale-95 group"
               >
                 {isSaving ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
                   <Save className="w-3.5 h-3.5 transition-transform group-hover:scale-110" />
                 )}
-                <span>{isNew ? 'Criar Plano' : 'Salvar Alterações'}</span>
+                <span className="hidden md:inline xl:hidden">{isNew ? 'Criar' : 'Salvar'}</span>
+                <span className="hidden xl:inline">{isNew ? 'Criar Plano' : 'Salvar Alterações'}</span>
               </Button>
             </div>
           </div>
         </motion.div>
 
+        {/* Banner de recuperação de rascunho */}
+        <AnimatePresence>
+          {hasDraft && draftKey && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}
+              className="z-40 bg-accent border-b border-accent-foreground/20 px-3 py-2.5 md:px-6 print:hidden"
+            >
+              <div className="max-w-5xl mx-auto flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+                <div className="flex items-start gap-3 flex-1 min-w-0">
+                  <div className="w-8 h-8 rounded-xl bg-accent-foreground/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <History className="w-4 h-4 text-accent-foreground" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-accent-foreground leading-tight">
+                      Encontramos um rascunho salvo
+                    </p>
+                    <p className="text-xs text-accent-foreground/70 font-medium mt-0.5">
+                      Salvo{' '}
+                      {draftSavedAt
+                        ? formatDistanceToNow(new Date(draftSavedAt), { addSuffix: true, locale: ptBR })
+                        : ''}
+                      . Deseja continuar de onde parou?
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0 pl-11 sm:pl-0">
+                  <button
+                    onClick={handleContinueDraft}
+                    className="h-8 px-4 bg-accent-foreground text-accent text-xs font-bold rounded-xl hover:bg-accent-foreground/90 transition-all active:scale-95"
+                  >
+                    Continuar rascunho
+                  </button>
+                  <button
+                    onClick={handleDiscardDraft}
+                    className="h-8 px-3 text-xs font-bold rounded-xl border border-accent-foreground/30 text-accent-foreground/70 hover:bg-accent-foreground/10 hover:text-accent-foreground transition-all active:scale-95 flex items-center gap-1.5"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    Descartar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Mobile macro summary — shown only when sidebar is hidden */}
-        <div className="lg:hidden border-b border-border bg-card px-4 py-2 print:hidden">
+        <div className="md:hidden border-b border-border bg-card px-4 py-2 print:hidden">
           <div className="flex items-center justify-around gap-2">
             <div className="flex items-center gap-1.5">
               <div className="w-2 h-2 rounded-full bg-chart-3" />
@@ -742,9 +992,9 @@ export const MealPlanEditor = ({
 
             {/* Meals Section */}
             <div className="space-y-4 pb-6">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 px-2">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 xl:gap-6 px-2">
                 <div>
-                  <h2 className="text-xl font-bold text-foreground tracking-tight flex items-center gap-3">
+                  <h2 className="text-base xl:text-xl font-bold text-foreground tracking-tight flex items-center gap-3">
                     Cronograma de Refeições
                   </h2>
                   <p className="text-xs text-muted-foreground font-medium mt-1">Estruture os horários e alimentos do paciente</p>
@@ -772,19 +1022,19 @@ export const MealPlanEditor = ({
                       initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
-                      className="group/meal relative bg-card/50 hover:bg-card rounded-2xl border border-border hover:border-primary/20 p-6 transition-all duration-500"
+                      className="group/meal relative bg-card/50 hover:bg-card rounded-2xl border border-border hover:border-primary/20 p-3 xl:p-6 transition-all duration-500"
                     >
-                      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 xl:gap-6 mb-4 xl:mb-8">
                         <div className="flex items-center gap-4">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
                               <Input
                                 value={mealType.label}
                                 onChange={(e) => updateMealType(mealType.id, 'label', e.target.value)}
-                                className="font-bold text-xl border-none bg-muted/50 hover:bg-muted/50 focus:bg-card h-11 px-4 w-full lg:w-[320px] text-foreground focus:ring-2 focus:ring-primary/20 rounded-xl placeholder:text-muted-foreground transition-all"
+                                className="font-bold text-base xl:text-xl border-none bg-muted/50 hover:bg-muted/50 focus:bg-card h-8 xl:h-11 px-3 xl:px-4 w-full md:w-[180px] xl:w-[320px] text-foreground focus:ring-2 focus:ring-primary/20 rounded-xl placeholder:text-muted-foreground transition-all"
                                 placeholder="Título da Refeição"
                               />
-                              <div className="flex items-center gap-2 px-4 py-1.5 bg-card rounded-xl border-2 border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 shrink-0 h-11 transition-all">
+                              <div className="flex items-center gap-2 px-2 xl:px-4 py-1 xl:py-1.5 bg-card rounded-xl border-2 border-border focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/10 shrink-0 h-8 xl:h-11 transition-all">
                                 <Clock className="w-4 h-4 text-muted-foreground" />
                                 <Input
                                   type="time"
@@ -823,15 +1073,33 @@ export const MealPlanEditor = ({
                           <Button
                             variant="ghost"
                             size="icon"
+                            onClick={() => moveMealType(mealType.id, 'up')}
+                            disabled={mealIdx === 0}
+                            className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl h-7 w-7 xl:h-9 xl:w-9 transition-all disabled:opacity-30"
+                          >
+                            <ChevronUp className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => moveMealType(mealType.id, 'down')}
+                            disabled={mealIdx === mealTypes.length - 1}
+                            className="text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl h-7 w-7 xl:h-9 xl:w-9 transition-all disabled:opacity-30"
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
                             onClick={() => removeMealType(mealType.id)}
-                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl h-9 w-9 transition-all"
+                            className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-xl h-7 w-7 xl:h-9 xl:w-9 transition-all"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
                       </div>
 
-                      <div className="space-y-3 mb-8">
+                      <div className="space-y-2 xl:space-y-3 mb-4 xl:mb-8">
                         <AnimatePresence mode="popLayout">
                           {items.map((item) => {
                             const itemIndex = mealItems.findIndex(mi => mi === item);

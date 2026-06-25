@@ -32,6 +32,7 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
   const formatBaseQuantity = (value: number) => Math.round(value);
 
   const [isOpen, setIsOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [filteredFoods, setFilteredFoods] = useState<(TacoFood | TbcaFood | CustomFood)[]>([]);
   const { data: customFoodsData } = useApi<CustomFood[]>('/api/custom-foods');
   const customFoods = customFoodsData ?? [];
@@ -71,7 +72,7 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
       if (selectingFromListRef.current) {
         selectingFromListRef.current = false;
         setIsOpen(false);
-      } else {
+      } else if (isFocused) {
         setIsOpen(true);
       }
     } else {
@@ -79,7 +80,7 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
       setIsOpen(false);
       selectingFromListRef.current = false;
     }
-  }, [value, customFoods, dataSource]);
+  }, [value, customFoods, dataSource, isFocused]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -95,14 +96,25 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleFocus = () => {
+  const updateRect = () => {
     if (containerRef.current) {
       setDropdownRect(containerRef.current.getBoundingClientRect());
     }
-    if (value.length > 1) {
-      setIsOpen(true);
-    }
   };
+
+  const handleFocus = () => {
+    setIsFocused(true);
+    updateRect();
+    if (value.length > 1) setIsOpen(true);
+  };
+
+  const handleBlur = () => {
+    setIsFocused(false);
+  };
+
+  useEffect(() => {
+    if (isOpen) updateRect();
+  }, [isOpen]);
 
   return (
     <div className={cn("relative w-full", className)} ref={containerRef}>
@@ -112,20 +124,29 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onFocus={handleFocus}
+          onBlur={handleBlur}
           placeholder={placeholder}
           className="pl-9 pr-2 border-none h-9 focus-visible:ring-0 bg-transparent font-semibold text-muted-foreground placeholder:text-muted-foreground w-full"
         />
       </div>
 
       {isOpen && dropdownRect && createPortal(
-        <div 
+        <div
           ref={dropdownRef}
           className="fixed bg-card rounded-xl border border-border shadow-2xl z-50 max-h-[350px] overflow-y-auto animate-in fade-in zoom-in-95 duration-200"
-          style={{
-            top: dropdownRect.bottom + 8,
-            left: dropdownRect.left,
-            width: Math.max(320, dropdownRect.width),
-          }}
+          style={(() => {
+            const MARGIN = 8;
+            const MAX_H = 350;
+            const spaceBelow = window.innerHeight - dropdownRect.bottom - MARGIN;
+            const openUpward = spaceBelow < MAX_H && dropdownRect.top > spaceBelow;
+            return {
+              left: dropdownRect.left,
+              width: Math.max(320, dropdownRect.width),
+              ...(openUpward
+                ? { bottom: window.innerHeight - dropdownRect.top + MARGIN }
+                : { top: dropdownRect.bottom + MARGIN }),
+            };
+          })()}
         >
           {filteredFoods.length > 0 ? (
             filteredFoods.map((food) => (

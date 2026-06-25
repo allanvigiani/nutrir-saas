@@ -1559,6 +1559,8 @@ export const PatientProfile = () => {
                                 <div className="flex items-center gap-2">
                                   {(() => {
                                     const planDaConsulta = mealPlans.find(p => p.consultation_id === consultation.id);
+                                    const calcDaConsulta = calculations.find(c => c.consultation_id === consultation.id);
+                                    const semCalculo = !planDaConsulta && !calcDaConsulta;
                                     return (
                                       <TooltipProvider>
                                         <Tooltip>
@@ -1567,12 +1569,11 @@ export const PatientProfile = () => {
                                               size="sm"
                                               variant="outline"
                                               className="text-primary border-primary/60 bg-primary/5 hover:bg-primary/15 hover:border-primary h-8 text-xs font-semibold gap-1.5 shadow-sm"
-                                              disabled={isPatientReadOnly}
+                                              disabled={isPatientReadOnly || semCalculo}
                                               onClick={() => {
                                                 if (planDaConsulta) {
                                                   navigate(`/patients/${id}/meal-plan/${planDaConsulta.id}`);
                                                 } else {
-                                                  const calcDaConsulta = calculations.find(c => c.consultation_id === consultation.id);
                                                   navigate(`/patients/${id}/meal-plan/new`, {
                                                     state: {
                                                       consultationId: consultation.id,
@@ -1589,7 +1590,9 @@ export const PatientProfile = () => {
                                           <TooltipContent side="bottom">
                                             {planDaConsulta
                                               ? 'Editar o plano alimentar desta consulta'
-                                              : 'Criar plano alimentar vinculado a esta consulta'}
+                                              : semCalculo
+                                                ? 'Realize um cálculo nutricional para esta consulta antes de criar o plano alimentar'
+                                                : 'Criar plano alimentar vinculado a esta consulta'}
                                           </TooltipContent>
                                         </Tooltip>
                                       </TooltipProvider>
