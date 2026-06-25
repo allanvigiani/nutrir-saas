@@ -63,10 +63,10 @@ const patientSchema = z.object({
     return birthDate <= today;
   }, 'Data de nascimento não pode ser no futuro'),
   gender: z.enum(['male', 'female', 'other']),
-  cpf: z.string().min(11, 'CPF inválido').transform((val) => val.replace(/\D/g, '')).refine((val) => val.length === 11, 'O CPF deve conter 11 dígitos'),
-  phone: z.string().min(10, 'Telefone inválido').transform((val) => val.replace(/\D/g, '')).refine((val) => val.length >= 10, 'Telefone deve conter pelo menos 10 dígitos'),
-  email: z.string().email('E-mail inválido'),
-  address: z.string().min(5, 'Endereço é obrigatório'),
+  cpf: z.string().optional().transform((val) => val?.replace(/\D/g, '') ?? '').refine((val) => val === '' || val.length === 11, 'O CPF deve conter 11 dígitos'),
+  phone: z.string().optional().transform((val) => val?.replace(/\D/g, '') ?? '').refine((val) => val === '' || val.length >= 10, 'Telefone deve conter pelo menos 10 dígitos'),
+  email: z.string().optional().refine((val) => !val || z.string().email().safeParse(val).success, 'E-mail inválido'),
+  address: z.string().optional(),
   objective: z.string().min(3, 'Objetivo é obrigatório'),
   activityLevel: z.string().min(3, 'Nível de atividade é obrigatório'),
   diseases: z.string().optional(),
@@ -541,7 +541,7 @@ export const Patients = () => {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{patient.cpf || '—'}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{patient.cpf || <span className="italic">Não informado</span>}</p>
                       </div>
                     </div>
                     {/* Delete action: visible on hover AND on keyboard focus within the card */}
@@ -561,11 +561,11 @@ export const Patients = () => {
                   <div className="space-y-1.5 mb-4 pl-0.5">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Mail className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                      <span className="truncate">{patient.email}</span>
+                      <span className="truncate">{patient.email || <span className="italic">Não informado</span>}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Phone className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                      <span>{patient.phone || '—'}</span>
+                      <span>{patient.phone || <span className="italic">Não informado</span>}</span>
                     </div>
                     {patient.objective && (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">

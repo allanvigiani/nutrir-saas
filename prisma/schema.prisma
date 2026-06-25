@@ -63,10 +63,10 @@ model Patient {
   name           String
   birthDate      String
   gender         String
-  cpf            String
-  phone          String
-  email          String
-  address        String
+  cpf            String?
+  phone          String?
+  email          String?
+  address        String?
   objective      String
   activityLevel  String
   diseases       String?
