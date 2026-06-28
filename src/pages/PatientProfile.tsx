@@ -2163,12 +2163,6 @@ export const PatientProfile = () => {
                     })}
                 </div>
 
-                {/* Print Signature */}
-                <div className="hidden print:flex flex-col items-center mt-20 pt-10 border-t border-border">
-                  <div className="w-64 h-px bg-border mb-4"></div>
-                  <p className="text-base font-bold text-foreground">{user?.displayName || 'Nutricionista'}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Assinatura do Profissional</p>
-                </div>
               </div>
             </div>
           </DialogContent>
