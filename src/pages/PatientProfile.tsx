@@ -2198,8 +2198,7 @@ export const PatientProfile = () => {
                           {items.map((item, idx) => {
                             const unit = item.unit || 'g';
                             const qty = item.quantity || '0';
-                            const isBaseUnit = unit === 'g' || unit === 'ml';
-                            const qtyDisplay = isBaseUnit ? `${qty} ${unit}` : `${qty} ${unit}`;
+                            const qtyDisplay = `${qty} ${unit}`;
                             return (
                               <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                                 <td className="px-5 py-2 font-medium text-gray-800">{item.food}</td>
