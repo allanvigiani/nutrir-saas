@@ -1853,33 +1853,169 @@ export const PatientProfile = () => {
 
               <div className="flex-1 overflow-y-auto p-6 space-y-8 print:p-0">
                 {/* Print Header (Only visible when printing) */}
-                <div className="hidden print:flex items-center justify-between mb-8 pb-6 border-b border-primary/30">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-xl">
-                      N
-                    </div>
+                <div className="hidden print:flex items-center justify-between px-8 py-5 -mx-6 -mt-6 mb-6" style={{ backgroundColor: 'var(--primary, #16a34a)', color: 'white' }}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xl" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>N</div>
                     <div>
-                      <h2 className="text-2xl font-bold text-foreground leading-none">Nutrir</h2>
-                      <p className="text-xs text-muted-foreground mt-1">Gestão Nutricional</p>
+                      <div className="font-bold text-lg leading-none">Nutrir</div>
+                      <div className="text-xs mt-0.5" style={{ opacity: 0.8 }}>Gestão Nutricional</div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <h3 className="text-lg font-bold text-primary">Plano Alimentar</h3>
-                    <p className="text-xs text-muted-foreground">{selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}</p>
+                    <div className="font-bold text-base">Plano Alimentar</div>
+                    <div className="text-xs mt-0.5" style={{ opacity: 0.8 }}>
+                      {selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}
+                    </div>
                   </div>
                 </div>
 
-                <div className="hidden print:grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-6 bg-card border border-primary/20 rounded-2xl">
+                <div className="hidden print:grid grid-cols-2 gap-4 mb-6 p-5 border border-gray-200 rounded-xl">
                   <div>
-                    <p className="text-[10px] font-medium text-muted-foreground mb-1">Paciente</p>
-                    <p className="font-bold text-foreground text-lg">{patient?.name}</p>
-                    <p className="text-sm text-muted-foreground">{patient?.email}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">Paciente</p>
+                    <p className="font-bold text-gray-900 text-base">{patient?.name}</p>
+                    {patient?.email && <p className="text-xs text-gray-500 mt-0.5">{patient.email}</p>}
                   </div>
-                  <div className="md:text-right">
-                    <p className="text-[10px] font-medium text-muted-foreground mb-1">Nutricionista</p>
-                    <p className="font-bold text-foreground text-lg">{user?.displayName || 'Nutricionista'}</p>
-                    <p className="text-sm text-muted-foreground">CRN: 12345/P</p>
+                  <div className="text-right">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">Nutricionista</p>
+                    <p className="font-bold text-gray-900 text-base">{nutritionist?.name || user?.displayName || 'Nutricionista'}</p>
+                    {nutritionist?.crn && <p className="text-xs text-gray-500 mt-0.5">CRN: {nutritionist.crn}</p>}
                   </div>
+                </div>
+
+                {/* Print: Macro totais */}
+                <div className="hidden print:grid grid-cols-4 gap-3 mb-6">
+                  {[
+                    { label: 'Calorias', value: `${viewMealTotals.kcal}`, unit: 'kcal', accent: 'var(--primary, #16a34a)' },
+                    { label: 'Proteínas', value: viewMealTotals.protein.toFixed(1), unit: 'g', accent: '#6b7280' },
+                    { label: 'Carboidratos', value: viewMealTotals.carbs.toFixed(1), unit: 'g', accent: '#6b7280' },
+                    { label: 'Gorduras', value: viewMealTotals.fat.toFixed(1), unit: 'g', accent: '#6b7280' },
+                  ].map((macro) => (
+                    <div key={macro.label} className="rounded-xl border border-gray-200 p-3 text-center" style={{ borderTop: `3px solid ${macro.accent}` }}>
+                      <p className="text-[10px] text-gray-500 font-medium">{macro.label}</p>
+                      <p className="font-bold text-lg text-gray-900 leading-tight mt-0.5">{macro.value}</p>
+                      <p className="text-[10px] text-gray-400">{macro.unit}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Print: Orientações gerais */}
+                {selectedMealPlan?.generalInstructions && (
+                  <div className="hidden print:block mb-6 rounded-xl p-4" style={{ borderLeft: '4px solid var(--primary, #16a34a)', backgroundColor: '#f0fdf4' }}>
+                    <p className="text-xs font-bold text-gray-700 mb-1">Orientações Gerais</p>
+                    <p className="text-sm text-gray-600 italic whitespace-pre-wrap leading-relaxed">
+                      {selectedMealPlan.generalInstructions}
+                    </p>
+                  </div>
+                )}
+
+                {/* Print: Refeições com subtotais e observações */}
+                <div className="hidden print:block space-y-5 mb-6">
+                  {(selectedMealPlan?.customMeals && selectedMealPlan.customMeals.length > 0
+                    ? selectedMealPlan.customMeals
+                    : defaultMealTypes
+                  ).map((meal: any) => {
+                    const items = selectedMealPlanItems.filter(item => item.meal === meal.id);
+                    if (items.length === 0) return null;
+                    const subtotal = items.reduce(
+                      (acc, i) => ({
+                        kcal: acc.kcal + (Number(i.kcal) || 0),
+                        protein: acc.protein + (Number(i.protein) || 0),
+                        carbs: acc.carbs + (Number(i.carbs) || 0),
+                        fat: acc.fat + (Number(i.fat) || 0),
+                      }),
+                      { kcal: 0, protein: 0, carbs: 0, fat: 0 }
+                    );
+                    const obs = (selectedMealPlan as any)?.mealObservations?.[meal.id];
+                    return (
+                      <div key={meal.id} className="rounded-xl border border-gray-200 overflow-hidden" style={{ breakInside: 'avoid' }}>
+                        <div className="flex items-center justify-between px-5 py-3" style={{ backgroundColor: '#f0fdf4', borderBottom: '1px solid #d1fae5' }}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-800">{meal.label}</span>
+                            {meal.time && <span className="text-xs text-gray-500 bg-black/5 px-1.5 py-0.5 rounded font-medium">{meal.time}</span>}
+                          </div>
+                          <span className="text-xs text-gray-600 font-medium">
+                            {subtotal.kcal} kcal · {subtotal.protein.toFixed(1)}g P · {subtotal.carbs.toFixed(1)}g C · {subtotal.fat.toFixed(1)}g G
+                          </span>
+                        </div>
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-100">
+                              <th className="px-5 py-2 text-left font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Alimento</th>
+                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Quantidade</th>
+                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Kcal</th>
+                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">P (g)</th>
+                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">C (g)</th>
+                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">G (g)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {items.map((item, idx) => (
+                              <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                <td className="px-5 py-2 font-medium text-gray-800">{item.food}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{item.quantity || '0'} {item.unit || 'g'}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{item.kcal || 0}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.protein || 0).toFixed(1)}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.carbs || 0).toFixed(1)}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.fat || 0).toFixed(1)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {obs && (
+                          <div className="px-5 py-3 text-xs text-gray-600 italic border-t border-gray-100 bg-yellow-50">
+                            <span className="font-semibold not-italic text-gray-700">Obs.: </span>{obs}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Print: Tabela de Medidas Caseiras */}
+                <div className="hidden print:block mt-4 pt-4 border-t border-gray-200 mb-6">
+                  <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Tabela de Medidas Caseiras (Referência)</p>
+                  <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-4 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">Medida</th>
+                        <th className="px-4 py-2 text-center font-semibold text-gray-600 border-b border-gray-200">Peso aprox.</th>
+                        <th className="px-4 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">Medida</th>
+                        <th className="px-4 py-2 text-center font-semibold text-gray-600 border-b border-gray-200">Peso aprox.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        ['Colher de chá', '~4 g', 'Copo (200ml)', '~200 ml'],
+                        ['Colher de sobremesa', '~9 g', 'Concha pequena', '~80 g'],
+                        ['Colher de sopa', '~13 g', 'Concha média', '~150 g'],
+                        ['Colher de servir', '~30 g', 'Xícara (sólidos)', '~80 g'],
+                        ['Unidade (fruta média)', '~130 g', 'Xícara (líquidos)', '~200 ml'],
+                        ['Fatia (fruta)', '~80 g', 'Lata', '~350 ml'],
+                      ].map(([m1, p1, m2, p2], i) => (
+                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-4 py-1.5 text-gray-700">{m1}</td>
+                          <td className="px-4 py-1.5 text-center text-gray-500">{p1}</td>
+                          <td className="px-4 py-1.5 text-gray-700">{m2}</td>
+                          <td className="px-4 py-1.5 text-center text-gray-500">{p2}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="text-[9px] text-gray-400 mt-1.5 italic">
+                    Valores de referência (Pinheiro et al. 2004 / TBCA). Pesos reais variam conforme o alimento e forma de preparo.
+                  </p>
+                </div>
+
+                {/* Print: Rodapé assinatura */}
+                <div className="hidden print:flex flex-col items-center mt-6 pt-4">
+                  <div style={{ height: '48px' }} />
+                  <div className="w-56 border-t border-gray-400 pt-3 text-center">
+                    <p className="font-bold text-gray-800 text-sm">{nutritionist?.name || user?.displayName || 'Nutricionista'}</p>
+                    {nutritionist?.crn && <p className="text-xs text-gray-500 mt-0.5">CRN: {nutritionist.crn}</p>}
+                  </div>
+                  <p className="text-[9px] text-gray-400 mt-4">
+                    Gerado em {formatDateSafely(new Date().toISOString(), 'dd/MM/yyyy')}
+                  </p>
                 </div>
 
                 {/* Nutritional Summary */}
