@@ -161,7 +161,7 @@ export function MealPlanEdit() {
     );
   }
 
-  const safeCustomMeals = Array.isArray(mealPlan?.customMeals) ? mealPlan.customMeals : [];
+  const safeCustomMeals = (Array.isArray(mealPlan?.customMeals) ? mealPlan.customMeals : []) as import('../components/MealPlanEditor').MealType[];
   const safeMealObservations = (mealPlan?.mealObservations && typeof mealPlan.mealObservations === 'object' && !Array.isArray(mealPlan.mealObservations))
     ? mealPlan.mealObservations as Record<string, string>
     : {};

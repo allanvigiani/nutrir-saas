@@ -50,33 +50,56 @@ import {
 import { FoodAutocomplete } from './FoodAutocomplete';
 import { TacoFood } from '../data/taco';
 import { CustomFood, MealPlan, MealPlanItem, NutritionCalculation } from '../types';
+import { getServingsForFood, FoodServing } from '../data/serving-map';
 import { cn } from '../lib/utils';
 import { CustomFoodDialog } from './CustomFoodDialog';
 
-interface MealType {
+export interface MealType {
   id: string;
   label: string;
   time?: string;
   color: string;
 }
 
+export interface MealPlanEditorItem {
+  id?: string;
+  food: string;
+  quantity: string;
+  unit: string;
+  weight_in_grams?: number;
+  servings?: import('../data/serving-map').FoodServing[];
+  kcal?: number | null;
+  protein?: number | null;
+  carbs?: number | null;
+  fat?: number | null;
+  base_kcal?: number | null;
+  base_protein?: number | null;
+  base_carbs?: number | null;
+  base_fat?: number | null;
+  base_quantity?: number | null;
+  serving_name?: string | null;
+  serving_weight?: number | null;
+  meal: string;
+  position?: number;
+}
+
 interface DraftData {
   name: string;
-  items: any[];
+  items: MealPlanEditorItem[];
   generalInstructions: string;
   waterIntake: string;
   mealObservations: Record<string, string>;
-  customMeals: any[];
+  customMeals: MealType[];
   savedAt: string;
 }
 
 interface MealPlanEditorProps {
   initialName?: string;
-  initialItems?: any[];
+  initialItems?: MealPlanEditorItem[];
   initialGeneralInstructions?: string;
   initialWaterIntake?: string;
   initialMealObservations?: Record<string, string>;
-  initialCustomMeals?: any[];
+  initialCustomMeals?: MealType[];
   selectedCalculation?: NutritionCalculation | null;
   foodDataSource: 'Todas' | 'TACO' | 'TBCA' | 'Custom';
   isNew?: boolean;
@@ -85,11 +108,11 @@ interface MealPlanEditorProps {
   children?: React.ReactNode;
   onSave: (data: {
     name: string;
-    items: any[];
+    items: MealPlanEditorItem[];
     generalInstructions: string;
     waterIntake: string;
     mealObservations: Record<string, string>;
-    customMeals: any[];
+    customMeals: MealType[];
   }) => Promise<boolean>;
   onClose: () => void;
 }
@@ -162,32 +185,26 @@ const MealItemRow = React.memo(({
   onMoveDown,
   foodDataSource
 }: {
-  item: any,
+  item: MealPlanEditorItem,
   index: number,
   isFirst: boolean,
   isLast: boolean,
-  onUpdate: (index: number, field: string, value: any) => void,
+  onUpdate: (index: number, field: string, value: unknown) => void,
   onRemove: (index: number) => void,
   onAddNewFood: (name: string, index: number) => void,
   onMoveUp: (index: number) => void,
   onMoveDown: (index: number) => void,
   foodDataSource: string
 }) => {
-  const unitOptions = (
-    <>
-      <SelectItem value="g">g</SelectItem>
-      <SelectItem value="un">un</SelectItem>
-      <SelectItem value="ml">ml</SelectItem>
-      <SelectItem value="colher">colher</SelectItem>
-      <SelectItem value="fatia">fatia</SelectItem>
-      {item.serving_name && !['g', 'un', 'ml', 'colher', 'fatia', 'unidade'].includes(item.serving_name) && (
-        <SelectItem value={item.serving_name}>{item.serving_name}</SelectItem>
-      )}
-      {item.serving_name === 'unidade' && (
-        <SelectItem value="unidade">unidade</SelectItem>
-      )}
-    </>
-  );
+  // Servings dinâmicos do serving-map (armazenados no item ao selecionar alimento)
+  const servings: FoodServing[] = item.servings && item.servings.length > 0
+    ? item.servings
+    : [{ label: 'g', weightInGrams: 1 }];
+  const showUnitSelect = servings.length > 1;
+  const unitOptions = servings.map((s: FoodServing) => {
+    const label = s.weightInGrams === 1 ? s.label : `${s.label} (~${s.weightInGrams}g)`;
+    return <SelectItem key={s.label} value={s.label}>{label}</SelectItem>;
+  });
 
   return (
     <motion.div
@@ -216,12 +233,16 @@ const MealItemRow = React.memo(({
               placeholder="Qtd"
             />
           </div>
-          <Select value={item.unit} onValueChange={(v) => onUpdate(index, 'unit', v)}>
-            <SelectTrigger className="w-16 bg-card border border-border h-7 rounded-xl px-2 text-muted-foreground font-medium text-xs">
-              <SelectValue>{item.unit}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>{unitOptions}</SelectContent>
-          </Select>
+          {showUnitSelect ? (
+            <Select value={item.unit} onValueChange={(v) => onUpdate(index, 'unit', v)}>
+              <SelectTrigger className="w-20 bg-card border border-border h-7 rounded-xl px-2 text-muted-foreground font-medium text-xs">
+                <SelectValue>{item.unit}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>{unitOptions}</SelectContent>
+            </Select>
+          ) : (
+            <span className="text-xs font-medium text-muted-foreground w-6 text-center">g</span>
+          )}
           <div className="flex items-center gap-1 ml-auto">
             <div className="text-center">
               <Input type="number" value={item.kcal} onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
@@ -284,12 +305,16 @@ const MealItemRow = React.memo(({
               placeholder="Qtd."
             />
           </div>
-          <Select value={item.unit} onValueChange={(v) => onUpdate(index, 'unit', v)}>
-            <SelectTrigger className="flex-1 bg-card border border-border focus:border-primary focus:ring-4 focus:ring-primary/10 h-7 xl:h-8 rounded-xl px-2 xl:px-3 text-muted-foreground font-medium text-xs transition-all">
-              <SelectValue>{item.unit}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>{unitOptions}</SelectContent>
-          </Select>
+          {showUnitSelect ? (
+            <Select value={item.unit} onValueChange={(v) => onUpdate(index, 'unit', v)}>
+              <SelectTrigger className="flex-1 bg-card border border-border focus:border-primary focus:ring-4 focus:ring-primary/10 h-7 xl:h-8 rounded-xl px-2 xl:px-3 text-muted-foreground font-medium text-xs transition-all">
+                <SelectValue>{item.unit}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>{unitOptions}</SelectContent>
+            </Select>
+          ) : (
+            <span className="text-xs font-medium text-muted-foreground w-8 text-center">g</span>
+          )}
         </div>
 
         {/* Macros Summary */}
@@ -553,6 +578,8 @@ export const MealPlanEditor = ({
       food: '',
       quantity: '',
       unit: 'g',
+      weight_in_grams: 0,
+      servings: [{ label: 'g', weightInGrams: 1 }],
       kcal: 0,
       protein: 0,
       carbs: 0,
@@ -584,7 +611,7 @@ export const MealPlanEditor = ({
     });
   }, []);
 
-  const updateMealItem = useCallback((index: number, field: string, value: any) => {
+  const updateMealItem = useCallback((index: number, field: string, value: unknown) => {
     setMealItems(prev => {
       const newItems = [...prev];
       if (!newItems[index]) return prev;
@@ -595,32 +622,64 @@ export const MealPlanEditor = ({
         const food = value as TacoFood | CustomFood;
         item.food = food.name;
 
-        if (food.serving) {
-          item.unit = food.serving.name;
-          item.quantity = "1";
-          const ratio = food.serving.weight / (food.baseQuantity || 100);
-          item.kcal = Math.round(food.kcal * ratio);
-          item.protein = Math.round(food.protein * ratio);
-          item.carbs = Math.round(food.carbs * ratio);
-          item.fat = Math.round(food.fat * ratio);
-        } else {
-          item.unit = food.baseUnit;
-          item.quantity = food.baseQuantity.toString();
-          item.kcal = Math.round(food.kcal);
-          item.protein = Math.round(food.protein);
-          item.carbs = Math.round(food.carbs);
-          item.fat = Math.round(food.fat);
-        }
+        // Busca servings dinâmicos via serving-map
+        // Para CustomFood com múltiplas medidas, normaliza serving para array
+        const customServings: { name: string; weight: number }[] | undefined = (() => {
+          if (!('serving' in food) || !food.serving) return undefined;
+          const s = (food as CustomFood).serving;
+          if (!s) return undefined;
+          if (Array.isArray(s)) return s;
+          return [s];
+        })();
 
+        const foodForMap = {
+          id: food.id,
+          description: food.name,
+          category: 'category' in food ? (food as TacoFood).category : undefined,
+          servings: customServings,
+        };
+        const servings = getServingsForFood(foodForMap);
+        item.servings = servings;
+
+        // Unidade inicial: primeira serving disponível
+        const initialServing = servings[0];
+        item.unit = initialServing.label;
+
+        // Macros por 100g (base_quantity sempre 100 para cálculo correto)
+        // base_kcal/protein/carbs/fat = valores per 100g do alimento
         item.base_kcal = food.kcal;
         item.base_protein = food.protein;
         item.base_carbs = food.carbs;
         item.base_fat = food.fat;
         item.base_quantity = food.baseQuantity;
-        item.serving_name = food.serving?.name || null;
-        item.serving_weight = food.serving?.weight || null;
+        // serving_name/weight: usar primeira medida customizada se disponível
+        const firstCustomServing = customServings?.[0];
+        item.serving_name = firstCustomServing?.name || null;
+        item.serving_weight = firstCustomServing?.weight || null;
+
+        if (initialServing.weightInGrams === 1) {
+          // Escala livre em g: exibe baseQuantity gramas
+          item.quantity = food.baseQuantity.toString();
+          const weightInGrams = food.baseQuantity;
+          item.weight_in_grams = weightInGrams;
+          const ratio = weightInGrams / 100;
+          item.kcal = Math.round(food.kcal * ratio);
+          item.protein = Math.round(food.protein * ratio);
+          item.carbs = Math.round(food.carbs * ratio);
+          item.fat = Math.round(food.fat * ratio);
+        } else {
+          // Medida caseira: começa com 1 unidade da serving
+          item.quantity = "1";
+          const weightInGrams = initialServing.weightInGrams;
+          item.weight_in_grams = weightInGrams;
+          const ratio = weightInGrams / 100;
+          item.kcal = Math.round(food.kcal * ratio);
+          item.protein = Math.round(food.protein * ratio);
+          item.carbs = Math.round(food.carbs * ratio);
+          item.fat = Math.round(food.fat * ratio);
+        }
       } else if (field === 'food') {
-        item.food = value;
+        item.food = value as string;
         item.base_kcal = null;
         item.base_protein = null;
         item.base_carbs = null;
@@ -628,22 +687,47 @@ export const MealPlanEditor = ({
         item.base_quantity = null;
         item.serving_name = null;
         item.serving_weight = null;
+        item.servings = [{ label: 'g', weightInGrams: 1 }];
+        item.weight_in_grams = 0;
       } else if (field === 'quantity' || field === 'unit') {
-        if (field === 'quantity') item.quantity = value;
-        if (field === 'unit') item.unit = value;
+        const servings: FoodServing[] = item.servings && item.servings.length > 0
+          ? item.servings
+          : [{ label: 'g', weightInGrams: 1 }];
+
+        if (field === 'unit') {
+          // Converte a quantidade para manter o mesmo peso total ao trocar unidade
+          // Ex: 100g → "unidade (100g)" converte para qty=1, não qty=100
+          const oldServing = servings.find((s: FoodServing) => s.label === item.unit)
+            ?? { label: 'g', weightInGrams: 1 };
+          const newServing = servings.find((s: FoodServing) => s.label === (value as string))
+            ?? { label: 'g', weightInGrams: 1 };
+          const currentQty = parseFloat(item.quantity);
+          if (!isNaN(currentQty) && newServing.weightInGrams > 0) {
+            const totalWeight = currentQty * oldServing.weightInGrams;
+            const converted = totalWeight / newServing.weightInGrams;
+            let finalQty: number;
+            if (newServing.weightInGrams === 1) {
+              // g ou ml: manter uma casa decimal, mínimo 1
+              finalQty = converted < 1 ? 1 : Math.round(converted * 10) / 10;
+            } else {
+              // medida caseira (unidade, fatia, colher, concha...): sempre inteiro, mínimo 1
+              finalQty = Math.max(1, Math.round(converted));
+            }
+            item.quantity = String(finalQty);
+          }
+          item.unit = value as string;
+        } else {
+          item.quantity = value as string;
+        }
 
         const newQty = parseFloat(item.quantity);
-        if (!isNaN(newQty) && item.base_quantity && item.base_quantity > 0) {
-          let effectiveWeight = newQty;
-          const isServingUnit = item.unit === item.serving_name ||
-            (item.unit === 'un' && item.serving_name === 'unidade') ||
-            (item.unit === 'unidade' && item.serving_name === 'un');
+        if (!isNaN(newQty) && item.base_kcal != null) {
+          const selectedServing = servings.find((s: FoodServing) => s.label === item.unit)
+            ?? { label: 'g', weightInGrams: 1 };
 
-          if (isServingUnit && item.serving_weight) {
-            effectiveWeight = newQty * item.serving_weight;
-          }
-
-          const ratio = effectiveWeight / item.base_quantity;
+          const weightInGrams = newQty * selectedServing.weightInGrams;
+          item.weight_in_grams = weightInGrams;
+          const ratio = weightInGrams / 100;
           item.kcal = Math.round((item.base_kcal || 0) * ratio);
           item.protein = Math.round((item.base_protein || 0) * ratio);
           item.carbs = Math.round((item.base_carbs || 0) * ratio);

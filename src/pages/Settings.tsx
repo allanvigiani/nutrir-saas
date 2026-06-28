@@ -679,7 +679,11 @@ export const Settings = () => {
                             {food.baseQuantity}{food.baseUnit}
                           </td>
                           <td className="px-4 py-4 text-center text-muted-foreground">
-                            {food.serving ? `1 ${food.serving.name} (${food.serving.weight}g)` : '-'}
+                            {food.serving
+                              ? Array.isArray(food.serving)
+                                ? food.serving.map((s) => `${s.name} (${s.weight}g)`).join(', ')
+                                : `1 ${food.serving.name} (${food.serving.weight}g)`
+                              : '-'}
                           </td>
                           <td className="px-4 py-4 text-center font-medium text-muted-foreground">
                             {food.kcal}

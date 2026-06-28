@@ -192,7 +192,7 @@ model MealPlanItem {
   meal           String
   food           String
   quantity       String
-  unit           String
+  unit           String   @default("g")
   kcal           Float?
   protein        Float?
   carbs          Float?
@@ -204,6 +204,7 @@ model MealPlanItem {
   baseQuantity   Float?
   servingName    String?
   servingWeight  Float?
+  weightInGrams  Float    @default(0)
   position       Int      @default(0)
 
   @@map("meal_plan_items")

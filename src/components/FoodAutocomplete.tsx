@@ -174,8 +174,11 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
                   <span>C: {formatMacro(food.carbs)}g</span>
                   <span>G: {formatMacro(food.fat)}g</span>
                   <span>Base: {formatBaseQuantity(food.baseQuantity)}{food.baseUnit}</span>
-                  {food.serving && (
+                  {food.serving && !Array.isArray(food.serving) && (
                     <span className="text-primary font-bold">1 {food.serving.name} = {Math.round(food.serving.weight)}g</span>
+                  )}
+                  {food.serving && Array.isArray(food.serving) && food.serving.length > 0 && (
+                    <span className="text-primary font-bold">1 {food.serving[0].name} = {Math.round(food.serving[0].weight)}g</span>
                   )}
                 </div>
               </button>

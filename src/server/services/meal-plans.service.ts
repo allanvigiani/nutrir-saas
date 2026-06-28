@@ -2,7 +2,51 @@ import { getDb } from '../lib/rls-context.ts';
 import { prisma } from '../lib/prisma.ts';
 import { FREE_PLAN_LIMITS } from '../../lib/planLimits.ts';
 
-function itemToSnakeCase(item: any) {
+interface MealPlanItemPayload {
+  id?: string;
+  mealPlanId?: string;
+  nutritionistId?: string;
+  meal: string;
+  food: string;
+  quantity: string;
+  unit: string;
+  kcal?: number | null;
+  protein?: number | null;
+  carbs?: number | null;
+  fat?: number | null;
+  baseKcal?: number | null;
+  baseProtein?: number | null;
+  baseCarbs?: number | null;
+  baseFat?: number | null;
+  baseQuantity?: number | null;
+  servingName?: string | null;
+  servingWeight?: number | null;
+  weightInGrams?: number;
+  position?: number;
+}
+
+interface MealPlanItemRow {
+  id?: string;
+  meal: string;
+  food: string;
+  quantity: string;
+  unit: string;
+  kcal?: number | null;
+  protein?: number | null;
+  carbs?: number | null;
+  fat?: number | null;
+  base_kcal?: number | null;
+  base_protein?: number | null;
+  base_carbs?: number | null;
+  base_fat?: number | null;
+  base_quantity?: number | null;
+  serving_name?: string | null;
+  serving_weight?: number | null;
+  weight_in_grams?: number;
+  position?: number;
+}
+
+function itemToSnakeCase(item: MealPlanItemPayload) {
   return {
     id: item.id,
     meal_plan_id: item.mealPlanId,
@@ -22,6 +66,7 @@ function itemToSnakeCase(item: any) {
     base_quantity: item.baseQuantity,
     serving_name: item.servingName,
     serving_weight: item.servingWeight,
+    weight_in_grams: item.weightInGrams ?? 0,
     position: item.position ?? 0,
   };
 }
@@ -91,7 +136,7 @@ export function createMealPlansService() {
     });
   }
 
-  function mapItem(item: any, mealPlanId: string, nutritionistId: string) {
+  function mapItem(item: MealPlanItemRow, mealPlanId: string, nutritionistId: string) {
     return {
       mealPlanId,
       nutritionistId,
@@ -110,6 +155,7 @@ export function createMealPlansService() {
       baseQuantity: item.base_quantity ?? null,
       servingName: item.serving_name ?? null,
       servingWeight: item.serving_weight ?? null,
+      weightInGrams: item.weight_in_grams ?? 0,
       position: item.position ?? 0,
     };
   }
@@ -122,7 +168,7 @@ export function createMealPlansService() {
       prisma.mealPlanItem.deleteMany({ where: { mealPlanId: id } }),
       ...items.map(item =>
         prisma.mealPlanItem.create({
-          data: mapItem(item, id, nutritionistId),
+          data: mapItem(item as unknown as MealPlanItemRow, id, nutritionistId),
         })
       ),
     ]);
