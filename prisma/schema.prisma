@@ -204,6 +204,7 @@ model MealPlanItem {
   baseQuantity   Float?
   servingName    String?
   servingWeight  Float?
+  position       Int      @default(0)
 
   @@map("meal_plan_items")
 }

@@ -47,7 +47,13 @@ export function MealPlanEdit() {
           if (planData) {
             const { items, ...plan } = planData;
             setMealPlan(plan as MealPlan);
-            setMealItems(items || []);
+            // Ordena por meal e depois por position para respeitar a ordem salva
+            const sortedItems = (items || []).slice().sort((a: any, b: any) => {
+              if (a.meal < b.meal) return -1;
+              if (a.meal > b.meal) return 1;
+              return (a.position ?? 0) - (b.position ?? 0);
+            });
+            setMealItems(sortedItems);
 
             // Busca o cálculo nutricional vinculado para exibir as metas de macros
             if (planData.calculation_id) {
@@ -96,9 +102,15 @@ export function MealPlanEdit() {
         calculation_id: stateCalculation?.id || mealPlan?.calculation_id || null,
       };
 
-      const cleanItems = data.items.map(({ id: _id, ...item }: any) => {
+      // Calcula position relativo ao grupo (meal) antes de limpar os itens
+      const mealPositionCounters: Record<string, number> = {};
+      const cleanItems = data.items.map(({ id: _id, position: _pos, ...item }: any) => {
+        const mealId = item.meal as string;
+        if (mealPositionCounters[mealId] === undefined) mealPositionCounters[mealId] = 0;
+        const position = mealPositionCounters[mealId]++;
         const clean: Record<string, any> = {};
         Object.entries(item).forEach(([k, v]) => { clean[k] = v === undefined ? null : v; });
+        clean.position = position;
         return clean;
       });
 

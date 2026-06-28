@@ -11,5 +11,5 @@ coverage/
 api/server.mjs
 .superpowers/sdd/
 .docs
-docs
+docs*
 .playwright*

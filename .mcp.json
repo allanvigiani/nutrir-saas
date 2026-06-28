@@ -6,6 +6,12 @@
       "env": {
         "VERCEL_TOKEN": "${VERCEL_TOKEN}"
       }
+    },
+    "asaas": {
+      "url": "https://docs.asaas.com/mcp",
+      "headers": {
+        "access_token": "${ASAAS_API_KEY}"
+      }
     }
   }
 }

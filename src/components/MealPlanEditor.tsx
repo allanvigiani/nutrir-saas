@@ -153,16 +153,24 @@ const SummaryCard = ({ label, value, total, unit, color, iconBg, progressColor, 
 const MealItemRow = React.memo(({
   item,
   index,
+  isFirst,
+  isLast,
   onUpdate,
   onRemove,
   onAddNewFood,
+  onMoveUp,
+  onMoveDown,
   foodDataSource
 }: {
   item: any,
   index: number,
+  isFirst: boolean,
+  isLast: boolean,
   onUpdate: (index: number, field: string, value: any) => void,
   onRemove: (index: number) => void,
   onAddNewFood: (name: string, index: number) => void,
+  onMoveUp: (index: number) => void,
+  onMoveDown: (index: number) => void,
   foodDataSource: string
 }) => {
   const unitOptions = (
@@ -232,17 +240,29 @@ const MealItemRow = React.memo(({
                 className="border-none p-0 h-7 focus-visible:ring-0 bg-muted/50 rounded-lg text-center text-muted-foreground font-semibold w-8 mx-auto text-xs" />
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => onRemove(index)}
-            className="h-7 w-7 rounded-xl hover:bg-destructive/10 hover:text-destructive text-muted-foreground/50 transition-all shrink-0">
-            <Trash2 className="w-3.5 h-3.5" />
-          </Button>
+          <div className="flex items-center gap-1 ml-1 shrink-0">
+            <div className="flex flex-col gap-px">
+              <Button variant="ghost" size="icon" onClick={() => onMoveUp(index)} disabled={isFirst}
+                className="h-5 w-5 rounded-md hover:bg-muted text-muted-foreground/40 transition-all disabled:opacity-20">
+                <ChevronUp className="w-3 h-3" />
+              </Button>
+              <Button variant="ghost" size="icon" onClick={() => onMoveDown(index)} disabled={isLast}
+                className="h-5 w-5 rounded-md hover:bg-muted text-muted-foreground/40 transition-all disabled:opacity-20">
+                <ChevronDown className="w-3 h-3" />
+              </Button>
+            </div>
+            <Button variant="ghost" size="icon" onClick={() => onRemove(index)}
+              className="h-7 w-7 rounded-xl hover:bg-destructive/10 hover:text-destructive text-muted-foreground/50 transition-all shrink-0">
+              <Trash2 className="w-3.5 h-3.5" />
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* Tablet + Desktop layout (md+) */}
       <div className="hidden md:grid grid-cols-12 gap-1.5 xl:gap-2 items-center">
         {/* Food Search */}
-        <div className="col-span-5">
+        <div className="col-span-4">
           <FoodAutocomplete
             value={item.food}
             onChange={(v) => onUpdate(index, 'food', v)}
@@ -297,7 +317,17 @@ const MealItemRow = React.memo(({
         </div>
 
         {/* Actions */}
-        <div className="col-span-1 flex justify-end">
+        <div className="col-span-2 flex justify-end items-center gap-1.5">
+          <div className="flex flex-col gap-px">
+            <Button variant="ghost" size="icon" onClick={() => onMoveUp(index)} disabled={isFirst}
+              className="h-5 w-5 xl:h-6 xl:w-6 rounded-md hover:bg-muted text-muted-foreground/40 transition-all disabled:opacity-20">
+              <ChevronUp className="w-3 h-3" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => onMoveDown(index)} disabled={isLast}
+              className="h-5 w-5 xl:h-6 xl:w-6 rounded-md hover:bg-muted text-muted-foreground/40 transition-all disabled:opacity-20">
+              <ChevronDown className="w-3 h-3" />
+            </Button>
+          </div>
           <Button variant="ghost" size="icon" onClick={() => onRemove(index)}
             className="h-7 w-7 xl:h-9 xl:w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive text-muted-foreground/50 transition-all">
             <Trash2 className="w-3.5 h-3.5 xl:w-4 xl:h-4" />
@@ -532,6 +562,26 @@ export const MealPlanEditor = ({
 
   const removeMealItem = useCallback((index: number) => {
     setMealItems(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
+  const moveMealItem = useCallback((index: number, direction: 'up' | 'down') => {
+    setMealItems(prev => {
+      const item = prev[index];
+      if (!item) return prev;
+      const mealId = item.meal;
+      // Índices globais dos itens desta refeição
+      const groupIndices = prev.reduce<number[]>((acc, mi, i) => {
+        if (mi.meal === mealId) acc.push(i);
+        return acc;
+      }, []);
+      const posInGroup = groupIndices.indexOf(index);
+      if (direction === 'up' && posInGroup === 0) return prev;
+      if (direction === 'down' && posInGroup === groupIndices.length - 1) return prev;
+      const swapGlobalIdx = direction === 'up' ? groupIndices[posInGroup - 1] : groupIndices[posInGroup + 1];
+      const next = [...prev];
+      [next[index], next[swapGlobalIdx]] = [next[swapGlobalIdx], next[index]];
+      return next;
+    });
   }, []);
 
   const updateMealItem = useCallback((index: number, field: string, value: any) => {
@@ -1101,15 +1151,19 @@ export const MealPlanEditor = ({
 
                       <div className="space-y-2 xl:space-y-3 mb-4 xl:mb-8">
                         <AnimatePresence mode="popLayout">
-                          {items.map((item) => {
+                          {items.map((item, posInGroup) => {
                             const itemIndex = mealItems.findIndex(mi => mi === item);
                             return (
                               <MealItemRow
                                 key={`${mealType.id}-${itemIndex}`}
                                 item={item}
                                 index={itemIndex}
+                                isFirst={posInGroup === 0}
+                                isLast={posInGroup === items.length - 1}
                                 onUpdate={updateMealItem}
                                 onRemove={removeMealItem}
+                                onMoveUp={(idx) => moveMealItem(idx, 'up')}
+                                onMoveDown={(idx) => moveMealItem(idx, 'down')}
                                 onAddNewFood={(name, index) => {
                                   setInitialFoodName(name);
                                   setActiveMealItemIndex(index);

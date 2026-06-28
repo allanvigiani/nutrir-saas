@@ -22,6 +22,7 @@ function itemToSnakeCase(item: any) {
     base_quantity: item.baseQuantity,
     serving_name: item.servingName,
     serving_weight: item.servingWeight,
+    position: item.position ?? 0,
   };
 }
 
@@ -49,7 +50,7 @@ export function createMealPlansService() {
   async function getOne(nutritionistId: string, id: string) {
     const plan = await getDb().mealPlan.findFirst({
       where: { id, nutritionistId, deletedAt: null },
-      include: { items: true },
+      include: { items: { orderBy: [{ position: 'asc' }, { id: 'asc' }] } },
     });
     if (!plan) throw new Error('Plano não encontrado');
     return toSnakeCase(plan);
@@ -109,6 +110,7 @@ export function createMealPlansService() {
       baseQuantity: item.base_quantity ?? null,
       servingName: item.serving_name ?? null,
       servingWeight: item.serving_weight ?? null,
+      position: item.position ?? 0,
     };
   }
 
@@ -136,7 +138,10 @@ export function createMealPlansService() {
   async function listItems(nutritionistId: string, mealPlanId: string) {
     const plan = await getDb().mealPlan.findFirst({ where: { id: mealPlanId, nutritionistId, deletedAt: null } });
     if (!plan) throw new Error('Não autorizado');
-    return getDb().mealPlanItem.findMany({ where: { mealPlanId } });
+    return getDb().mealPlanItem.findMany({
+      where: { mealPlanId },
+      orderBy: [{ position: 'asc' }, { id: 'asc' }],
+    });
   }
 
   async function createItem(nutritionistId: string, mealPlanId: string, data: Record<string, unknown>) {

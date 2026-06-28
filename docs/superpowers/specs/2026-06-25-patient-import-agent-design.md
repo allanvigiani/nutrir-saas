@@ -76,10 +76,10 @@ POST /api/patients/imports/:jobId/confirm
 
 ## Banco de Dados
 
-### Novo modelo: `ImportJob`
+### Novo modelo: `ImportPatients`
 
 ```prisma
-model ImportJob {
+model ImportPatients {
   id             String    @id @default(cuid())
   nutritionistId String
   nutritionist   Nutritionist @relation(fields: [nutritionistId], references: [id], onDelete: Cascade)
@@ -93,7 +93,7 @@ model ImportJob {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  @@map("import_jobs")
+  @@map("import_patients")
 }
 ```
 

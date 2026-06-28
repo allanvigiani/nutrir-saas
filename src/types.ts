@@ -108,6 +108,7 @@ export interface MealPlanItem {
   food: string;
   quantity: string;
   unit: string;
+  position?: number;
   kcal?: number;
   protein?: number;
   carbs?: number;

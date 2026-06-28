@@ -184,6 +184,21 @@ When adding new API calls to the service, add corresponding `mockResolvedValueOn
 
 ---
 
+## Asaas MCP Server
+
+O projeto tem o MCP `asaas` configurado em `.mcp.json`. Use-o para consultas ao vivo quando a `references/asaas-api.md` não cobrir o endpoint necessário:
+
+- Listar endpoints disponíveis
+- Obter schema de request/response de qualquer endpoint
+- Gerar exemplos de código
+- Executar chamadas de API diretamente (autenticado via `ASAAS_API_KEY`)
+
+Exemplos de perguntas para o MCP:
+- "Quais são os parâmetros do endpoint /v3/subscriptions?"
+- "Como funciona a tokenização de cartão de crédito no Asaas?"
+
+---
+
 ## References
 
 See `references/asaas-api.md` for Asaas REST API endpoint reference (request/response shapes).
