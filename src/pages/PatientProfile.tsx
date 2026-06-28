@@ -2085,116 +2085,195 @@ export const PatientProfile = () => {
 
         {/* Hidden Print Container - Always in DOM for silent printing */}
         <div className="hidden print-content-wrapper pointer-events-none opacity-0 fixed -z-50">
-          <div className="p-8 bg-card">
-            <div className="flex items-center justify-between mb-8 pb-6 border-b border-primary/30">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-xl">
-                  N
-                </div>
+          <div className="bg-white text-gray-900" style={{ fontFamily: 'system-ui, sans-serif', width: '210mm', minHeight: '297mm', padding: '0' }}>
+
+            {/* 1. Cabeçalho */}
+            <div className="flex items-center justify-between px-8 py-5" style={{ backgroundColor: 'var(--primary, #16a34a)', color: 'white' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold text-xl">N</div>
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground leading-none">Nutrir</h2>
-                  <p className="text-xs text-muted-foreground mt-1">Gestão Nutricional</p>
+                  <div className="font-bold text-lg leading-none">Nutrir</div>
+                  <div className="text-xs opacity-80 mt-0.5">Gestão Nutricional</div>
                 </div>
               </div>
               <div className="text-right">
-                <h3 className="text-lg font-bold text-primary">Plano Alimentar</h3>
-                <p className="text-xs text-muted-foreground">{selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6 mb-8 p-6 bg-card border border-primary/20 rounded-2xl">
-              <div>
-                <p className="text-[10px] font-medium text-muted-foreground mb-1">Paciente</p>
-                <p className="font-bold text-foreground text-lg">{patient?.name}</p>
-                <p className="text-sm text-muted-foreground">{patient?.email}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-medium text-muted-foreground mb-1">Nutricionista</p>
-                <p className="font-bold text-foreground text-lg">{user?.displayName || 'Nutricionista'}</p>
-                <p className="text-sm text-muted-foreground">CRN: 12345/P</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-4 gap-4 mb-8">
-              <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-xs font-medium text-muted-foreground">Calorias</p>
-                <p className="text-lg font-bold text-foreground">{viewMealTotals.kcal} kcal</p>
-              </div>
-              <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-xs font-medium text-muted-foreground">Proteínas</p>
-                <p className="text-lg font-bold text-foreground">{viewMealTotals.protein.toFixed(1)} g</p>
-              </div>
-              <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-xs font-medium text-muted-foreground">Carboidratos</p>
-                <p className="text-lg font-bold text-foreground">{viewMealTotals.carbs.toFixed(1)} g</p>
-              </div>
-              <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-xs font-medium text-muted-foreground">Gorduras</p>
-                <p className="text-lg font-bold text-foreground">{viewMealTotals.fat.toFixed(1)} g</p>
-              </div>
-            </div>
-
-            {selectedMealPlan?.generalInstructions && (
-              <div className="mb-8">
-                <h4 className="font-medium text-secondary-foreground text-sm mb-2">Orientações Gerais</h4>
-                <div className="p-5 bg-card rounded-xl border border-border text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">
-                  {selectedMealPlan.generalInstructions}
+                <div className="font-bold text-base">Plano Alimentar</div>
+                <div className="text-xs opacity-80 mt-0.5">
+                  {selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}
                 </div>
               </div>
-            )}
+            </div>
 
-            <div className="space-y-8">
-              {(selectedMealPlan?.customMeals && selectedMealPlan.customMeals.length > 0
-                ? selectedMealPlan.customMeals
-                : defaultMealTypes).map((meal) => {
+            <div className="px-8 py-6 space-y-6">
+
+              {/* 2. Identificação: Paciente + Nutricionista */}
+              <div className="grid grid-cols-2 gap-4 p-5 rounded-xl border border-gray-200">
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">Paciente</p>
+                  <p className="font-bold text-gray-900 text-base">{patient?.name}</p>
+                  {patient?.email && <p className="text-xs text-gray-500 mt-0.5">{patient.email}</p>}
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">Nutricionista</p>
+                  <p className="font-bold text-gray-900 text-base">{nutritionist?.name || user?.displayName || 'Nutricionista'}</p>
+                  {nutritionist?.crn && <p className="text-xs text-gray-500 mt-0.5">CRN: {nutritionist.crn}</p>}
+                </div>
+              </div>
+
+              {/* 3. Resumo de macros totais */}
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { label: 'Calorias', value: `${viewMealTotals.kcal}`, unit: 'kcal', accent: 'var(--primary, #16a34a)' },
+                  { label: 'Proteínas', value: viewMealTotals.protein.toFixed(1), unit: 'g', accent: '#6b7280' },
+                  { label: 'Carboidratos', value: viewMealTotals.carbs.toFixed(1), unit: 'g', accent: '#6b7280' },
+                  { label: 'Gorduras', value: viewMealTotals.fat.toFixed(1), unit: 'g', accent: '#6b7280' },
+                ].map((macro) => (
+                  <div key={macro.label} className="rounded-xl border border-gray-200 p-3 text-center" style={{ borderTop: `3px solid ${macro.accent}` }}>
+                    <p className="text-[10px] text-gray-500 font-medium">{macro.label}</p>
+                    <p className="font-bold text-lg text-gray-900 leading-tight mt-0.5">{macro.value}</p>
+                    <p className="text-[10px] text-gray-400">{macro.unit}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* 4. Orientações gerais */}
+              {selectedMealPlan?.generalInstructions && (
+                <div className="rounded-xl p-4" style={{ borderLeft: '4px solid var(--primary, #16a34a)', backgroundColor: '#f0fdf4' }}>
+                  <p className="text-xs font-bold text-gray-700 mb-1">Orientações Gerais</p>
+                  <p className="text-sm text-gray-600 italic whitespace-pre-wrap leading-relaxed">
+                    {selectedMealPlan.generalInstructions}
+                  </p>
+                </div>
+              )}
+
+              {/* 5. Refeições */}
+              <div className="space-y-5">
+                {(selectedMealPlan?.customMeals && selectedMealPlan.customMeals.length > 0
+                  ? selectedMealPlan.customMeals
+                  : defaultMealTypes
+                ).map((meal: any) => {
                   const items = selectedMealPlanItems.filter(item => item.meal === meal.id);
                   if (items.length === 0) return null;
-                  const Icon = (meal as any).icon || Activity;
+
+                  const subtotal = items.reduce(
+                    (acc, i) => ({
+                      kcal: acc.kcal + (Number(i.kcal) || 0),
+                      protein: acc.protein + (Number(i.protein) || 0),
+                      carbs: acc.carbs + (Number(i.carbs) || 0),
+                      fat: acc.fat + (Number(i.fat) || 0),
+                    }),
+                    { kcal: 0, protein: 0, carbs: 0, fat: 0 }
+                  );
+
+                  const obs = (selectedMealPlan as any)?.mealObservations?.[meal.id];
 
                   return (
-                    <div key={meal.id} className="border border-border rounded-2xl overflow-hidden break-inside-avoid">
-                      <div className={cn("px-6 py-3 border-b flex items-center gap-3", meal.color)}>
-                        <Icon className="w-5 h-5" />
+                    <div key={meal.id} className="rounded-xl border border-gray-200 overflow-hidden" style={{ breakInside: 'avoid' }}>
+                      {/* Header da refeição */}
+                      <div className="flex items-center justify-between px-5 py-3" style={{ backgroundColor: '#f0fdf4', borderBottom: '1px solid #d1fae5' }}>
                         <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-lg">{meal.label}</h4>
-                          {meal.time && <span className="text-xs font-bold opacity-60 bg-black/5 px-1.5 py-0.5 rounded">{meal.time}</span>}
+                          <span className="font-bold text-gray-800">{meal.label}</span>
+                          {meal.time && (
+                            <span className="text-xs text-gray-500 bg-black/5 px-1.5 py-0.5 rounded font-medium">{meal.time}</span>
+                          )}
                         </div>
+                        <span className="text-xs text-gray-600 font-medium">
+                          {subtotal.kcal} kcal · {subtotal.protein.toFixed(1)}g P · {subtotal.carbs.toFixed(1)}g C · {subtotal.fat.toFixed(1)}g G
+                        </span>
                       </div>
-                      <table className="w-full text-sm">
+
+                      {/* Tabela de alimentos */}
+                      <table className="w-full text-xs">
                         <thead>
-                          <tr className="bg-muted/30 text-muted-foreground text-left border-b">
-                            <th className="px-6 py-3 font-medium text-[11px]">Alimento</th>
-                            <th className="px-4 py-3 font-medium text-[11px] text-center">Qtd</th>
-                            <th className="px-4 py-3 font-medium text-[11px] text-center">Unidade</th>
-                            <th className="px-4 py-3 font-medium text-[11px] text-center">Kcal</th>
-                            <th className="px-4 py-3 font-medium text-[11px] text-center">P (g)</th>
-                            <th className="px-4 py-3 font-medium text-[11px] text-center">C (g)</th>
-                            <th className="px-4 py-3 font-medium text-[11px] text-center">G (g)</th>
+                          <tr className="bg-gray-50 border-b border-gray-100">
+                            <th className="px-5 py-2 text-left font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Alimento</th>
+                            <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Quantidade</th>
+                            <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Kcal</th>
+                            <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">P (g)</th>
+                            <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">C (g)</th>
+                            <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">G (g)</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-border">
-                          {items.map((item, idx) => (
-                            <tr key={idx}>
-                              <td className="px-6 py-3 font-medium text-foreground">{item.food}</td>
-                              <td className="px-4 py-3 text-muted-foreground text-center">{item.quantity}</td>
-                              <td className="px-4 py-3 text-muted-foreground text-center">{item.unit}</td>
-                              <td className="px-4 py-3 text-muted-foreground text-center">{item.kcal || 0}</td>
-                              <td className="px-4 py-3 text-muted-foreground text-center">{item.protein || 0}</td>
-                              <td className="px-4 py-3 text-muted-foreground text-center">{item.carbs || 0}</td>
-                              <td className="px-4 py-3 text-muted-foreground text-center">{item.fat || 0}</td>
-                            </tr>
-                          ))}
+                        <tbody>
+                          {items.map((item, idx) => {
+                            const unit = item.unit || 'g';
+                            const qty = item.quantity || '0';
+                            const isBaseUnit = unit === 'g' || unit === 'ml';
+                            const qtyDisplay = isBaseUnit ? `${qty} ${unit}` : `${qty} ${unit}`;
+                            return (
+                              <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                <td className="px-5 py-2 font-medium text-gray-800">{item.food}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{qtyDisplay}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{item.kcal || 0}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.protein || 0).toFixed(1)}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.carbs || 0).toFixed(1)}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.fat || 0).toFixed(1)}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
+
+                      {/* Observações da refeição */}
+                      {obs && (
+                        <div className="px-5 py-3 text-xs text-gray-600 italic border-t border-gray-100 bg-yellow-50">
+                          <span className="font-semibold not-italic text-gray-700">Obs.: </span>{obs}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
-            </div>
+              </div>
 
-            <div className="flex flex-col items-center mt-20 pt-10 border-t border-border">
-              <div className="w-64 h-px bg-border mb-4"></div>
-              <p className="text-base font-bold text-foreground">{user?.displayName || 'Nutricionista'}</p>
-              <p className="text-xs text-muted-foreground mt-1">Assinatura do Profissional</p>
+              {/* 6. Tabela de Medidas Caseiras */}
+              <div className="mt-6 pt-5 border-t border-gray-200">
+                <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Tabela de Medidas Caseiras (Referência)</p>
+                <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-4 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">Medida</th>
+                      <th className="px-4 py-2 text-center font-semibold text-gray-600 border-b border-gray-200">Peso aprox.</th>
+                      <th className="px-4 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">Medida</th>
+                      <th className="px-4 py-2 text-center font-semibold text-gray-600 border-b border-gray-200">Peso aprox.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Colher de chá', '~4 g', 'Copo (200ml)', '~200 ml'],
+                      ['Colher de sobremesa', '~9 g', 'Concha pequena', '~80 g'],
+                      ['Colher de sopa', '~13 g', 'Concha média', '~150 g'],
+                      ['Colher de servir', '~30 g', 'Xícara (sólidos)', '~80 g'],
+                      ['Unidade (fruta média)', '~130 g', 'Xícara (líquidos)', '~200 ml'],
+                      ['Fatia (fruta)', '~80 g', 'Lata', '~350 ml'],
+                    ].map(([m1, p1, m2, p2], i) => (
+                      <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-4 py-1.5 text-gray-700">{m1}</td>
+                        <td className="px-4 py-1.5 text-center text-gray-500">{p1}</td>
+                        <td className="px-4 py-1.5 text-gray-700">{m2}</td>
+                        <td className="px-4 py-1.5 text-center text-gray-500">{p2}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-[9px] text-gray-400 mt-1.5 italic">
+                  Valores de referência (Pinheiro et al. 2004 / TBCA). Pesos reais variam conforme o alimento e forma de preparo.
+                </p>
+              </div>
+
+              {/* 7. Rodapé — Assinatura/Carimbo */}
+              <div className="mt-8 pt-6 flex flex-col items-center">
+                <div style={{ height: '48px' }} /> {/* espaço para assinatura manuscrita */}
+                <div className="w-56 border-t border-gray-400 pt-3 text-center">
+                  <p className="font-bold text-gray-800 text-sm">{nutritionist?.name || user?.displayName || 'Nutricionista'}</p>
+                  {nutritionist?.crn && (
+                    <p className="text-xs text-gray-500 mt-0.5">CRN: {nutritionist.crn}</p>
+                  )}
+                </div>
+                <p className="text-[9px] text-gray-400 mt-4">
+                  Gerado em {formatDateSafely(new Date().toISOString(), 'dd/MM/yyyy')}
+                </p>
+              </div>
+
             </div>
           </div>
         </div>
