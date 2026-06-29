@@ -34,7 +34,11 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
 
   // Form State — pré-populado com cálculo existente quando disponível
   const [peso, setPeso] = useState<string>(ex?.peso?.toString() || latestConsultation?.weight?.toString() || '');
-  const [altura, setAltura] = useState<string>(ex?.altura?.toString() || latestConsultation?.height?.toString() || '');
+  const metersToAlturaDisplay = (v: number) => Math.round(v * 100).toString();
+  const [altura, setAltura] = useState<string>(
+    ex?.altura ? metersToAlturaDisplay(ex.altura) :
+    latestConsultation?.height ? latestConsultation.height.toString() : ''
+  );
   const [idade, setIdade] = useState<string>(
     ex?.idade?.toString() ||
     (patient.birthDate ? Math.floor((new Date().getTime() - new Date(patient.birthDate).getTime()) / 31557600000).toString() : '')
@@ -85,7 +89,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
         },
         body: JSON.stringify({
           peso: parseFloat(peso),
-          altura: parseFloat(altura) > 3 ? parseFloat(altura) / 100 : parseFloat(altura), // handle cm vs m
+          altura: parseFloat(altura) / 100,
           idade: parseInt(idade),
           sexo,
           nivelAtividade: parseFloat(nivelAtividade),
@@ -137,7 +141,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
     try {
       const input: NutritionCalculationInput = {
         peso: parseFloat(peso),
-        altura: parseFloat(altura) > 3 ? parseFloat(altura) / 100 : parseFloat(altura),
+        altura: parseFloat(altura) / 100,
         idade: parseInt(idade),
         sexo,
         nivelAtividade: parseFloat(nivelAtividade),
@@ -202,13 +206,13 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                       <Info className="w-3.5 h-3.5" />
                     </TooltipTrigger>
                     <TooltipContent side="top">
-                      Aceita metros (ex: 1,70) ou centímetros (ex: 170) — a conversão é automática.
+                      Informe a altura em centímetros (ex: 170).
                     </TooltipContent>
                   </Tooltip>
                 </div>
                 <div className="relative">
-                  <Input type="number" step="0.01" value={altura} onChange={e => setAltura(e.target.value)} className="pr-8" />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">m</span>
+                  <Input type="number" step="1" value={altura} onChange={e => setAltura(e.target.value)} className="pr-10" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">cm</span>
                 </div>
               </div>
             </div>

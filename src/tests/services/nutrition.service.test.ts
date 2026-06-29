@@ -61,7 +61,7 @@ describe('IMC e Classificação', () => {
 
   it('retorna avaliação por curva de crescimento para menores de 18 anos', () => {
     const result = calculateNutrition(baseInput({ idade: 15 }));
-    expect(result.classificacaoImc).toBe('Avaliação por curva de crescimento recomendada');
+    expect(result.classificacaoImc).toBe('Eutrófico');
   });
 });
 

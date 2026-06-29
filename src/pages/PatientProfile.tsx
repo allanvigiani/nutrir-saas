@@ -1493,7 +1493,7 @@ export const PatientProfile = () => {
                           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             <div className="p-3 rounded-xl bg-muted/30 border border-border">
                               <p className="text-xs font-medium text-muted-foreground mb-1">Altura</p>
-                              <p className="font-bold text-foreground">{consultation.height}m</p>
+                              <p className="font-bold text-foreground">{consultation.height} cm</p>
                             </div>
                             <div className="p-3 rounded-xl bg-muted/30 border border-border">
                               <p className="text-xs font-medium text-muted-foreground mb-1">Gordura</p>

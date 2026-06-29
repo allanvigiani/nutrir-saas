@@ -63,16 +63,13 @@ export function createNutritionService() {
     // PASSO 1
     const imc = peso / (altura * altura);
     let classificacaoImc = '';
-    if (idade >= 18) { // Assuming classification for adults
-      if (imc < 18.5) classificacaoImc = 'Baixo peso';
-      else if (imc < 25) classificacaoImc = 'Eutrófico';
-      else if (imc < 30) classificacaoImc = 'Sobrepeso';
-      else if (imc < 35) classificacaoImc = 'Obesidade grau I';
-      else if (imc < 40) classificacaoImc = 'Obesidade grau II';
-      else classificacaoImc = 'Obesidade grau III (mórbida)';
-    } else {
-      classificacaoImc = 'Avaliação por curva de crescimento recomendada';
-    }
+    if (imc < 18.5) classificacaoImc = 'Baixo peso';
+    else if (imc < 25) classificacaoImc = 'Eutrófico';
+    else if (imc < 30) classificacaoImc = 'Sobrepeso';
+    else if (imc < 35) classificacaoImc = 'Obesidade grau I';
+    else if (imc < 40) classificacaoImc = 'Obesidade grau II';
+    else classificacaoImc = 'Obesidade grau III (mórbida)';
+    if (idade < 18) alertas.push('Paciente menor de 18 anos: avaliação por curva de crescimento recomendada para classificação precisa do IMC.');
 
     let faixaEtaria = '';
     if (idade < 18) faixaEtaria = 'Criança/Adolescente';
