@@ -206,8 +206,17 @@ const MealItemRow = React.memo(({
     ? item.servings
     : [{ label: 'g', weightInGrams: 1 }];
   const showUnitSelect = servings.length > 1;
+
+  const displayUnit = (unit: string) => {
+    if (unit === 'g') return 'gramas';
+    if (unit === 'ml') return 'mililitros';
+    return unit;
+  };
+
   const unitOptions = servings.map((s: FoodServing) => {
-    const label = s.weightInGrams === 1 ? s.label : `${s.label} (~${s.weightInGrams}g)`;
+    const label = s.weightInGrams === 1
+      ? displayUnit(s.label)
+      : `${displayUnit(s.label)} (~${s.weightInGrams}g)`;
     return <SelectItem key={s.label} value={s.label}>{label}</SelectItem>;
   });
 
@@ -317,12 +326,12 @@ const MealItemRow = React.memo(({
           {showUnitSelect ? (
             <Select value={item.unit} onValueChange={(v) => onUpdate(index, 'unit', v)}>
               <SelectTrigger className="flex-1 h-7 bg-transparent border-none text-muted-foreground font-medium text-xs px-1 focus-visible:ring-0 min-w-0">
-                <SelectValue className="truncate">{item.unit}</SelectValue>
+                <SelectValue className="truncate">{displayUnit(item.unit)}</SelectValue>
               </SelectTrigger>
               <SelectContent>{unitOptions}</SelectContent>
             </Select>
           ) : (
-            <span className="flex-1 text-xs font-medium text-muted-foreground truncate">{item.unit || 'g'}</span>
+            <span className="flex-1 text-xs font-medium text-muted-foreground truncate">{displayUnit(item.unit || 'g')}</span>
           )}
         </div>
 
