@@ -316,13 +316,13 @@ const MealItemRow = React.memo(({
           />
           {showUnitSelect ? (
             <Select value={item.unit} onValueChange={(v) => onUpdate(index, 'unit', v)}>
-              <SelectTrigger className="h-7 w-auto min-w-max bg-transparent border-none text-muted-foreground font-medium text-xs px-1 focus-visible:ring-0 shrink-0">
+              <SelectTrigger className="w-20 h-7 bg-transparent border-none text-muted-foreground font-medium text-xs px-1 focus-visible:ring-0 shrink-0">
                 <SelectValue>{item.unit}</SelectValue>
               </SelectTrigger>
               <SelectContent>{unitOptions}</SelectContent>
             </Select>
           ) : (
-            <span className="text-xs font-medium text-muted-foreground">g</span>
+            <span className="text-xs font-medium text-muted-foreground w-4">g</span>
           )}
         </div>
 
