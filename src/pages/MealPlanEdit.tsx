@@ -8,12 +8,14 @@ import { toast } from 'sonner';
 import { logEvent } from '../lib/firebase';
 import { apiRequest } from '../hooks/useApi';
 import { Loader2 } from 'lucide-react';
+import { generateMealPlanPDF } from '../lib/meal-plan-pdf';
+import { format } from 'date-fns';
 
 export function MealPlanEdit() {
   const { patientId, planId } = useParams<{ patientId: string; planId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, nutritionist } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -23,6 +25,15 @@ export function MealPlanEdit() {
 
   // Get calculation from location state if we're creating from one
   const stateCalculation = location.state?.calculation as NutritionCalculation | undefined;
+
+  // Plano copiado de consulta anterior (deep clone enviado por PatientProfile)
+  const copiedMealPlan = location.state?.copiedMealPlan as {
+    generalInstructions: string;
+    waterIntake: string;
+    mealObservations: Record<string, string>;
+    customMeals: any[];
+    items: any[];
+  } | undefined;
 
   useEffect(() => {
     async function fetchData() {
@@ -142,6 +153,21 @@ export function MealPlanEdit() {
     }
   };
 
+  const handlePrint = async () => {
+    if (!mealPlan || !patient || !planId || planId === 'new') return;
+    const toastId = toast.loading('Gerando PDF do plano alimentar...');
+    try {
+      const receitasVinculadas = await apiRequest<any[]>(`/api/meal-plans/${planId}/recipes`, 'GET') ?? [];
+      const doc = generateMealPlanPDF(mealPlan, mealItems as MealPlanItem[], patient.name, nutritionist, receitasVinculadas);
+      doc.save(`Plano_Alimentar_${patient.name.replace(/\s+/g, '_')}_${format(new Date(), 'ddMMyyyy')}.pdf`);
+      void logEvent('exportar_pdf_plano_alimentar');
+      toast.success('PDF gerado com sucesso!', { id: toastId });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Erro ao gerar PDF.', { id: toastId });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-muted/30">
@@ -181,17 +207,18 @@ export function MealPlanEdit() {
   return (
     <div className="h-screen overflow-hidden">
       <MealPlanEditor
-        initialName={mealPlan?.name || (calculation ? `Plano - ${calculation.result.getAjustado} kcal` : '')}
-        initialItems={mealItems}
-        initialGeneralInstructions={mealPlan?.generalInstructions || ''}
-        initialWaterIntake={mealPlan?.waterIntake || ''}
-        initialMealObservations={safeMealObservations}
-        initialCustomMeals={safeCustomMeals}
+        initialName={mealPlan?.name || ''}
+        initialItems={copiedMealPlan ? copiedMealPlan.items : mealItems}
+        initialGeneralInstructions={copiedMealPlan ? copiedMealPlan.generalInstructions : (mealPlan?.generalInstructions || '')}
+        initialWaterIntake={copiedMealPlan ? copiedMealPlan.waterIntake : (mealPlan?.waterIntake || '')}
+        initialMealObservations={copiedMealPlan ? copiedMealPlan.mealObservations : safeMealObservations}
+        initialCustomMeals={copiedMealPlan ? copiedMealPlan.customMeals : safeCustomMeals}
         selectedCalculation={calculation}
         foodDataSource="Todas"
         isNew={!planId || planId === 'new'}
         draftKey={draftKey}
         onSave={handleSave}
+        onPrint={planId && planId !== 'new' ? handlePrint : undefined}
         onClose={() => navigate(`/patients/${patientId}`)}
       >
         {planId && planId !== 'new' && (

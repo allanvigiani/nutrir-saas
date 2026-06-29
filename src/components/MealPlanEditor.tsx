@@ -20,7 +20,8 @@ import {
   CircleCheck,
   Loader2,
   History,
-  X
+  X,
+  Printer
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -113,6 +114,7 @@ interface MealPlanEditorProps {
     mealObservations: Record<string, string>;
     customMeals: MealType[];
   }) => Promise<boolean>;
+  onPrint?: () => Promise<void>;
   onClose: () => void;
 }
 
@@ -442,6 +444,7 @@ export const MealPlanEditor = ({
   draftKey,
   children,
   onSave,
+  onPrint,
   onClose
 }: MealPlanEditorProps) => {
   const [mealPlanName, setMealPlanName] = useState(initialName);
@@ -464,6 +467,7 @@ export const MealPlanEditor = ({
   const [activeMealItemIndex, setActiveMealItemIndex] = useState<number | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   // --- Autosave / rascunho ---
@@ -1029,6 +1033,25 @@ export const MealPlanEditor = ({
             </div>
 
             <div className="flex items-center gap-2">
+              {onPrint && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={async () => {
+                    setIsPrinting(true);
+                    try { await onPrint(); } finally { setIsPrinting(false); }
+                  }}
+                  disabled={hasUnsavedChanges || isPrinting}
+                  title={hasUnsavedChanges ? 'Salve as alterações antes de imprimir' : 'Baixar PDF'}
+                  className="rounded-lg border-border hover:bg-muted/30 transition-all h-8 w-8 shrink-0"
+                >
+                  {isPrinting ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Printer className="w-3.5 h-3.5 text-muted-foreground" />
+                  )}
+                </Button>
+              )}
               <Button
                 onClick={handleSaveClick}
                 disabled={isSaving}
