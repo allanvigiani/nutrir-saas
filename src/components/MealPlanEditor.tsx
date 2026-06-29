@@ -120,15 +120,13 @@ const DEFAULT_MEAL_TYPES: MealType[] = [];
 
 const SummaryCard = ({ label, value, total, unit, color, progressColor }: any) => {
   const percentage = total ? Math.min((value / total) * 100, 100) : 0;
-  const ringSize = 52;
-  const strokeWidth = 4;
+  const ringSize = 54;
+  const strokeWidth = 5;
   const radius = (ringSize - strokeWidth * 2) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
-  // Converte "bg-chart-3" → "var(--color-chart-3)" para o stroke do SVG
-  const strokeVar = progressColor
-    ? progressColor.replace('bg-', 'var(--color-') + ')'
-    : 'var(--color-primary)';
+  // "bg-macro-kcal" → "stroke-macro-kcal" (utilitário Tailwind gerado via @theme inline)
+  const strokeClass = progressColor ? progressColor.replace('bg-', 'stroke-') : 'stroke-primary';
 
   return (
     <motion.div
@@ -138,15 +136,17 @@ const SummaryCard = ({ label, value, total, unit, color, progressColor }: any) =
       {/* Ring circular de progresso */}
       <div className="relative shrink-0 flex items-center justify-center">
         <svg width={ringSize} height={ringSize} style={{ transform: 'rotate(-90deg)' }}>
+          {/* Trilha de fundo — cinza visível */}
           <circle
             cx={ringSize / 2} cy={ringSize / 2} r={radius}
             fill="none" strokeWidth={strokeWidth}
-            style={{ stroke: 'var(--color-muted)' }}
+            className="stroke-border"
           />
+          {/* Arco colorido proporcional à % preenchida */}
           <motion.circle
             cx={ringSize / 2} cy={ringSize / 2} r={radius}
             fill="none" strokeWidth={strokeWidth}
-            style={{ stroke: strokeVar }}
+            className={strokeClass}
             strokeDasharray={circumference}
             initial={{ strokeDashoffset: circumference }}
             animate={{ strokeDashoffset }}
