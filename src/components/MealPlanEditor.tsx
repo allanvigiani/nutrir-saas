@@ -1196,14 +1196,15 @@ export const MealPlanEditor = ({
                         <div className="flex items-center gap-3">
                           {/* Time badge — cor cicla por índice de refeição */}
                           <div className={cn(
-                            "px-3 py-1.5 rounded-xl shrink-0 flex items-center justify-center min-w-[60px]",
+                            "px-3 py-1.5 rounded-xl shrink-0 flex items-center justify-center",
                             mealTimeColors[mealIdx % mealTimeColors.length]
                           )}>
-                            <Input
+                            <input
                               type="time"
                               value={mealType.time || ''}
                               onChange={(e) => updateMealType(mealType.id, 'time', e.target.value)}
-                              className="w-[64px] h-5 border-none bg-transparent text-xs font-bold p-0 focus-visible:ring-0 [&::-webkit-calendar-picker-indicator]:hidden text-current text-center"
+                              style={{ textAlign: 'center' }}
+                              className="w-[64px] h-5 border-none outline-none bg-transparent text-xs font-bold p-0 [&::-webkit-calendar-picker-indicator]:hidden text-current"
                             />
                           </div>
                           <div>
