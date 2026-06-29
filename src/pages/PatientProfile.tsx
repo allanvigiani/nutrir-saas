@@ -64,6 +64,7 @@ import { TacoFood } from '../data/taco';
 import { CustomFoodDialog } from '../components/CustomFoodDialog';
 import { NutritionalCalculator } from '../components/NutritionalCalculator';
 import { MealPlanEditor } from '../components/MealPlanEditor';
+import { CopyMealPlanModal, type MealPlanHistoryEntry } from '../components/CopyMealPlanModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -234,6 +235,8 @@ export const PatientProfile = () => {
   const [evolutionMetric, setEvolutionMetric] = useState<'weight' | 'fatPercentage' | 'imc' | 'measurements'>('weight');
   const [isDeleteMealPlanConfirmOpen, setIsDeleteMealPlanConfirmOpen] = useState(false);
   const [mealPlanToDelete, setMealPlanToDelete] = useState<string | null>(null);
+  const [isCopyMealPlanModalOpen, setIsCopyMealPlanModalOpen] = useState(false);
+  const [pendingConsultationForPlan, setPendingConsultationForPlan] = useState<{ consultationId: string; calcDaConsulta: NutritionCalculation | undefined } | null>(null);
   const [isDeleteLabExamConfirmOpen, setIsDeleteLabExamConfirmOpen] = useState(false);
   const [labExamToDelete, setLabExamToDelete] = useState<string | null>(null);
   const [isDeleteConsultationConfirmOpen, setIsDeleteConsultationConfirmOpen] = useState(false);
@@ -376,20 +379,20 @@ export const PatientProfile = () => {
 
       // Observation for this meal
       if (observation) {
-        doc.setFillColor(255, 251, 235); // amber-50
-        doc.setDrawColor(251, 191, 36); // amber-400
-
         const splitObs = doc.splitTextToSize(observation, pageWidth - 36);
         const obsHeight = (splitObs.length * 5) + 6;
 
-        // Check if we need a new page
         if (currentY + obsHeight > doc.internal.pageSize.getHeight() - 20) {
           doc.addPage();
           currentY = 20;
         }
 
+        // setFillColor/setDrawColor sempre imediatamente antes do rect —
+        // autoTable e addPage podem resetar o estado de cores do jsPDF
+        doc.setFillColor(255, 251, 235); // amber-50
+        doc.setDrawColor(251, 191, 36); // amber-400
         doc.rect(14, currentY, pageWidth - 28, obsHeight, 'F');
-        doc.line(14, currentY, 14, currentY + obsHeight); // Left border accent
+        doc.line(14, currentY, 14, currentY + obsHeight);
 
         doc.setTextColor(146, 64, 14); // amber-800
         doc.setFontSize(9);
@@ -1574,12 +1577,24 @@ export const PatientProfile = () => {
                                                 if (planDaConsulta) {
                                                   navigate(`/patients/${id}/meal-plan/${planDaConsulta.id}`);
                                                 } else {
-                                                  navigate(`/patients/${id}/meal-plan/new`, {
-                                                    state: {
+                                                  // Verifica se há planos anteriores para oferecer cópia
+                                                  const planosAnteriores = mealPlans.filter(
+                                                    p => p.consultation_id && p.consultation_id !== consultation.id
+                                                  );
+                                                  if (planosAnteriores.length > 0) {
+                                                    setPendingConsultationForPlan({
                                                       consultationId: consultation.id,
-                                                      ...(calcDaConsulta ? { calculation: calcDaConsulta } : {}),
-                                                    },
-                                                  });
+                                                      calcDaConsulta,
+                                                    });
+                                                    setIsCopyMealPlanModalOpen(true);
+                                                  } else {
+                                                    navigate(`/patients/${id}/meal-plan/new`, {
+                                                      state: {
+                                                        consultationId: consultation.id,
+                                                        ...(calcDaConsulta ? { calculation: calcDaConsulta } : {}),
+                                                      },
+                                                    });
+                                                  }
                                                 }
                                               }}
                                             >
@@ -3318,6 +3333,66 @@ export const PatientProfile = () => {
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
       />
+
+      {/* Modal de cópia de plano alimentar */}
+      {pendingConsultationForPlan && (
+        <CopyMealPlanModal
+          isOpen={isCopyMealPlanModalOpen}
+          patientId={id ?? ''}
+          currentConsultationId={pendingConsultationForPlan.consultationId}
+          onClose={() => {
+            setIsCopyMealPlanModalOpen(false);
+            setPendingConsultationForPlan(null);
+          }}
+          onCreateFromScratch={() => {
+            setIsCopyMealPlanModalOpen(false);
+            const pending = pendingConsultationForPlan;
+            setPendingConsultationForPlan(null);
+            navigate(`/patients/${id}/meal-plan/new`, {
+              state: {
+                consultationId: pending.consultationId,
+                ...(pending.calcDaConsulta ? { calculation: pending.calcDaConsulta } : {}),
+              },
+            });
+          }}
+          onCopyPlan={(entrada: MealPlanHistoryEntry) => {
+            setIsCopyMealPlanModalOpen(false);
+            const pending = pendingConsultationForPlan;
+            setPendingConsultationForPlan(null);
+            navigate(`/patients/${id}/meal-plan/new`, {
+              state: {
+                consultationId: pending?.consultationId,
+                ...(pending?.calcDaConsulta ? { calculation: pending.calcDaConsulta } : {}),
+                copiedMealPlan: {
+                  generalInstructions: entrada.mealPlan.generalInstructions ?? '',
+                  waterIntake: entrada.mealPlan.waterIntake ?? '',
+                  mealObservations: entrada.mealPlan.mealObservations ?? {},
+                  customMeals: entrada.mealPlan.customMeals ?? [],
+                  items: entrada.mealPlan.items.map(item => ({
+                    meal: item.meal,
+                    food: item.food,
+                    quantity: item.quantity,
+                    unit: item.unit,
+                    weight_in_grams: item.weight_in_grams,
+                    kcal: item.kcal,
+                    protein: item.protein,
+                    carbs: item.carbs,
+                    fat: item.fat,
+                    base_kcal: item.base_kcal,
+                    base_protein: item.base_protein,
+                    base_carbs: item.base_carbs,
+                    base_fat: item.base_fat,
+                    base_quantity: item.base_quantity,
+                    serving_name: item.serving_name,
+                    serving_weight: item.serving_weight,
+                    position: item.position,
+                  })),
+                },
+              },
+            });
+          }}
+        />
+      )}
     </div>
   );
 };

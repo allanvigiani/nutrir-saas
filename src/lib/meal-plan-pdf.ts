@@ -129,8 +129,6 @@ export function generateMealPlanPDF(
     currentY = (doc as any).lastAutoTable.finalY + 5;
 
     if (observation) {
-      doc.setDrawColor(251, 191, 36); // amber-400
-
       const splitObs = doc.splitTextToSize(observation, pageWidth - 36);
       const obsHeight = (splitObs.length * 5) + 6;
 
@@ -139,7 +137,10 @@ export function generateMealPlanPDF(
         currentY = 20;
       }
 
-      doc.setFillColor(255, 251, 235); // amber-50 — após addPage() para não ser resetado
+      // setFillColor e setDrawColor sempre imediatamente antes do rect,
+      // pois autoTable e addPage podem resetar o estado de cores do jsPDF
+      doc.setFillColor(255, 251, 235); // amber-50
+      doc.setDrawColor(251, 191, 36); // amber-400
       doc.rect(14, currentY, pageWidth - 28, obsHeight, 'F');
       doc.line(14, currentY, 14, currentY + obsHeight);
 
