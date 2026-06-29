@@ -322,7 +322,7 @@ const MealItemRow = React.memo(({
               <SelectContent>{unitOptions}</SelectContent>
             </Select>
           ) : (
-            <span className="text-xs font-medium text-muted-foreground w-4">g</span>
+            <span className="text-xs font-medium text-muted-foreground">{item.unit || 'g'}</span>
           )}
         </div>
 
