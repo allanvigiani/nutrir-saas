@@ -125,8 +125,8 @@ const SummaryCard = ({ label, value, total, unit, color, progressColor }: any) =
   const radius = (ringSize - strokeWidth * 2) / 2;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (percentage / 100) * circumference;
-  // "bg-macro-kcal" → "stroke-macro-kcal" (utilitário Tailwind gerado via @theme inline)
-  const strokeClass = progressColor ? progressColor.replace('bg-', 'stroke-') : 'stroke-primary';
+  // "bg-macro-kcal" → "var(--color-macro-kcal)" para SVG style (não via className dinâmico)
+  const strokeColor = `var(--color-${progressColor?.replace('bg-', '') ?? 'primary'})`;
 
   return (
     <motion.div
@@ -140,13 +140,13 @@ const SummaryCard = ({ label, value, total, unit, color, progressColor }: any) =
           <circle
             cx={ringSize / 2} cy={ringSize / 2} r={radius}
             fill="none" strokeWidth={strokeWidth}
-            className="stroke-border"
+            style={{ stroke: 'oklch(0.88 0 0)' }}
           />
           {/* Arco colorido proporcional à % preenchida */}
           <motion.circle
             cx={ringSize / 2} cy={ringSize / 2} r={radius}
             fill="none" strokeWidth={strokeWidth}
-            className={strokeClass}
+            style={{ stroke: strokeColor }}
             strokeDasharray={circumference}
             initial={{ strokeDashoffset: circumference }}
             animate={{ strokeDashoffset }}
