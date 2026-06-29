@@ -332,27 +332,27 @@ const MealItemRow = React.memo(({
           <input type="number" value={item.kcal ?? 0}
             style={{ width: `${Math.max(String(Math.round(item.kcal ?? 0)).length, 2) + 0.2}ch` } as React.CSSProperties}
             onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
-            className="border-none outline-none bg-transparent text-right text-chart-3 font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
+            className="border-none outline-none bg-transparent text-right text-macro-kcal font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
           <span className="flex items-baseline">
             <input type="number" value={item.protein ?? 0}
               style={{ width: `${Math.max(String(Math.round(item.protein ?? 0)).length, 1) + 0.2}ch` } as React.CSSProperties}
               onChange={(e) => onUpdate(index, 'protein', Number(e.target.value))}
-              className="border-none outline-none bg-transparent text-right text-chart-4 font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
-            <span className="text-[10px] font-bold text-chart-4">P</span>
+              className="border-none outline-none bg-transparent text-right text-macro-protein font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
+            <span className="text-[10px] font-bold text-macro-protein">P</span>
           </span>
           <span className="flex items-baseline">
             <input type="number" value={item.carbs ?? 0}
               style={{ width: `${Math.max(String(Math.round(item.carbs ?? 0)).length, 1) + 0.2}ch` } as React.CSSProperties}
               onChange={(e) => onUpdate(index, 'carbs', Number(e.target.value))}
-              className="border-none outline-none bg-transparent text-right text-primary font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
-            <span className="text-[10px] font-bold text-primary">C</span>
+              className="border-none outline-none bg-transparent text-right text-macro-carbs font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
+            <span className="text-[10px] font-bold text-macro-carbs">C</span>
           </span>
           <span className="flex items-baseline">
             <input type="number" value={item.fat ?? 0}
               style={{ width: `${Math.max(String(Math.round(item.fat ?? 0)).length, 1) + 0.2}ch` } as React.CSSProperties}
               onChange={(e) => onUpdate(index, 'fat', Number(e.target.value))}
-              className="border-none outline-none bg-transparent text-right text-chart-2 font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
-            <span className="text-[10px] font-bold text-chart-2">G</span>
+              className="border-none outline-none bg-transparent text-right text-macro-fat font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
+            <span className="text-[10px] font-bold text-macro-fat">G</span>
           </span>
         </div>
 
@@ -900,9 +900,8 @@ export const MealPlanEditor = ({
               value={mealTotals.kcal}
               total={selectedCalculation?.result.getAjustado}
               unit="kcal"
-              color="text-chart-3"
-              iconBg="bg-chart-3/10"
-              progressColor="bg-chart-3"
+              color="text-macro-kcal"
+              progressColor="bg-macro-kcal"
               icon={Activity}
               variant="sidebar"
             />
@@ -911,9 +910,8 @@ export const MealPlanEditor = ({
               value={mealTotals.protein}
               total={selectedCalculation?.result.macronutrientes.ptnG}
               unit="g"
-              color="text-chart-4"
-              iconBg="bg-chart-4/10"
-              progressColor="bg-chart-4"
+              color="text-macro-protein"
+              progressColor="bg-macro-protein"
               icon={Dna}
               variant="sidebar"
             />
@@ -922,9 +920,8 @@ export const MealPlanEditor = ({
               value={mealTotals.carbs}
               total={selectedCalculation?.result.macronutrientes.choG}
               unit="g"
-              color="text-primary"
-              iconBg="bg-primary/10"
-              progressColor="bg-primary"
+              color="text-macro-carbs"
+              progressColor="bg-macro-carbs"
               icon={Zap}
               variant="sidebar"
             />
@@ -933,9 +930,8 @@ export const MealPlanEditor = ({
               value={mealTotals.fat}
               total={selectedCalculation?.result.macronutrientes.lipG}
               unit="g"
-              color="text-chart-2"
-              iconBg="bg-chart-2/10"
-              progressColor="bg-chart-2"
+              color="text-macro-fat"
+              progressColor="bg-macro-fat"
               icon={Droplets}
               variant="sidebar"
             />
@@ -1083,26 +1079,26 @@ export const MealPlanEditor = ({
         <div className="md:hidden border-b border-border bg-card px-4 py-2 print:hidden">
           <div className="flex items-center justify-around gap-2">
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-chart-3" />
-              <span className="text-xs font-bold text-foreground">{mealTotals.kcal.toFixed(0)}</span>
+              <div className="w-2 h-2 rounded-full bg-macro-kcal" />
+              <span className="text-xs font-bold text-macro-kcal">{mealTotals.kcal.toFixed(0)}</span>
               <span className="text-[11px] text-muted-foreground">kcal</span>
             </div>
             <div className="w-px h-4 bg-border" />
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-chart-4" />
-              <span className="text-xs font-bold text-foreground">{mealTotals.protein.toFixed(0)}g</span>
+              <div className="w-2 h-2 rounded-full bg-macro-protein" />
+              <span className="text-xs font-bold text-macro-protein">{mealTotals.protein.toFixed(0)}g</span>
               <span className="text-[11px] text-muted-foreground">prot</span>
             </div>
             <div className="w-px h-4 bg-border" />
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-primary" />
-              <span className="text-xs font-bold text-foreground">{mealTotals.carbs.toFixed(0)}g</span>
+              <div className="w-2 h-2 rounded-full bg-macro-carbs" />
+              <span className="text-xs font-bold text-macro-carbs">{mealTotals.carbs.toFixed(0)}g</span>
               <span className="text-[11px] text-muted-foreground">carb</span>
             </div>
             <div className="w-px h-4 bg-border" />
             <div className="flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-chart-2" />
-              <span className="text-xs font-bold text-foreground">{mealTotals.fat.toFixed(0)}g</span>
+              <div className="w-2 h-2 rounded-full bg-macro-fat" />
+              <span className="text-xs font-bold text-macro-fat">{mealTotals.fat.toFixed(0)}g</span>
               <span className="text-[11px] text-muted-foreground">gord</span>
             </div>
           </div>
@@ -1223,15 +1219,15 @@ export const MealPlanEditor = ({
 
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-3 text-xs">
-                            <span className="font-semibold text-muted-foreground">{totals.kcal.toFixed(0)} <span className="font-medium">kcal</span></span>
+                            <span className="font-semibold text-macro-kcal">{totals.kcal.toFixed(0)} <span className="font-medium text-muted-foreground">kcal</span></span>
                             <span className="flex items-baseline gap-0.5 font-semibold">
-                              <span className="text-chart-4">{totals.protein.toFixed(0)}g</span><span className="text-[10px] font-bold text-chart-4">P</span>
+                              <span className="text-macro-protein">{totals.protein.toFixed(0)}g</span><span className="text-[10px] font-bold text-macro-protein">P</span>
                             </span>
                             <span className="flex items-baseline gap-0.5 font-semibold">
-                              <span className="text-primary">{totals.carbs.toFixed(0)}g</span><span className="text-[10px] font-bold text-primary">C</span>
+                              <span className="text-macro-carbs">{totals.carbs.toFixed(0)}g</span><span className="text-[10px] font-bold text-macro-carbs">C</span>
                             </span>
                             <span className="flex items-baseline gap-0.5 font-semibold">
-                              <span className="text-chart-2">{totals.fat.toFixed(0)}g</span><span className="text-[10px] font-bold text-chart-2">G</span>
+                              <span className="text-macro-fat">{totals.fat.toFixed(0)}g</span><span className="text-[10px] font-bold text-macro-fat">G</span>
                             </span>
                           </div>
                           <div className="flex items-center gap-0.5">
