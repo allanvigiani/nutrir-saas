@@ -290,7 +290,7 @@ const MealItemRow = React.memo(({
         {/* Bullet */}
         <div className="w-1.5 h-1.5 rounded-full bg-muted-foreground/30 shrink-0" />
 
-        {/* Food Search */}
+        {/* Food Search — ícone de busca oculto neste contexto */}
         <div className="flex-1 min-w-0">
           <FoodAutocomplete
             value={item.food}
@@ -299,17 +299,18 @@ const MealItemRow = React.memo(({
             onAddNew={(name) => onAddNewFood(name, index)}
             placeholder="Qual o alimento?"
             dataSource={foodDataSource as any}
-            className="[&_input]:h-7 [&_input]:text-sm"
+            className="[&>div>svg]:hidden [&>div>input]:pl-2 [&>div>input]:h-7 [&>div>input]:text-sm"
           />
         </div>
 
         {/* Quantity & Unit */}
         <div className="flex items-center gap-1 shrink-0">
-          <Input
+          <input
             value={item.quantity}
             onChange={(e) => onUpdate(index, 'quantity', e.target.value)}
-            className="w-12 h-7 border-none p-0 focus-visible:ring-0 bg-transparent hover:bg-muted/50 focus:bg-muted/50 rounded text-center text-foreground font-semibold text-xs"
-            placeholder="Qtd."
+            style={{ width: `${Math.max(String(item.quantity ?? '').length, 1) + 0.6}ch` }}
+            className="border-none outline-none bg-muted/40 rounded px-1 h-6 text-right text-foreground font-semibold text-xs min-w-[24px]"
+            placeholder="—"
           />
           {showUnitSelect ? (
             <Select value={item.unit} onValueChange={(v) => onUpdate(index, 'unit', v)}>
@@ -319,29 +320,35 @@ const MealItemRow = React.memo(({
               <SelectContent>{unitOptions}</SelectContent>
             </Select>
           ) : (
-            <span className="text-xs font-medium text-muted-foreground w-5">g</span>
+            <span className="text-xs font-medium text-muted-foreground">g</span>
           )}
         </div>
 
-        {/* Macros */}
-        <div className="flex items-center gap-2.5 shrink-0">
-          <span className="flex items-baseline gap-0.5">
-            <Input type="number" value={item.kcal ?? 0} onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
-              className="w-10 h-7 border-none p-0 focus-visible:ring-0 bg-transparent text-center text-chart-3 font-semibold text-xs hover:bg-muted/50 rounded" />
-          </span>
-          <span className="flex items-baseline gap-0.5">
-            <Input type="number" value={item.protein ?? 0} onChange={(e) => onUpdate(index, 'protein', Number(e.target.value))}
-              className="w-8 h-7 border-none p-0 focus-visible:ring-0 bg-transparent text-center text-chart-4 font-semibold text-xs hover:bg-muted/50 rounded" />
+        {/* Macros — número colado à letra (2P, 19C, 1G) */}
+        <div className="flex items-center gap-2 shrink-0 text-xs font-semibold">
+          <input type="number" value={item.kcal ?? 0}
+            style={{ width: `${Math.max(String(Math.round(item.kcal ?? 0)).length, 2) + 0.2}ch` } as React.CSSProperties}
+            onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
+            className="border-none outline-none bg-transparent text-right text-chart-3 font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
+          <span className="flex items-baseline">
+            <input type="number" value={item.protein ?? 0}
+              style={{ width: `${Math.max(String(Math.round(item.protein ?? 0)).length, 1) + 0.2}ch` } as React.CSSProperties}
+              onChange={(e) => onUpdate(index, 'protein', Number(e.target.value))}
+              className="border-none outline-none bg-transparent text-right text-chart-4 font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
             <span className="text-[10px] font-bold text-chart-4">P</span>
           </span>
-          <span className="flex items-baseline gap-0.5">
-            <Input type="number" value={item.carbs ?? 0} onChange={(e) => onUpdate(index, 'carbs', Number(e.target.value))}
-              className="w-8 h-7 border-none p-0 focus-visible:ring-0 bg-transparent text-center text-primary font-semibold text-xs hover:bg-muted/50 rounded" />
+          <span className="flex items-baseline">
+            <input type="number" value={item.carbs ?? 0}
+              style={{ width: `${Math.max(String(Math.round(item.carbs ?? 0)).length, 1) + 0.2}ch` } as React.CSSProperties}
+              onChange={(e) => onUpdate(index, 'carbs', Number(e.target.value))}
+              className="border-none outline-none bg-transparent text-right text-primary font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
             <span className="text-[10px] font-bold text-primary">C</span>
           </span>
-          <span className="flex items-baseline gap-0.5">
-            <Input type="number" value={item.fat ?? 0} onChange={(e) => onUpdate(index, 'fat', Number(e.target.value))}
-              className="w-8 h-7 border-none p-0 focus-visible:ring-0 bg-transparent text-center text-chart-2 font-semibold text-xs hover:bg-muted/50 rounded" />
+          <span className="flex items-baseline">
+            <input type="number" value={item.fat ?? 0}
+              style={{ width: `${Math.max(String(Math.round(item.fat ?? 0)).length, 1) + 0.2}ch` } as React.CSSProperties}
+              onChange={(e) => onUpdate(index, 'fat', Number(e.target.value))}
+              className="border-none outline-none bg-transparent text-right text-chart-2 font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
             <span className="text-[10px] font-bold text-chart-2">G</span>
           </span>
         </div>
