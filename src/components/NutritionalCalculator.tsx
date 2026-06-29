@@ -626,15 +626,9 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                 {!latestConsultation && (
                   <span className="text-xs text-muted-foreground mr-auto">Requer consulta base</span>
                 )}
-                {onCreateMealPlan && (
-                  <Button
-                    variant="outline"
-                    onClick={() => onCreateMealPlan(result as any, result as any)}
-                    className="h-9 text-sm px-4"
-                  >
-                    Criar Plano com este Cálculo
-                  </Button>
-                )}
+                <span className="text-xs text-muted-foreground mr-auto">
+                  Para criar o plano alimentar, acesse a consulta do paciente.
+                </span>
                 <Button
                   onClick={handleSave}
                   disabled={isSaving || !latestConsultation}
