@@ -326,28 +326,31 @@ const MealItemRow = React.memo(({
           )}
         </div>
 
-        {/* Macros — colunas de largura fixa para alinhar entre linhas */}
-        <div className="flex items-center gap-1 shrink-0 text-xs font-semibold">
-          <input type="number" value={item.kcal ?? 0}
-            onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
-            className="w-10 border-none outline-none bg-transparent text-right text-macro-kcal font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
-          <span className="flex items-baseline justify-end w-10">
+        {/* Macros — colunas fixas com label separado do valor */}
+        <div className="flex items-center gap-2 shrink-0 text-xs">
+          <span className="flex items-baseline gap-1 justify-end w-[58px]">
+            <input type="number" value={item.kcal ?? 0}
+              onChange={(e) => onUpdate(index, 'kcal', Number(e.target.value))}
+              className="w-10 border-none outline-none bg-transparent text-right text-macro-kcal font-semibold p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
+            <span className="text-[10px] font-medium text-macro-kcal shrink-0">Kcal</span>
+          </span>
+          <span className="flex items-baseline gap-1 justify-end w-[58px]">
             <input type="number" value={item.protein ?? 0}
               onChange={(e) => onUpdate(index, 'protein', Number(e.target.value))}
-              className="flex-1 border-none outline-none bg-transparent text-right text-macro-protein font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
-            <span className="text-[10px] font-bold text-macro-protein shrink-0">P</span>
+              className="w-8 border-none outline-none bg-transparent text-right text-macro-protein font-semibold p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
+            <span className="text-[10px] font-medium text-macro-protein shrink-0">Prot.</span>
           </span>
-          <span className="flex items-baseline justify-end w-10">
+          <span className="flex items-baseline gap-1 justify-end w-[62px]">
             <input type="number" value={item.carbs ?? 0}
               onChange={(e) => onUpdate(index, 'carbs', Number(e.target.value))}
-              className="flex-1 border-none outline-none bg-transparent text-right text-macro-carbs font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
-            <span className="text-[10px] font-bold text-macro-carbs shrink-0">C</span>
+              className="w-8 border-none outline-none bg-transparent text-right text-macro-carbs font-semibold p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
+            <span className="text-[10px] font-medium text-macro-carbs shrink-0">Carb.</span>
           </span>
-          <span className="flex items-baseline justify-end w-9">
+          <span className="flex items-baseline gap-1 justify-end w-[62px]">
             <input type="number" value={item.fat ?? 0}
               onChange={(e) => onUpdate(index, 'fat', Number(e.target.value))}
-              className="flex-1 border-none outline-none bg-transparent text-right text-macro-fat font-semibold text-xs p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
-            <span className="text-[10px] font-bold text-macro-fat shrink-0">G</span>
+              className="w-8 border-none outline-none bg-transparent text-right text-macro-fat font-semibold p-0 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden" />
+            <span className="text-[10px] font-medium text-macro-fat shrink-0">Gord.</span>
           </span>
         </div>
 
