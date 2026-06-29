@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Patient, MealPlan, MealPlanItem, NutritionCalculation } from '../types';
-import { MealPlanEditor } from '../components/MealPlanEditor';
+import { MealPlanEditor, MealType } from '../components/MealPlanEditor';
 import { ReceitasVinculadasPanel } from '../components/ReceitasVinculadasPanel';
 import { toast } from 'sonner';
 import { logEvent } from '../lib/firebase';
@@ -31,8 +31,8 @@ export function MealPlanEdit() {
     generalInstructions: string;
     waterIntake: string;
     mealObservations: Record<string, string>;
-    customMeals: any[];
-    items: any[];
+    customMeals: MealType[];
+    items: MealPlanItem[];
   } | undefined;
 
   useEffect(() => {
@@ -207,7 +207,7 @@ export function MealPlanEdit() {
   return (
     <div className="h-screen overflow-hidden">
       <MealPlanEditor
-        initialName={mealPlan?.name || ''}
+        initialName={copiedMealPlan ? '' : (mealPlan?.name || (calculation ? `Plano - ${calculation.result.getAjustado} kcal` : ''))}
         initialItems={copiedMealPlan ? copiedMealPlan.items : mealItems}
         initialGeneralInstructions={copiedMealPlan ? copiedMealPlan.generalInstructions : (mealPlan?.generalInstructions || '')}
         initialWaterIntake={copiedMealPlan ? copiedMealPlan.waterIntake : (mealPlan?.waterIntake || '')}

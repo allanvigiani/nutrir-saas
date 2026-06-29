@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -578,6 +579,19 @@ export const MealPlanEditor = ({
   }, [hasUnsavedChanges, onClose]);
 
   const handleSaveClick = useCallback(async () => {
+    const emptyFoodItems = mealItems.filter(item => !item.food?.trim());
+    if (emptyFoodItems.length > 0) {
+      const firstEmpty = emptyFoodItems[0];
+      const meal = mealTypes.find(m => m.id === firstEmpty.meal);
+      const mealLabel = meal?.label || firstEmpty.meal;
+      if (emptyFoodItems.length === 1) {
+        toast.error(`Há 1 alimento sem nome em "${mealLabel}". Preencha ou remova-o antes de salvar.`);
+      } else {
+        toast.error(`Há ${emptyFoodItems.length} alimentos sem nome no plano. Preencha ou remova-os antes de salvar.`);
+      }
+      return;
+    }
+
     setIsSaving(true);
     try {
       const success = await onSave({

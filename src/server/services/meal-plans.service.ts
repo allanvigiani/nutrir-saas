@@ -46,6 +46,20 @@ interface MealPlanItemRow {
   position?: number;
 }
 
+interface HistoricoPlanoAlimentar {
+  consultationId: string;
+  consultationDate: string;
+  mealPlan: {
+    id: string;
+    name: string;
+    generalInstructions: string | null;
+    waterIntake: string | null;
+    mealObservations: Record<string, string> | null;
+    customMeals: string[] | null;
+    items: ReturnType<typeof itemToSnakeCase>[];
+  };
+}
+
 function itemToSnakeCase(item: MealPlanItemPayload) {
   return {
     id: item.id,
@@ -208,5 +222,67 @@ export function createMealPlansService() {
     return getDb().mealPlanItem.delete({ where: { id: itemId } });
   }
 
-  return { list, getOne, create, update, remove, listItems, createItem, updateItem, removeItem, replaceItems };
+  // Histórico de planos alimentares vinculados a consultas anteriores
+  async function getHistory(
+    nutritionistId: string,
+    patientId: string,
+    excludeConsultationId?: string
+  ): Promise<HistoricoPlanoAlimentar[]> {
+    const planos = await getDb().mealPlan.findMany({
+      where: {
+        patientId,
+        nutritionistId,
+        deletedAt: null,
+        consultationId: excludeConsultationId
+          ? { not: excludeConsultationId }
+          : { not: null },
+      },
+      include: {
+        items: { orderBy: [{ position: 'asc' }, { id: 'asc' }] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (planos.length === 0) return [];
+
+    // Busca datas das consultas em lote
+    const consultationIds = [...new Set(planos.map(p => p.consultationId as string))];
+    const consultas = await getDb().consultation.findMany({
+      where: { id: { in: consultationIds }, nutritionistId, deletedAt: null },
+      select: { id: true, date: true },
+    });
+
+    const consultaMap = new Map(consultas.map(c => [c.id, c.date]));
+
+    // Um plano por consulta — o mais recente (primeiro da lista ordenada por createdAt desc)
+    const visto = new Set<string>();
+    const resultado: HistoricoPlanoAlimentar[] = [];
+
+    for (const plano of planos) {
+      const consultaId = plano.consultationId as string;
+      if (visto.has(consultaId)) continue;
+      visto.add(consultaId);
+
+      const dataConsulta = consultaMap.get(consultaId);
+      if (!dataConsulta) continue; // consulta deletada ou de outro nutricionista
+
+      resultado.push({
+        consultationId: consultaId,
+        consultationDate: dataConsulta,
+        mealPlan: {
+          id: plano.id,
+          name: plano.name,
+          generalInstructions: plano.generalInstructions ?? null,
+          waterIntake: plano.waterIntake ?? null,
+          mealObservations: (plano.mealObservations as Record<string, string> | null) ?? null,
+          customMeals: (plano.customMeals as string[] | null) ?? null,
+          items: plano.items.map(itemToSnakeCase),
+        },
+      });
+    }
+
+    return resultado;
+  }
+
+  return { list, getOne, create, update, remove, listItems, createItem, updateItem, removeItem, replaceItems, getHistory };
 }
