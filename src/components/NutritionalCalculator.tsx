@@ -19,10 +19,9 @@ interface CalculatorProps {
   latestConsultation?: Consultation;
   existingCalculation?: { id: string; input: any; result: any } | null;
   onSaveCalculation?: (input: NutritionCalculationInput, result: NutritionCalculationOutput, name: string) => Promise<void>;
-  onCreateMealPlan?: (input: NutritionCalculationInput, result: NutritionCalculationOutput) => void;
 }
 
-export const NutritionalCalculator = ({ patient, latestConsultation, existingCalculation, onSaveCalculation, onCreateMealPlan }: CalculatorProps) => {
+export const NutritionalCalculator = ({ patient, latestConsultation, existingCalculation, onSaveCalculation }: CalculatorProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<NutritionCalculationOutput | null>(existingCalculation?.result ?? null);

@@ -3183,14 +3183,6 @@ export const PatientProfile = () => {
                 latestConsultation={selectedConsultationForCalc}
                 existingCalculation={selectedExistingCalc}
                 onSaveCalculation={handleSaveCalculation}
-                onCreateMealPlan={(input, result) => {
-                  setIsCalculatorModalOpen(false);
-                  navigate(`/patients/${id}/meal-plan/new`, {
-                    state: {
-                      calculation: { result, input, name: 'Cálculo Temporário', createdAt: new Date().toISOString() }
-                    }
-                  });
-                }}
               />
             )}
           </div>
