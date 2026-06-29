@@ -306,23 +306,23 @@ const MealItemRow = React.memo(({
           />
         </div>
 
-        {/* Quantity & Unit */}
-        <div className="flex items-center gap-1 shrink-0">
+        {/* Quantity & Unit — bloco de largura fixa para alinhar colunas de macros */}
+        <div className="flex items-center gap-1 shrink-0 w-[120px]">
           <input
             value={item.quantity}
             onChange={(e) => onUpdate(index, 'quantity', e.target.value)}
-            className="w-10 border-none outline-none bg-muted/40 rounded px-1 h-6 text-right text-foreground font-semibold text-xs"
+            className="w-10 border-none outline-none bg-muted/40 rounded px-1 h-6 text-right text-foreground font-semibold text-xs shrink-0"
             placeholder="—"
           />
           {showUnitSelect ? (
             <Select value={item.unit} onValueChange={(v) => onUpdate(index, 'unit', v)}>
-              <SelectTrigger className="w-20 h-7 bg-transparent border-none text-muted-foreground font-medium text-xs px-1 focus-visible:ring-0 shrink-0">
-                <SelectValue>{item.unit}</SelectValue>
+              <SelectTrigger className="flex-1 h-7 bg-transparent border-none text-muted-foreground font-medium text-xs px-1 focus-visible:ring-0 min-w-0">
+                <SelectValue className="truncate">{item.unit}</SelectValue>
               </SelectTrigger>
               <SelectContent>{unitOptions}</SelectContent>
             </Select>
           ) : (
-            <span className="text-xs font-medium text-muted-foreground">{item.unit || 'g'}</span>
+            <span className="flex-1 text-xs font-medium text-muted-foreground truncate">{item.unit || 'g'}</span>
           )}
         </div>
 
