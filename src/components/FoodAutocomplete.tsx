@@ -126,7 +126,7 @@ export const FoodAutocomplete: React.FC<FoodAutocompleteProps> = ({
           onFocus={handleFocus}
           onBlur={handleBlur}
           placeholder={placeholder}
-          className="pl-9 pr-2 border-none h-9 focus-visible:ring-0 bg-transparent font-semibold text-muted-foreground placeholder:text-muted-foreground w-full"
+          className="pl-9 pr-2 border-none h-9 focus-visible:ring-0 bg-transparent font-semibold text-foreground placeholder:text-muted-foreground w-full"
         />
       </div>
 
