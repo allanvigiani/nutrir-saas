@@ -216,7 +216,10 @@ const MealItemRow = React.memo(({
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="group relative rounded-lg transition-all duration-200 hover:bg-muted/20"
+      className={cn(
+        "group relative rounded-lg transition-all duration-200 hover:bg-muted/20",
+        !isLast && "border-b border-border/40"
+      )}
     >
       {/* Mobile layout (< md) */}
       <div className="md:hidden space-y-1.5">
@@ -1262,7 +1265,7 @@ export const MealPlanEditor = ({
                         </div>
                       </div>
 
-                      <div className="space-y-1">
+                      <div className="border-t border-border/60 pt-2">
                         <AnimatePresence mode="popLayout">
                           {items.map((item, posInGroup) => {
                             const itemIndex = mealItems.findIndex(mi => mi === item);
