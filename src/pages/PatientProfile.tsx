@@ -1779,12 +1779,36 @@ export const PatientProfile = () => {
             <CardContent>
               {mealPlans.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {mealPlans.map((plan) => (
+                  {(() => {
+                    const consultsByDate = [...consultations].sort(
+                      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+                    );
+                    return mealPlans.map((plan) => {
+                      const linkedConsult = plan.consultation_id
+                        ? consultations.find(c => c.id === plan.consultation_id)
+                        : null;
+                      const consultNum = linkedConsult
+                        ? consultsByDate.findIndex(c => c.id === linkedConsult.id) + 1
+                        : null;
+                      return (
                     <div key={plan.id} className="p-4 rounded-xl border border-border hover:border-primary/30 transition-colors">
                       <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <p className="font-bold text-foreground">{plan.name || `Plano Alimentar #${plan.id.slice(0, 4)}`}</p>
-                          <p className="text-xs text-muted-foreground">Criado em {formatDateSafely(plan.createdAt, 'dd/MM/yyyy')}</p>
+                        <div className="min-w-0 flex-1 mr-2">
+                          <p className="font-bold text-foreground truncate">{plan.name || `Plano Alimentar #${plan.id.slice(0, 4)}`}</p>
+                          {linkedConsult ? (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Calendar className="w-3 h-3 text-primary/70 shrink-0" />
+                              <span className="text-xs text-primary/80 font-medium">
+                                {consultNum}ª consulta
+                              </span>
+                              <span className="text-xs text-muted-foreground">·</span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDateSafely(linkedConsult.date, "dd/MM/yyyy")}
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground mt-0.5">Criado em {formatDateSafely(plan.createdAt, 'dd/MM/yyyy')}</p>
+                          )}
                         </div>
                         <span className={cn(
                           "px-2 py-1 rounded-full text-xs font-medium",
@@ -1808,7 +1832,9 @@ export const PatientProfile = () => {
                         </Button>
                       </div>
                     </div>
-                  ))}
+                      );
+                    });
+                  })()}
                 </div>
               ) : (
                 <div className="text-center py-12">
