@@ -201,10 +201,15 @@ const MealItemRow = React.memo(({
   onMoveDown: (index: number) => void,
   foodDataSource: string
 }) => {
-  // Servings dinâmicos do serving-map (armazenados no item ao selecionar alimento)
+  // Reconstrói servings: usa os persistidos, ou item.serving_name/weight do banco, ou fallback g
   const servings: FoodServing[] = item.servings && item.servings.length > 0
     ? item.servings
-    : [{ label: 'g', weightInGrams: 1 }];
+    : item.serving_name && item.serving_weight
+      ? [
+          { label: item.serving_name, weightInGrams: item.serving_weight },
+          { label: 'g', weightInGrams: 1 },
+        ]
+      : [{ label: 'g', weightInGrams: 1 }];
   const showUnitSelect = servings.length > 1;
 
   const displayUnit = (unit: string) => {
@@ -719,9 +724,16 @@ export const MealPlanEditor = ({
         item.servings = [{ label: 'g', weightInGrams: 1 }];
         item.weight_in_grams = 0;
       } else if (field === 'quantity' || field === 'unit') {
+        // Reconstrói servings a partir dos dados persistidos quando item.servings está vazio
+        // (item.serving_name + item.serving_weight são salvos no banco; item.servings não é)
         const servings: FoodServing[] = item.servings && item.servings.length > 0
           ? item.servings
-          : [{ label: 'g', weightInGrams: 1 }];
+          : item.serving_name && item.serving_weight
+            ? [
+                { label: item.serving_name, weightInGrams: item.serving_weight },
+                { label: 'g', weightInGrams: 1 },
+              ]
+            : [{ label: 'g', weightInGrams: 1 }];
 
         if (field === 'unit') {
           // Converte a quantidade para manter o mesmo peso total ao trocar unidade
