@@ -204,6 +204,42 @@ describe('TMB — Fórmula Schofield (peso + altura)', () => {
   });
 });
 
+describe('TMB/GET — Fórmula EER/DRI (IOM)', () => {
+  it('calcula TMB (PA=1.00) e GET (PA=ativo) masculino via EER', () => {
+    // base = 662 - 9.53*30 = 376.1; incremento = 15.91*70 + 539.6*1.70 = 2031.02
+    // tmb = 376.1 + 1.00*2031.02 = 2407.12 → 2407
+    // get = (376.1 + 1.25*2031.02) * 1.0 = 2914.875 → 2915
+    const result = calculateNutrition(baseInput({ formulaOverride: 'eer', idade: 30, categoriaAtividadeEER: 'ativo' }));
+    expect(result.tmb).toBe(2407);
+    expect(result.get).toBe(2915);
+  });
+
+  it('calcula TMB (PA=1.00) e GET (PA=ativo) feminino via EER', () => {
+    // base = 354 - 6.91*25 = 181.25; incremento = 9.36*60 + 726*1.65 = 1759.5
+    // tmb = 181.25 + 1.00*1759.5 = 1940.75 → 1941
+    // get = (181.25 + 1.27*1759.5) * 1.0 = 2415.815 → 2416
+    const result = calculateNutrition(baseInput({
+      sexo: 'feminino', peso: 60, altura: 1.65, idade: 25,
+      formulaOverride: 'eer', categoriaAtividadeEER: 'ativo',
+    }));
+    expect(result.tmb).toBe(1941);
+    expect(result.get).toBe(2416);
+  });
+
+  it('usa PA sedentário (1.00) por padrão quando categoriaAtividadeEER não é informado', () => {
+    const result = calculateNutrition(baseInput({ formulaOverride: 'eer', idade: 30 }));
+    expect(result.get).toBe(result.tmb);
+  });
+
+  it('aplica fatorClinicoBase ao GET da fórmula EER', () => {
+    const base = calculateNutrition(baseInput({ formulaOverride: 'eer', idade: 30, categoriaAtividadeEER: 'ativo' }));
+    const critic = calculateNutrition(baseInput({
+      formulaOverride: 'eer', idade: 30, categoriaAtividadeEER: 'ativo', condicoesClinicas: ['critico'],
+    }));
+    expect(critic.get / base.get).toBeCloseTo(1.5, 1);
+  });
+});
+
 describe('GET — kcal_kg', () => {
   it('usa kcalKgValor se fornecido', () => {
     const result = calculateNutrition(baseInput({ formulaOverride: 'kcal_kg', kcalKgValor: 30 }));

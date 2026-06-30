@@ -9,7 +9,8 @@ export interface NutritionCalculationInput {
   condicoesClinicas: string[];
   fatorClinicoValor?: number; // specific value chosen within range
   kcalKgValor?: number; // for kcal/kg formula (e.g. 25-30)
-  formulaOverride?: 'mifflin' | 'harris' | 'oms' | 'kcal_kg' | 'schofield';
+  formulaOverride?: 'mifflin' | 'harris' | 'oms' | 'kcal_kg' | 'schofield' | 'eer';
+  categoriaAtividadeEER?: 'sedentario' | 'pouco_ativo' | 'ativo' | 'muito_ativo'; // usado apenas quando formulaOverride === 'eer'
   percentualLip?: number; // default 25
   percentualPtn?: number; // percentual override
   percentualCho?: number; // percentual override
@@ -168,6 +169,27 @@ export function createNutritionService() {
         else tmb = (9.082 * pesoUtilizado) + (636.950 * altura) - 302.103;
       }
       get = tmb * nivelAtividade * fatorClinicoBase;
+    } else if (formulaUtilizada === 'eer') {
+      // EER / DRI (IOM 2002/2005), adultos 19+. PA já incorpora atividade física —
+      // nivelAtividade não é usado neste branch.
+      const paTabelaEER = {
+        masculino: { sedentario: 1.00, pouco_ativo: 1.11, ativo: 1.25, muito_ativo: 1.48 },
+        feminino: { sedentario: 1.00, pouco_ativo: 1.12, ativo: 1.27, muito_ativo: 1.45 },
+      };
+      const categoria = input.categoriaAtividadeEER || 'sedentario';
+      const pa = paTabelaEER[sexo][categoria];
+
+      if (sexo === 'masculino') {
+        const base = 662 - (9.53 * idade);
+        const incremento = (15.91 * pesoUtilizado) + (539.6 * altura);
+        tmb = base + incremento; // PA = 1.00 (baseline)
+        get = (base + pa * incremento) * fatorClinicoBase;
+      } else {
+        const base = 354 - (6.91 * idade);
+        const incremento = (9.36 * pesoUtilizado) + (726 * altura);
+        tmb = base + incremento; // PA = 1.00 (baseline)
+        get = (base + pa * incremento) * fatorClinicoBase;
+      }
     } else if (formulaUtilizada === 'kcal_kg') {
       const kcalKg = input.kcalKgValor || 25; // default 25 if not provided
       tmb = kcalKg * pesoUtilizado; // Para registro de onde veio a base
