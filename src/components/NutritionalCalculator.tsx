@@ -284,11 +284,14 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
             
             {(objetivo === 'emagrecimento' || objetivo === 'hipertrofia') && (
               <div className="space-y-1.5">
-                <Label>Ajuste Calórico Específico (opcional)</Label>
+                <Label>
+                  {objetivo === 'emagrecimento' ? 'Reduzir o GET em até (opcional)' : 'Aumentar o GET em até (opcional)'}
+                </Label>
                 <div className="relative">
                   <Input
                     type="number"
-                    placeholder={objetivo === 'emagrecimento' ? "-400" : "+400"}
+                    min={0}
+                    placeholder="400"
                     value={ajusteObjetivoValor}
                     onChange={e => setAjusteObjetivoValor(e.target.value)}
                     className="pr-12"
