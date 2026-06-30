@@ -229,6 +229,18 @@ describe('GET e Ajuste de Objetivo', () => {
     const result = calculateNutrition(baseInput({ objetivo: 'manutencao' }));
     expect(result.getAjustado).toBe(result.get);
   });
+
+  it('aplica desconto corretamente mesmo quando ajusteObjetivoValor é informado positivo para emagrecimento (regressão de bug)', () => {
+    const base = calculateNutrition(baseInput({ objetivo: 'manutencao' }));
+    const result = calculateNutrition(baseInput({ objetivo: 'emagrecimento', ajusteObjetivoValor: 400 }));
+    expect(result.getAjustado).toBe(base.get - 400);
+  });
+
+  it('aplica acréscimo corretamente mesmo quando ajusteObjetivoValor é informado negativo para hipertrofia (regressão de bug)', () => {
+    const base = calculateNutrition(baseInput({ objetivo: 'manutencao' }));
+    const result = calculateNutrition(baseInput({ objetivo: 'hipertrofia', ajusteObjetivoValor: -400 }));
+    expect(result.getAjustado).toBe(base.get + 400);
+  });
 });
 
 // ─── Fator Clínico ──────────────────────────────────────────────────────────

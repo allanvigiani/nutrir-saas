@@ -5,7 +5,7 @@ export interface NutritionCalculationInput {
   idade: number;
   nivelAtividade: number; // 1.2 | 1.375 | 1.55 | 1.725
   objetivo: 'emagrecimento' | 'manutencao' | 'hipertrofia' | 'reabilitacao';
-  ajusteObjetivoValor?: number; // specific value chosen within range
+  ajusteObjetivoValor?: number; // magnitude (>= 0); sinal é aplicado internamente conforme objetivo
   condicoesClinicas: string[];
   fatorClinicoValor?: number; // specific value chosen within range
   kcalKgValor?: number; // for kcal/kg formula (e.g. 25-30)
@@ -160,9 +160,15 @@ export function createNutritionService() {
     }
 
     // PASSO 7 & 8: Ajuste Calórico
+    // ajusteObjetivoValor é tratado como magnitude (>=0); o sinal é decidido aqui
+    // em função do objetivo, para que o chamador nunca precise (nem possa) acertar
+    // o sinal manualmente — essa é a causa raiz do bug de emagrecimento aumentando o GET.
     let ajusteCalorico = 0;
     if (input.ajusteObjetivoValor !== undefined) {
-      ajusteCalorico = input.ajusteObjetivoValor;
+      const magnitude = Math.abs(input.ajusteObjetivoValor);
+      if (objetivo === 'emagrecimento') ajusteCalorico = -magnitude;
+      else if (objetivo === 'hipertrofia') ajusteCalorico = magnitude;
+      else ajusteCalorico = input.ajusteObjetivoValor;
     } else {
       if (objetivo === 'emagrecimento') ajusteCalorico = -400;
       else if (objetivo === 'hipertrofia') ajusteCalorico = 400;
