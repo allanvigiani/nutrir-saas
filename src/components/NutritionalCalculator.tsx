@@ -47,6 +47,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
     ex?.sexo || (patient.gender === 'female' ? 'feminino' : 'masculino')
   );
   const [nivelAtividade, setNivelAtividade] = useState<string>(ex?.nivelAtividade?.toString() || '1.2');
+  const [categoriaAtividadeEER, setCategoriaAtividadeEER] = useState<string>(ex?.categoriaAtividadeEER || 'sedentario');
   const [objetivo, setObjetivo] = useState<string>(ex?.objetivo || 'manutencao');
   const [condicoesClinicas, setCondicoesClinicas] = useState<string[]>(ex?.condicoesClinicas || []);
   const [formulaOverride, setFormulaOverride] = useState<string>(ex?.formulaOverride || '');
@@ -75,6 +76,9 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                      (percentualCho ? parseFloat(percentualCho) : 0);
   const isPercentError = sumPercent > 100;
 
+  const idadeNum = idade ? parseInt(idade) : null;
+  const isAdultFor19Plus = idadeNum !== null && idadeNum >= 19;
+
   const handleCalculate = async () => {
     if (!peso || !altura || !idade || isPercentError) return;
 
@@ -96,6 +100,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
           objetivo,
           condicoesClinicas,
           formulaOverride: formulaOverride || undefined,
+          categoriaAtividadeEER: formulaOverride === 'eer' ? categoriaAtividadeEER : undefined,
           ajusteObjetivoValor: ajusteObjetivoValor ? parseFloat(ajusteObjetivoValor) : undefined,
           percentualLip: percentualLip ? parseFloat(percentualLip) : undefined,
           percentualPtn: percentualPtn ? parseFloat(percentualPtn) : undefined,
@@ -124,7 +129,14 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
       const timeoutId = setTimeout(() => handleCalculate(), 500);
       return () => clearTimeout(timeoutId);
     }
-  }, [peso, altura, idade, sexo, nivelAtividade, objetivo, condicoesClinicas, formulaOverride, ajusteObjetivoValor, percentualLip, percentualPtn, percentualCho, trimestreGestacao]);
+  }, [peso, altura, idade, sexo, nivelAtividade, objetivo, condicoesClinicas, formulaOverride, categoriaAtividadeEER, ajusteObjetivoValor, percentualLip, percentualPtn, percentualCho, trimestreGestacao]);
+
+  useEffect(() => {
+    const idadeNum = idade ? parseInt(idade) : null;
+    if (idadeNum !== null && idadeNum < 19 && (formulaOverride === 'schofield' || formulaOverride === 'eer')) {
+      setFormulaOverride('');
+    }
+  }, [idade]);
 
   const handleSave = async () => {
     if (!onSaveCalculation || !result || !latestConsultation) {
@@ -148,6 +160,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
         objetivo: objetivo as any,
         condicoesClinicas,
         formulaOverride: formulaOverride as any || null,
+        categoriaAtividadeEER: formulaOverride === 'eer' ? (categoriaAtividadeEER as any) : null,
         ajusteObjetivoValor: ajusteObjetivoValor ? parseFloat(ajusteObjetivoValor) : null,
         percentualLip: percentualLip ? parseFloat(percentualLip) : null,
         percentualPtn: percentualPtn ? parseFloat(percentualPtn) : null,
@@ -243,23 +256,42 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
             </div>
 
             <div className="space-y-2">
-              <Label>Nível de Atividade Física</Label>
-              <Select value={nivelAtividade} onValueChange={setNivelAtividade}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione">
-                    {nivelAtividade === '1.2' ? 'Sedentário (1.2)' :
-                     nivelAtividade === '1.375' ? 'Leve (1.375)' :
-                     nivelAtividade === '1.55' ? 'Moderado (1.55)' :
-                     nivelAtividade === '1.725' ? 'Intenso (1.725)' : undefined}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1.2">Sedentário (1.2)</SelectItem>
-                  <SelectItem value="1.375">Leve (1.375)</SelectItem>
-                  <SelectItem value="1.55">Moderado (1.55)</SelectItem>
-                  <SelectItem value="1.725">Intenso (1.725)</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>{formulaOverride === 'eer' ? 'Categoria de Atividade (EER/DRI)' : 'Nível de Atividade Física'}</Label>
+              {formulaOverride === 'eer' ? (
+                <Select value={categoriaAtividadeEER} onValueChange={setCategoriaAtividadeEER}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione">
+                      {categoriaAtividadeEER === 'sedentario' ? 'Sedentário' :
+                       categoriaAtividadeEER === 'pouco_ativo' ? 'Pouco ativo' :
+                       categoriaAtividadeEER === 'ativo' ? 'Ativo' :
+                       categoriaAtividadeEER === 'muito_ativo' ? 'Muito ativo' : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sedentario">Sedentário</SelectItem>
+                    <SelectItem value="pouco_ativo">Pouco ativo</SelectItem>
+                    <SelectItem value="ativo">Ativo</SelectItem>
+                    <SelectItem value="muito_ativo">Muito ativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Select value={nivelAtividade} onValueChange={setNivelAtividade}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione">
+                      {nivelAtividade === '1.2' ? 'Sedentário (1.2)' :
+                       nivelAtividade === '1.375' ? 'Leve (1.375)' :
+                       nivelAtividade === '1.55' ? 'Moderado (1.55)' :
+                       nivelAtividade === '1.725' ? 'Intenso (1.725)' : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1.2">Sedentário (1.2)</SelectItem>
+                    <SelectItem value="1.375">Leve (1.375)</SelectItem>
+                    <SelectItem value="1.55">Moderado (1.55)</SelectItem>
+                    <SelectItem value="1.725">Intenso (1.725)</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -284,11 +316,14 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
             
             {(objetivo === 'emagrecimento' || objetivo === 'hipertrofia') && (
               <div className="space-y-1.5">
-                <Label>Ajuste Calórico Específico (opcional)</Label>
+                <Label>
+                  {objetivo === 'emagrecimento' ? 'Reduzir o GET em até (opcional)' : 'Aumentar o GET em até (opcional)'}
+                </Label>
                 <div className="relative">
                   <Input
                     type="number"
-                    placeholder={objetivo === 'emagrecimento' ? "-400" : "+400"}
+                    min={0}
+                    placeholder="400"
                     value={ajusteObjetivoValor}
                     onChange={e => setAjusteObjetivoValor(e.target.value)}
                     className="pr-12"
@@ -402,7 +437,9 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                          formulaOverride === 'mifflin' ? 'Mifflin-St Jeor' :
                          formulaOverride === 'harris' ? 'Harris-Benedict' :
                          formulaOverride === 'oms' ? 'OMS/FAO' :
-                         formulaOverride === 'kcal_kg' ? 'Kcal/kg' : undefined}
+                         formulaOverride === 'kcal_kg' ? 'Kcal/kg' :
+                         formulaOverride === 'schofield' ? 'Schofield (peso + altura)' :
+                         formulaOverride === 'eer' ? 'EER/DRI (IOM)' : undefined}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -411,6 +448,8 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                       <SelectItem value="harris">Harris-Benedict</SelectItem>
                       <SelectItem value="oms">OMS/FAO</SelectItem>
                       <SelectItem value="kcal_kg">Kcal/kg</SelectItem>
+                      <SelectItem value="schofield" disabled={!isAdultFor19Plus}>Schofield (peso + altura)</SelectItem>
+                      <SelectItem value="eer" disabled={!isAdultFor19Plus}>EER/DRI (IOM)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

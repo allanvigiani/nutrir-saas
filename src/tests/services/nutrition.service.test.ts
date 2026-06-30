@@ -158,9 +158,9 @@ describe('TMB — Fórmula Harris-Benedict', () => {
   });
 
   it('calcula TMB feminino via Harris', () => {
-    // 447.6 + (9.25*60) + (3.1*165) - (4.33*25) = 447.6+555+511.5-108.25 = 1405.85
+    // 447.593 + (9.247*60) + (3.098*165) - (4.330*25) = 447.593+554.82+511.17-108.25 = 1405.333
     const result = calculateNutrition(baseInput({ sexo: 'feminino', peso: 60, altura: 1.65, idade: 25, formulaOverride: 'harris' }));
-    expect(result.tmb).toBe(1406);
+    expect(result.tmb).toBe(1405);
   });
 });
 
@@ -181,6 +181,62 @@ describe('TMB — Fórmula OMS', () => {
     // (13.5 * 70) + 487 = 945 + 487 = 1432
     const result = calculateNutrition(baseInput({ idade: 65, formulaOverride: 'oms' }));
     expect(result.tmb).toBe(1432);
+  });
+});
+
+describe('TMB — Fórmula Schofield (peso + altura)', () => {
+  it('calcula TMB masculino adulto (18-30 anos) via Schofield', () => {
+    // 15.296*70 - 27.008*1.70 + 717.017 = 1070.72 - 45.9136 + 717.017 = 1741.8234
+    const result = calculateNutrition(baseInput({ formulaOverride: 'schofield', idade: 25 }));
+    expect(result.tmb).toBe(1742);
+  });
+
+  it('calcula TMB feminino adulta (31-60 anos) via Schofield', () => {
+    // 8.604*60 - 25.096*1.65 + 864.962 = 516.24 - 41.4084 + 864.962 = 1339.7936
+    const result = calculateNutrition(baseInput({ sexo: 'feminino', peso: 60, altura: 1.65, idade: 40, formulaOverride: 'schofield' }));
+    expect(result.tmb).toBe(1340);
+  });
+
+  it('calcula TMB masculino idoso (> 60 anos) via Schofield', () => {
+    // 8.843*70 + 1128.107*1.70 - 1070.985 = 619.01 + 1917.7819 - 1070.985 = 1465.8069
+    const result = calculateNutrition(baseInput({ idade: 65, formulaOverride: 'schofield' }));
+    expect(result.tmb).toBe(1466);
+  });
+});
+
+describe('TMB/GET — Fórmula EER/DRI (IOM)', () => {
+  it('calcula TMB (PA=1.00) e GET (PA=ativo) masculino via EER', () => {
+    // base = 662 - 9.53*30 = 376.1; incremento = 15.91*70 + 539.6*1.70 = 2031.02
+    // tmb = 376.1 + 1.00*2031.02 = 2407.12 → 2407
+    // get = (376.1 + 1.25*2031.02) * 1.0 = 2914.875 → 2915
+    const result = calculateNutrition(baseInput({ formulaOverride: 'eer', idade: 30, categoriaAtividadeEER: 'ativo' }));
+    expect(result.tmb).toBe(2407);
+    expect(result.get).toBe(2915);
+  });
+
+  it('calcula TMB (PA=1.00) e GET (PA=ativo) feminino via EER', () => {
+    // base = 354 - 6.91*25 = 181.25; incremento = 9.36*60 + 726*1.65 = 1759.5
+    // tmb = 181.25 + 1.00*1759.5 = 1940.75 → 1941
+    // get = (181.25 + 1.27*1759.5) * 1.0 = 2415.815 → 2416
+    const result = calculateNutrition(baseInput({
+      sexo: 'feminino', peso: 60, altura: 1.65, idade: 25,
+      formulaOverride: 'eer', categoriaAtividadeEER: 'ativo',
+    }));
+    expect(result.tmb).toBe(1941);
+    expect(result.get).toBe(2416);
+  });
+
+  it('usa PA sedentário (1.00) por padrão quando categoriaAtividadeEER não é informado', () => {
+    const result = calculateNutrition(baseInput({ formulaOverride: 'eer', idade: 30 }));
+    expect(result.get).toBe(result.tmb);
+  });
+
+  it('aplica fatorClinicoBase ao GET da fórmula EER', () => {
+    const base = calculateNutrition(baseInput({ formulaOverride: 'eer', idade: 30, categoriaAtividadeEER: 'ativo' }));
+    const critic = calculateNutrition(baseInput({
+      formulaOverride: 'eer', idade: 30, categoriaAtividadeEER: 'ativo', condicoesClinicas: ['critico'],
+    }));
+    expect(critic.get / base.get).toBeCloseTo(1.5, 1);
   });
 });
 
@@ -228,6 +284,18 @@ describe('GET e Ajuste de Objetivo', () => {
   it('manutenção não altera GET', () => {
     const result = calculateNutrition(baseInput({ objetivo: 'manutencao' }));
     expect(result.getAjustado).toBe(result.get);
+  });
+
+  it('aplica desconto corretamente mesmo quando ajusteObjetivoValor é informado positivo para emagrecimento (regressão de bug)', () => {
+    const base = calculateNutrition(baseInput({ objetivo: 'manutencao' }));
+    const result = calculateNutrition(baseInput({ objetivo: 'emagrecimento', ajusteObjetivoValor: 400 }));
+    expect(result.getAjustado).toBe(base.get - 400);
+  });
+
+  it('aplica acréscimo corretamente mesmo quando ajusteObjetivoValor é informado negativo para hipertrofia (regressão de bug)', () => {
+    const base = calculateNutrition(baseInput({ objetivo: 'manutencao' }));
+    const result = calculateNutrition(baseInput({ objetivo: 'hipertrofia', ajusteObjetivoValor: -400 }));
+    expect(result.getAjustado).toBe(base.get + 400);
   });
 });
 

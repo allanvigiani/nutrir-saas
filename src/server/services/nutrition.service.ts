@@ -5,11 +5,12 @@ export interface NutritionCalculationInput {
   idade: number;
   nivelAtividade: number; // 1.2 | 1.375 | 1.55 | 1.725
   objetivo: 'emagrecimento' | 'manutencao' | 'hipertrofia' | 'reabilitacao';
-  ajusteObjetivoValor?: number; // specific value chosen within range
+  ajusteObjetivoValor?: number; // magnitude (>= 0); sinal é aplicado internamente conforme objetivo
   condicoesClinicas: string[];
   fatorClinicoValor?: number; // specific value chosen within range
   kcalKgValor?: number; // for kcal/kg formula (e.g. 25-30)
-  formulaOverride?: 'mifflin' | 'harris' | 'oms' | 'kcal_kg';
+  formulaOverride?: 'mifflin' | 'harris' | 'oms' | 'kcal_kg' | 'schofield' | 'eer';
+  categoriaAtividadeEER?: 'sedentario' | 'pouco_ativo' | 'ativo' | 'muito_ativo'; // usado apenas quando formulaOverride === 'eer'
   percentualLip?: number; // default 25
   percentualPtn?: number; // percentual override
   percentualCho?: number; // percentual override
@@ -131,9 +132,9 @@ export function createNutritionService() {
       get = tmb * nivelAtividade * fatorClinicoBase;
     } else if (formulaUtilizada === 'harris') {
       if (sexo === 'masculino') {
-        tmb = 88.36 + (13.4 * pesoUtilizado) + (4.8 * alturaCm) - (5.68 * idade);
+        tmb = 88.362 + (13.397 * pesoUtilizado) + (4.799 * alturaCm) - (5.677 * idade);
       } else {
-        tmb = 447.6 + (9.25 * pesoUtilizado) + (3.1 * alturaCm) - (4.33 * idade);
+        tmb = 447.593 + (9.247 * pesoUtilizado) + (3.098 * alturaCm) - (4.330 * idade);
       }
       get = tmb * nivelAtividade * fatorClinicoBase;
     } else if (formulaUtilizada === 'oms') {
@@ -153,6 +154,42 @@ export function createNutritionService() {
         else tmb = (10.5 * pesoUtilizado) + 596;
       }
       get = tmb * nivelAtividade * fatorClinicoBase;
+    } else if (formulaUtilizada === 'schofield') {
+      // Schofield 1985 (peso + altura), adultos 19+ — FAO/WHO/UNU Table 5.2.
+      // Coeficientes peso+altura vêm de fonte secundária (ver spec); validar contra a
+      // publicação original (Schofield WN, 1985, Human Nutrition: Clinical Nutrition
+      // 39 Suppl 1) antes de uso clínico crítico.
+      if (sexo === 'masculino') {
+        if (idade <= 30) tmb = (15.296 * pesoUtilizado) - (27.008 * altura) + 717.017;
+        else if (idade <= 60) tmb = (11.233 * pesoUtilizado) + (16.013 * altura) + 900.813;
+        else tmb = (8.843 * pesoUtilizado) + (1128.107 * altura) - 1070.985;
+      } else {
+        if (idade <= 30) tmb = (13.384 * pesoUtilizado) + (333.891 * altura) + 34.895;
+        else if (idade <= 60) tmb = (8.604 * pesoUtilizado) - (25.096 * altura) + 864.962;
+        else tmb = (9.082 * pesoUtilizado) + (636.950 * altura) - 302.103;
+      }
+      get = tmb * nivelAtividade * fatorClinicoBase;
+    } else if (formulaUtilizada === 'eer') {
+      // EER / DRI (IOM 2002/2005), adultos 19+. PA já incorpora atividade física —
+      // nivelAtividade não é usado neste branch.
+      const paTabelaEER = {
+        masculino: { sedentario: 1.00, pouco_ativo: 1.11, ativo: 1.25, muito_ativo: 1.48 },
+        feminino: { sedentario: 1.00, pouco_ativo: 1.12, ativo: 1.27, muito_ativo: 1.45 },
+      };
+      const categoria = input.categoriaAtividadeEER || 'sedentario';
+      const pa = paTabelaEER[sexo][categoria];
+
+      if (sexo === 'masculino') {
+        const base = 662 - (9.53 * idade);
+        const incremento = (15.91 * pesoUtilizado) + (539.6 * altura);
+        tmb = base + incremento; // PA = 1.00 (baseline)
+        get = (base + pa * incremento) * fatorClinicoBase;
+      } else {
+        const base = 354 - (6.91 * idade);
+        const incremento = (9.36 * pesoUtilizado) + (726 * altura);
+        tmb = base + incremento; // PA = 1.00 (baseline)
+        get = (base + pa * incremento) * fatorClinicoBase;
+      }
     } else if (formulaUtilizada === 'kcal_kg') {
       const kcalKg = input.kcalKgValor || 25; // default 25 if not provided
       tmb = kcalKg * pesoUtilizado; // Para registro de onde veio a base
@@ -160,9 +197,15 @@ export function createNutritionService() {
     }
 
     // PASSO 7 & 8: Ajuste Calórico
+    // ajusteObjetivoValor é tratado como magnitude (>=0); o sinal é decidido aqui
+    // em função do objetivo, para que o chamador nunca precise (nem possa) acertar
+    // o sinal manualmente — essa é a causa raiz do bug de emagrecimento aumentando o GET.
     let ajusteCalorico = 0;
     if (input.ajusteObjetivoValor !== undefined) {
-      ajusteCalorico = input.ajusteObjetivoValor;
+      const magnitude = Math.abs(input.ajusteObjetivoValor);
+      if (objetivo === 'emagrecimento') ajusteCalorico = -magnitude;
+      else if (objetivo === 'hipertrofia') ajusteCalorico = magnitude;
+      else ajusteCalorico = input.ajusteObjetivoValor;
     } else {
       if (objetivo === 'emagrecimento') ajusteCalorico = -400;
       else if (objetivo === 'hipertrofia') ajusteCalorico = 400;
