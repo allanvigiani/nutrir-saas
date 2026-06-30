@@ -9,7 +9,7 @@ export interface NutritionCalculationInput {
   condicoesClinicas: string[];
   fatorClinicoValor?: number; // specific value chosen within range
   kcalKgValor?: number; // for kcal/kg formula (e.g. 25-30)
-  formulaOverride?: 'mifflin' | 'harris' | 'oms' | 'kcal_kg';
+  formulaOverride?: 'mifflin' | 'harris' | 'oms' | 'kcal_kg' | 'schofield';
   percentualLip?: number; // default 25
   percentualPtn?: number; // percentual override
   percentualCho?: number; // percentual override
@@ -151,6 +151,21 @@ export function createNutritionService() {
         else if (idade <= 30) tmb = (14.7 * pesoUtilizado) + 496;
         else if (idade <= 60) tmb = (8.7 * pesoUtilizado) + 829;
         else tmb = (10.5 * pesoUtilizado) + 596;
+      }
+      get = tmb * nivelAtividade * fatorClinicoBase;
+    } else if (formulaUtilizada === 'schofield') {
+      // Schofield 1985 (peso + altura), adultos 19+ — FAO/WHO/UNU Table 5.2.
+      // Coeficientes peso+altura vêm de fonte secundária (ver spec); validar contra a
+      // publicação original (Schofield WN, 1985, Human Nutrition: Clinical Nutrition
+      // 39 Suppl 1) antes de uso clínico crítico.
+      if (sexo === 'masculino') {
+        if (idade <= 30) tmb = (15.296 * pesoUtilizado) - (27.008 * altura) + 717.017;
+        else if (idade <= 60) tmb = (11.233 * pesoUtilizado) + (16.013 * altura) + 900.813;
+        else tmb = (8.843 * pesoUtilizado) + (1128.107 * altura) - 1070.985;
+      } else {
+        if (idade <= 30) tmb = (13.384 * pesoUtilizado) + (333.891 * altura) + 34.895;
+        else if (idade <= 60) tmb = (8.604 * pesoUtilizado) - (25.096 * altura) + 864.962;
+        else tmb = (9.082 * pesoUtilizado) + (636.950 * altura) - 302.103;
       }
       get = tmb * nivelAtividade * fatorClinicoBase;
     } else if (formulaUtilizada === 'kcal_kg') {

@@ -184,6 +184,26 @@ describe('TMB — Fórmula OMS', () => {
   });
 });
 
+describe('TMB — Fórmula Schofield (peso + altura)', () => {
+  it('calcula TMB masculino adulto (18-30 anos) via Schofield', () => {
+    // 15.296*70 - 27.008*1.70 + 717.017 = 1070.72 - 45.9136 + 717.017 = 1741.8234
+    const result = calculateNutrition(baseInput({ formulaOverride: 'schofield', idade: 25 }));
+    expect(result.tmb).toBe(1742);
+  });
+
+  it('calcula TMB feminino adulta (31-60 anos) via Schofield', () => {
+    // 8.604*60 - 25.096*1.65 + 864.962 = 516.24 - 41.4084 + 864.962 = 1339.7936
+    const result = calculateNutrition(baseInput({ sexo: 'feminino', peso: 60, altura: 1.65, idade: 40, formulaOverride: 'schofield' }));
+    expect(result.tmb).toBe(1340);
+  });
+
+  it('calcula TMB masculino idoso (> 60 anos) via Schofield', () => {
+    // 8.843*70 + 1128.107*1.70 - 1070.985 = 619.01 + 1917.7819 - 1070.985 = 1465.8069
+    const result = calculateNutrition(baseInput({ idade: 65, formulaOverride: 'schofield' }));
+    expect(result.tmb).toBe(1466);
+  });
+});
+
 describe('GET — kcal_kg', () => {
   it('usa kcalKgValor se fornecido', () => {
     const result = calculateNutrition(baseInput({ formulaOverride: 'kcal_kg', kcalKgValor: 30 }));
