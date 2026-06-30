@@ -131,9 +131,9 @@ export function createNutritionService() {
       get = tmb * nivelAtividade * fatorClinicoBase;
     } else if (formulaUtilizada === 'harris') {
       if (sexo === 'masculino') {
-        tmb = 88.36 + (13.4 * pesoUtilizado) + (4.8 * alturaCm) - (5.68 * idade);
+        tmb = 88.362 + (13.397 * pesoUtilizado) + (4.799 * alturaCm) - (5.677 * idade);
       } else {
-        tmb = 447.6 + (9.25 * pesoUtilizado) + (3.1 * alturaCm) - (4.33 * idade);
+        tmb = 447.593 + (9.247 * pesoUtilizado) + (3.098 * alturaCm) - (4.330 * idade);
       }
       get = tmb * nivelAtividade * fatorClinicoBase;
     } else if (formulaUtilizada === 'oms') {

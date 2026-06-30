@@ -158,9 +158,9 @@ describe('TMB — Fórmula Harris-Benedict', () => {
   });
 
   it('calcula TMB feminino via Harris', () => {
-    // 447.6 + (9.25*60) + (3.1*165) - (4.33*25) = 447.6+555+511.5-108.25 = 1405.85
+    // 447.593 + (9.247*60) + (3.098*165) - (4.330*25) = 447.593+554.82+511.17-108.25 = 1405.333
     const result = calculateNutrition(baseInput({ sexo: 'feminino', peso: 60, altura: 1.65, idade: 25, formulaOverride: 'harris' }));
-    expect(result.tmb).toBe(1406);
+    expect(result.tmb).toBe(1405);
   });
 });
 
