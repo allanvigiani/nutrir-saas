@@ -129,6 +129,38 @@ describe('NutritionController.calculate', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
+  it('retorna 400 se formulaOverride for schofield e idade < 19', async () => {
+    const { calculate } = createNutritionController({
+      nutritionService: makeNutritionService(),
+    });
+
+    await calculate(
+      makeReq({
+        peso: 50, altura: 1.60, idade: 15, sexo: 'masculino',
+        nivelAtividade: 1.55, objetivo: 'manutencao', formulaOverride: 'schofield',
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('retorna 400 se formulaOverride for eer e idade < 19', async () => {
+    const { calculate } = createNutritionController({
+      nutritionService: makeNutritionService(),
+    });
+
+    await calculate(
+      makeReq({
+        peso: 50, altura: 1.60, idade: 15, sexo: 'masculino',
+        nivelAtividade: 1.55, objetivo: 'manutencao', formulaOverride: 'eer',
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
   it('chama nutritionService.calculateNutrition com o body completo', async () => {
     const mockResult = { imc: 24.2, tmb: 1618 };
     const nutritionService = makeNutritionService(mockResult);
