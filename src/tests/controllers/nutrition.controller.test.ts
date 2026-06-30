@@ -108,6 +108,27 @@ describe('NutritionController.calculate', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
+  it('retorna 400 se ajusteObjetivoValor for negativo', async () => {
+    const { calculate } = createNutritionController({
+      nutritionService: makeNutritionService(),
+    });
+
+    await calculate(
+      makeReq({
+        peso: 70,
+        altura: 1.70,
+        idade: 30,
+        sexo: 'masculino',
+        nivelAtividade: 1.55,
+        objetivo: 'emagrecimento',
+        ajusteObjetivoValor: -200,
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
   it('chama nutritionService.calculateNutrition com o body completo', async () => {
     const mockResult = { imc: 24.2, tmb: 1618 };
     const nutritionService = makeNutritionService(mockResult);

@@ -18,6 +18,10 @@ export function createNutritionController({ nutritionService }: NutritionControl
         return res.status(400).json({ error: "Missing required fields" });
       }
 
+      if (input.ajusteObjetivoValor !== undefined && input.ajusteObjetivoValor < 0) {
+        return res.status(400).json({ error: "ajusteObjetivoValor deve ser um valor não-negativo (magnitude)" });
+      }
+
       const result = nutritionService.calculateNutrition(input);
       return res.status(200).json(result);
     } catch (error: any) {
