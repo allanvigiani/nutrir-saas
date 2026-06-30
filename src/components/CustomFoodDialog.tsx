@@ -74,6 +74,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
   });
 
   const [servings, setServings] = useState<ServingDraft[]>([]);
+  const baseUnit = watch('baseUnit') || 'g';
 
   useEffect(() => {
     if (food) {
@@ -267,7 +268,7 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-sm font-bold text-primary">Medidas Caseiras</Label>
-                <p className="text-[10px] text-muted-foreground mt-0.5">A medida em "g" está sempre disponível. Adicione medidas extras abaixo.</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">A medida em "{baseUnit}" está sempre disponível. Adicione medidas extras abaixo.</p>
               </div>
               <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
                 {servings.length}/{MAX_SERVINGS}
@@ -290,10 +291,10 @@ export const CustomFoodDialog: React.FC<CustomFoodDialogProps> = ({
                         step="0.1"
                         value={s.weight === '' ? '' : s.weight}
                         onChange={(e) => updateServingField(idx, 'weight', e.target.value)}
-                        placeholder="Peso (g)"
+                        placeholder={`Peso (${baseUnit})`}
                         className="bg-muted/30 border-none rounded-xl h-8 text-sm pr-7"
                       />
-                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">g</span>
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">{baseUnit}</span>
                     </div>
                     <Button
                       type="button"
