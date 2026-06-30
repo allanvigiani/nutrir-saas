@@ -689,6 +689,7 @@ export const MealPlanEditor = ({
           description: food.name,
           category: 'category' in food ? (food as TacoFood).category : undefined,
           servings: customServings,
+          baseUnit: 'baseUnit' in food ? (food as CustomFood).baseUnit : undefined,
         };
         const servings = getServingsForFood(foodForMap);
         item.servings = servings;

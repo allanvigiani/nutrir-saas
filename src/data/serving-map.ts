@@ -25,6 +25,8 @@ export interface FoodItem {
   category?: string;
   /** Medidas caseiras customizadas (alimentos próprios do nutricionista) */
   servings?: { name: string; weight: number }[];
+  /** Unidade base do alimento próprio (g, ml, un) — usada na escala livre */
+  baseUnit?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -1252,17 +1254,20 @@ export const SERVING_OVERRIDES: Record<string | number, ServingOverride> = {
  * @returns array de FoodServing ordenado (g sempre primeiro)
  */
 export function getServingsForFood(food: FoodItem): FoodServing[] {
+  // Unidade de escala livre: 'g' por padrão, ou a unidade base do alimento próprio (ex: 'ml')
+  const freeScaleUnit = food.baseUnit || 'g';
+
   // 0. Medidas customizadas do próprio alimento (CustomFood com N medidas)
   if (food.servings && food.servings.length > 0) {
     const normalized: FoodServing[] = food.servings.map((s) => ({
       label: s.name,
       weightInGrams: s.weight,
     }));
-    // Garante que 'g' é sempre a primeira opção
-    const hasGrama = normalized.some((s) => s.label === 'g' && s.weightInGrams === 1);
-    return hasGrama
+    // Garante que a unidade base é sempre a primeira opção
+    const hasBaseUnit = normalized.some((s) => s.label === freeScaleUnit && s.weightInGrams === 1);
+    return hasBaseUnit
       ? normalized
-      : [{ label: 'g', weightInGrams: 1 }, ...normalized];
+      : [{ label: freeScaleUnit, weightInGrams: 1 }, ...normalized];
   }
 
   // 1. Override individual por ID
@@ -1282,6 +1287,6 @@ export function getServingsForFood(food: FoodItem): FoodServing[] {
     }
   }
 
-  // 4. Fallback genérico — apenas gramas
-  return [{ label: 'g', weightInGrams: 1 }];
+  // 4. Fallback genérico — escala livre na unidade base do alimento
+  return [{ label: freeScaleUnit, weightInGrams: 1 }];
 }

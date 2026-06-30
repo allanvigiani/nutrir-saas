@@ -73,6 +73,30 @@ describe('getServingsForFood', () => {
     });
   });
 
+  describe('baseUnit — alimentos próprios (ml, un)', () => {
+    it('alimento próprio sem categoria e baseUnit="ml" retorna [{label:"ml", weightInGrams:1}]', () => {
+      const result = getServingsForFood(criarFood({ id: 'custom-1', baseUnit: 'ml' }));
+      expect(result).toEqual([{ label: 'ml', weightInGrams: 1 }]);
+    });
+
+    it('alimento próprio sem baseUnit mantém fallback em "g"', () => {
+      const result = getServingsForFood(criarFood({ id: 'custom-2' }));
+      expect(result).toEqual([{ label: 'g', weightInGrams: 1 }]);
+    });
+
+    it('alimento próprio com medidas customizadas e baseUnit="ml" usa "ml" como escala livre, não "g"', () => {
+      const result = getServingsForFood(
+        criarFood({
+          id: 'custom-3',
+          baseUnit: 'ml',
+          servings: [{ name: 'copo', weight: 200 }],
+        })
+      );
+      expect(result[0]).toEqual({ label: 'ml', weightInGrams: 1 });
+      expect(result).toContainEqual({ label: 'copo', weightInGrams: 200 });
+    });
+  });
+
   describe('aliases TBCA ↔ TACO', () => {
     it('"Vegetais e derivados" (TBCA) mapeia para servings de "Verduras, hortaliças e derivados" (TACO)', () => {
       const tbca = getServingsForFood(criarFood({ category: 'Vegetais e derivados' }));
