@@ -220,13 +220,13 @@ export const Patients = () => {
     }
 
     try {
-      const cpfExists = patients.some(p => p.cpf === data.cpf && p.id !== editingPatient?.id);
+      const cpfExists = data.cpf && patients.some(p => p.cpf === data.cpf && p.id !== editingPatient?.id);
       if (cpfExists) {
         toast.error('Já existe um paciente cadastrado com este CPF.');
         return;
       }
 
-      const emailExists = patients.some(p => p.email === data.email && p.id !== editingPatient?.id);
+      const emailExists = data.email && patients.some(p => p.email === data.email && p.id !== editingPatient?.id);
       if (emailExists) {
         toast.error('Já existe um paciente cadastrado com este e-mail.');
         return;
