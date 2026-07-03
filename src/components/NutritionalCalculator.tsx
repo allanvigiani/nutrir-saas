@@ -87,6 +87,8 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
   const idadeMesesNum = idadeMeses ? parseInt(idadeMeses) : null;
   const isSchofieldEligible = idadeNum !== null;
   const isEerEligible = idadeNum !== null && (idadeNum >= 3 || (idadeMesesNum !== null && idadeMesesNum >= 0 && idadeMesesNum <= 35));
+  const isPediatricSchofield = formulaOverride === 'schofield' && idadeNum !== null && idadeNum <= 18;
+  const isLactenteEER = formulaOverride === 'eer' && idadeMesesNum !== null && idadeMesesNum >= 0 && idadeMesesNum <= 35;
 
   const handleCalculate = async () => {
     if (!peso || !altura || !idade || isPercentError) return;
@@ -149,6 +151,16 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
       setFormulaOverride('');
     }
   }, [idade, idadeMeses]);
+
+  useEffect(() => {
+    const valoresPediatricos = ['1.20', '1.40', '1.55', '1.75', '2.00'];
+    const valoresAdultos = ['1.2', '1.375', '1.55', '1.725'];
+    if (isPediatricSchofield && !valoresPediatricos.includes(nivelAtividade)) {
+      setNivelAtividade('1.40');
+    } else if (!isPediatricSchofield && formulaOverride !== 'eer' && !valoresAdultos.includes(nivelAtividade)) {
+      setNivelAtividade('1.2');
+    }
+  }, [isPediatricSchofield]);
 
   const handleSave = async () => {
     if (!onSaveCalculation || !result || !latestConsultation) {
@@ -289,8 +301,16 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
             )}
 
             <div className="space-y-2">
-              <Label>{formulaOverride === 'eer' ? 'Categoria de Atividade (EER/DRI)' : 'Nível de Atividade Física'}</Label>
-              {formulaOverride === 'eer' ? (
+              <Label>
+                {isLactenteEER ? 'Atividade (EER/DRI Lactente)' :
+                 formulaOverride === 'eer' ? 'Categoria de Atividade (EER/DRI)' :
+                 isPediatricSchofield ? 'Fator de Atividade (Schofield Pediátrico)' : 'Nível de Atividade Física'}
+              </Label>
+              {isLactenteEER ? (
+                <p className="text-xs text-muted-foreground border border-dashed border-border rounded-md px-3 py-2">
+                  A fórmula EER/DRI para lactentes (0 a 35 meses) não usa fator de atividade — o cálculo considera apenas o peso.
+                </p>
+              ) : formulaOverride === 'eer' ? (
                 <Select value={categoriaAtividadeEER} onValueChange={setCategoriaAtividadeEER}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione">
@@ -305,6 +325,25 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                     <SelectItem value="pouco_ativo">Pouco ativo</SelectItem>
                     <SelectItem value="ativo">Ativo</SelectItem>
                     <SelectItem value="muito_ativo">Muito ativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : isPediatricSchofield ? (
+                <Select value={nivelAtividade} onValueChange={setNivelAtividade}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione">
+                      {nivelAtividade === '1.20' ? 'Repouso/acamado (1.20)' :
+                       nivelAtividade === '1.40' ? 'Sedentário (1.40)' :
+                       nivelAtividade === '1.55' ? 'Levemente ativo (1.55)' :
+                       nivelAtividade === '1.75' ? 'Moderadamente ativo (1.75)' :
+                       nivelAtividade === '2.00' ? 'Muito ativo (2.00)' : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1.20">Repouso/acamado (1.20)</SelectItem>
+                    <SelectItem value="1.40">Sedentário (1.40)</SelectItem>
+                    <SelectItem value="1.55">Levemente ativo (1.55)</SelectItem>
+                    <SelectItem value="1.75">Moderadamente ativo (1.75)</SelectItem>
+                    <SelectItem value="2.00">Muito ativo (2.00)</SelectItem>
                   </SelectContent>
                 </Select>
               ) : (
