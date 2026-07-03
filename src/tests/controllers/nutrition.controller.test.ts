@@ -129,9 +129,9 @@ describe('NutritionController.calculate', () => {
     expect(res.status).toHaveBeenCalledWith(400);
   });
 
-  it('retorna 400 se formulaOverride for schofield e idade < 19', async () => {
+  it('retorna 200 se formulaOverride for schofield e idade < 19 (pediátrico é permitido)', async () => {
     const { calculate } = createNutritionController({
-      nutritionService: makeNutritionService(),
+      nutritionService: makeNutritionService({ tmb: 1000, get: 1200 }),
     });
 
     await calculate(
@@ -142,12 +142,12 @@ describe('NutritionController.calculate', () => {
       res,
     );
 
-    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
-  it('retorna 400 se formulaOverride for eer e idade < 19', async () => {
+  it('retorna 200 se formulaOverride for eer e idade >= 3', async () => {
     const { calculate } = createNutritionController({
-      nutritionService: makeNutritionService(),
+      nutritionService: makeNutritionService({ tmb: 1000, get: 1200 }),
     });
 
     await calculate(
@@ -158,7 +158,55 @@ describe('NutritionController.calculate', () => {
       res,
     );
 
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  it('retorna 400 se formulaOverride for eer, idade < 3 e idadeMeses não informado', async () => {
+    const { calculate } = createNutritionController({
+      nutritionService: makeNutritionService(),
+    });
+
+    await calculate(
+      makeReq({
+        peso: 9, altura: 0.75, idade: 1, sexo: 'masculino',
+        nivelAtividade: 1.55, objetivo: 'manutencao', formulaOverride: 'eer',
+      }),
+      res,
+    );
+
     expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('retorna 400 se idadeMeses estiver fora de 0-35', async () => {
+    const { calculate } = createNutritionController({
+      nutritionService: makeNutritionService(),
+    });
+
+    await calculate(
+      makeReq({
+        peso: 12, altura: 0.85, idade: 2, sexo: 'masculino',
+        nivelAtividade: 1.55, objetivo: 'manutencao', formulaOverride: 'eer', idadeMeses: 40,
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(400);
+  });
+
+  it('retorna 200 se formulaOverride for eer, idade < 3 e idadeMeses entre 0-35', async () => {
+    const { calculate } = createNutritionController({
+      nutritionService: makeNutritionService({ tmb: 500, get: 500 }),
+    });
+
+    await calculate(
+      makeReq({
+        peso: 9, altura: 0.75, idade: 1, sexo: 'masculino',
+        nivelAtividade: 1.55, objetivo: 'manutencao', formulaOverride: 'eer', idadeMeses: 10,
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 
   it('chama nutritionService.calculateNutrition com o body completo', async () => {
