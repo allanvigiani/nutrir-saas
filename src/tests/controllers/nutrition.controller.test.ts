@@ -209,6 +209,22 @@ describe('NutritionController.calculate', () => {
     expect(res.status).toHaveBeenCalledWith(200);
   });
 
+  it('retorna 200 quando idade é 0 (recém-nascido) com idadeMeses válido', async () => {
+    const { calculate } = createNutritionController({
+      nutritionService: makeNutritionService({ tmb: 500, get: 500 }),
+    });
+
+    await calculate(
+      makeReq({
+        peso: 4, altura: 0.55, idade: 0, sexo: 'masculino',
+        nivelAtividade: 1.55, objetivo: 'manutencao', formulaOverride: 'eer', idadeMeses: 2,
+      }),
+      res,
+    );
+
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
   it('chama nutritionService.calculateNutrition com o body completo', async () => {
     const mockResult = { imc: 24.2, tmb: 1618 };
     const nutritionService = makeNutritionService(mockResult);

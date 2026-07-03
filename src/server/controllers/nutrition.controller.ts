@@ -14,7 +14,7 @@ export function createNutritionController({ nutritionService }: NutritionControl
       const input: NutritionCalculationInput = req.body;
 
       // Validate minimum required inputs
-      if (!input.peso || !input.altura || !input.idade || !input.sexo || !input.nivelAtividade || !input.objetivo) {
+      if (!input.peso || !input.altura || input.idade === undefined || input.idade === null || !input.sexo || !input.nivelAtividade || !input.objetivo) {
         return res.status(400).json({ error: "Missing required fields" });
       }
 
