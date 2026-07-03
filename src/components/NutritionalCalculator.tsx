@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { differenceInMonths } from 'date-fns';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -43,6 +44,12 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
     ex?.idade?.toString() ||
     (patient.birthDate ? Math.floor((new Date().getTime() - new Date(patient.birthDate).getTime()) / 31557600000).toString() : '')
   );
+  const [idadeMeses, setIdadeMeses] = useState<string>(
+    ex?.idadeMeses?.toString() ||
+    (patient.birthDate && differenceInMonths(new Date(), new Date(patient.birthDate)) < 36
+      ? differenceInMonths(new Date(), new Date(patient.birthDate)).toString()
+      : '')
+  );
   const [sexo, setSexo] = useState<'masculino' | 'feminino'>(
     ex?.sexo || (patient.gender === 'female' ? 'feminino' : 'masculino')
   );
@@ -77,7 +84,9 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
   const isPercentError = sumPercent > 100;
 
   const idadeNum = idade ? parseInt(idade) : null;
-  const isAdultFor19Plus = idadeNum !== null && idadeNum >= 19;
+  const idadeMesesNum = idadeMeses ? parseInt(idadeMeses) : null;
+  const isSchofieldEligible = idadeNum !== null;
+  const isEerEligible = idadeNum !== null && (idadeNum >= 3 || (idadeMesesNum !== null && idadeMesesNum >= 0 && idadeMesesNum <= 35));
 
   const handleCalculate = async () => {
     if (!peso || !altura || !idade || isPercentError) return;
@@ -95,6 +104,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
           peso: parseFloat(peso),
           altura: parseFloat(altura) / 100,
           idade: parseInt(idade),
+          idadeMeses: idadeMeses ? parseInt(idadeMeses) : undefined,
           sexo,
           nivelAtividade: parseFloat(nivelAtividade),
           objetivo,
@@ -129,14 +139,16 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
       const timeoutId = setTimeout(() => handleCalculate(), 500);
       return () => clearTimeout(timeoutId);
     }
-  }, [peso, altura, idade, sexo, nivelAtividade, objetivo, condicoesClinicas, formulaOverride, categoriaAtividadeEER, ajusteObjetivoValor, percentualLip, percentualPtn, percentualCho, trimestreGestacao]);
+  }, [peso, altura, idade, idadeMeses, sexo, nivelAtividade, objetivo, condicoesClinicas, formulaOverride, categoriaAtividadeEER, ajusteObjetivoValor, percentualLip, percentualPtn, percentualCho, trimestreGestacao]);
 
   useEffect(() => {
     const idadeNum = idade ? parseInt(idade) : null;
-    if (idadeNum !== null && idadeNum < 19 && (formulaOverride === 'schofield' || formulaOverride === 'eer')) {
+    const idadeMesesNum = idadeMeses ? parseInt(idadeMeses) : null;
+    const eerEligible = idadeNum !== null && (idadeNum >= 3 || (idadeMesesNum !== null && idadeMesesNum >= 0 && idadeMesesNum <= 35));
+    if (formulaOverride === 'eer' && !eerEligible) {
       setFormulaOverride('');
     }
-  }, [idade]);
+  }, [idade, idadeMeses]);
 
   const handleSave = async () => {
     if (!onSaveCalculation || !result || !latestConsultation) {
@@ -155,6 +167,7 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
         peso: parseFloat(peso),
         altura: parseFloat(altura) / 100,
         idade: parseInt(idade),
+        idadeMeses: idadeMeses ? parseInt(idadeMeses) : null,
         sexo,
         nivelAtividade: parseFloat(nivelAtividade),
         objetivo: objetivo as any,
@@ -254,6 +267,26 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                 </Select>
               </div>
             </div>
+
+            {idadeNum !== null && idadeNum < 3 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1">
+                  <Label>Idade em meses</Label>
+                  <Tooltip>
+                    <TooltipTrigger className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Sobre idade em meses">
+                      <Info className="w-3.5 h-3.5" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[260px]">
+                      Usado pela fórmula EER/DRI para lactentes (0 a 35 meses). Opcional para as demais fórmulas.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="relative">
+                  <Input type="number" min={0} max={35} value={idadeMeses} onChange={e => setIdadeMeses(e.target.value)} className="pr-14" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">meses</span>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label>{formulaOverride === 'eer' ? 'Categoria de Atividade (EER/DRI)' : 'Nível de Atividade Física'}</Label>
@@ -448,8 +481,8 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                       <SelectItem value="harris">Harris-Benedict</SelectItem>
                       <SelectItem value="oms">OMS/FAO</SelectItem>
                       <SelectItem value="kcal_kg">Kcal/kg</SelectItem>
-                      <SelectItem value="schofield" disabled={!isAdultFor19Plus}>Schofield (peso + altura)</SelectItem>
-                      <SelectItem value="eer" disabled={!isAdultFor19Plus}>EER/DRI (IOM)</SelectItem>
+                      <SelectItem value="schofield" disabled={!isSchofieldEligible}>Schofield (peso + altura)</SelectItem>
+                      <SelectItem value="eer" disabled={!isEerEligible}>EER/DRI (IOM)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
