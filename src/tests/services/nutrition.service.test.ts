@@ -291,6 +291,82 @@ describe('TMB/GET — Fórmula EER/DRI (IOM)', () => {
     }));
     expect(critic.get / base.get).toBeCloseTo(1.5, 1);
   });
+
+  it('calcula EER lactente 0-3 meses (offset +175)', () => {
+    // (89*5) - 100 + 175 = 445 - 100 + 175 = 520
+    const result = calculateNutrition(baseInput({ idade: 0, idadeMeses: 2, peso: 5, formulaOverride: 'eer' }));
+    expect(result.tmb).toBe(520);
+    expect(result.get).toBe(520);
+  });
+
+  it('calcula EER lactente 4-6 meses (offset +56)', () => {
+    // (89*7) - 100 + 56 = 623 - 100 + 56 = 579
+    const result = calculateNutrition(baseInput({ idade: 0, idadeMeses: 5, peso: 7, formulaOverride: 'eer' }));
+    expect(result.tmb).toBe(579);
+  });
+
+  it('calcula EER lactente 7-12 meses (offset +22)', () => {
+    // (89*9) - 100 + 22 = 801 - 100 + 22 = 723
+    const result = calculateNutrition(baseInput({ idade: 0, idadeMeses: 10, peso: 9, formulaOverride: 'eer' }));
+    expect(result.tmb).toBe(723);
+  });
+
+  it('calcula EER lactente 13-35 meses (offset +20)', () => {
+    // (89*12) - 100 + 20 = 1068 - 100 + 20 = 988
+    const result = calculateNutrition(baseInput({ idade: 2, idadeMeses: 24, peso: 12, formulaOverride: 'eer' }));
+    expect(result.tmb).toBe(988);
+  });
+
+  it('EER lactente ignora fator de atividade (nivelAtividade não é usado)', () => {
+    const base = calculateNutrition(baseInput({ idade: 0, idadeMeses: 2, peso: 5, formulaOverride: 'eer', nivelAtividade: 1.2 }));
+    const outro = calculateNutrition(baseInput({ idade: 0, idadeMeses: 2, peso: 5, formulaOverride: 'eer', nivelAtividade: 1.725 }));
+    expect(outro.get).toBe(base.get);
+  });
+
+  it('calcula TMB (PAF=1.00) e GET (PAF=ativo) masculino 3-18 anos via EER pediátrico', () => {
+    // base = 88.5 - 61.9*10 = -530.5; incremento = 26.7*32 + 903*1.35 = 854.4 + 1219.05 = 2073.45
+    // tmb = -530.5 + 2073.45 + 20 = 1562.95 → 1563
+    // get = (-530.5 + 1.26*2073.45 + 20) = -530.5 + 2612.547 + 20 = 2102.047 → 2102
+    const result = calculateNutrition(baseInput({
+      idade: 10, peso: 32, altura: 1.35, formulaOverride: 'eer', categoriaAtividadeEER: 'ativo',
+    }));
+    expect(result.tmb).toBe(1563);
+    expect(result.get).toBe(2102);
+  });
+
+  it('calcula TMB (PAF=1.00) e GET (PAF=ativo) feminino 3-18 anos via EER pediátrico', () => {
+    // base = 135.3 - 30.8*12 = -234.3; incremento = 10.0*40 + 934*1.50 = 400 + 1401 = 1801
+    // tmb = -234.3 + 1801 + 20 = 1586.7 → 1587
+    // get = (-234.3 + 1.31*1801 + 20) = -234.3 + 2359.31 + 20 = 2145.01 → 2145
+    const result = calculateNutrition(baseInput({
+      sexo: 'feminino', idade: 12, peso: 40, altura: 1.50, formulaOverride: 'eer', categoriaAtividadeEER: 'ativo',
+    }));
+    expect(result.tmb).toBe(1587);
+    expect(result.get).toBe(2145);
+  });
+
+  it('usa PAF sedentário (1.00) por padrão no EER pediátrico quando categoriaAtividadeEER não é informado', () => {
+    const result = calculateNutrition(baseInput({ idade: 10, peso: 32, altura: 1.35, formulaOverride: 'eer' }));
+    expect(result.get).toBe(result.tmb);
+  });
+
+  it('usa a equação pediátrica em idade=18 e a adulta em idade=19 no EER (corte de faixa)', () => {
+    // 18 anos: base = 88.5 - 61.9*18 = -1025.7; incremento = 26.7*55 + 903*1.68 = 1468.5 + 1517.04 = 2985.54
+    // tmb = -1025.7 + 2985.54 + 20 = 1979.84 → 1980
+    const crianca = calculateNutrition(baseInput({ idade: 18, peso: 55, altura: 1.68, formulaOverride: 'eer' }));
+    expect(crianca.tmb).toBe(1980);
+
+    // 19 anos: fórmula adulta já coberta pelos testes existentes do describe — aqui só
+    // garantimos que não caiu na pediátrica (base adulto = 662 - 9.53*19 = 481.93, bem diferente)
+    const adulto = calculateNutrition(baseInput({ idade: 19, peso: 55, altura: 1.68, formulaOverride: 'eer' }));
+    expect(adulto.tmb).not.toBe(1980);
+  });
+
+  it('não calcula EER quando idade < 3 e idadeMeses não é informado (bloqueio é responsabilidade do controller)', () => {
+    const result = calculateNutrition(baseInput({ idade: 1, formulaOverride: 'eer' }));
+    expect(result.tmb).toBe(0);
+    expect(result.get).toBe(0);
+  });
 });
 
 describe('GET — kcal_kg', () => {

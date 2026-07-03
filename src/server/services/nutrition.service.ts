@@ -186,26 +186,61 @@ export function createNutritionService() {
       }
       get = tmb * nivelAtividade * fatorClinicoBase;
     } else if (formulaUtilizada === 'eer') {
-      // EER / DRI (IOM 2002/2005), adultos 19+. PA já incorpora atividade física —
-      // nivelAtividade não é usado neste branch.
-      const paTabelaEER = {
-        masculino: { sedentario: 1.00, pouco_ativo: 1.11, ativo: 1.25, muito_ativo: 1.48 },
-        feminino: { sedentario: 1.00, pouco_ativo: 1.12, ativo: 1.27, muito_ativo: 1.45 },
-      };
-      const categoria = input.categoriaAtividadeEER || 'sedentario';
-      const pa = paTabelaEER[sexo][categoria];
+      if (input.idadeMeses !== undefined && input.idadeMeses >= 0 && input.idadeMeses <= 35) {
+        // EER / DRI (IOM 2005), lactentes 0-35 meses. Sem PAF nem altura.
+        let incrementoCrescimento: number;
+        if (input.idadeMeses <= 3) incrementoCrescimento = 175;
+        else if (input.idadeMeses <= 6) incrementoCrescimento = 56;
+        else if (input.idadeMeses <= 12) incrementoCrescimento = 22;
+        else incrementoCrescimento = 20;
 
-      if (sexo === 'masculino') {
-        const base = 662 - (9.53 * idade);
-        const incremento = (15.91 * pesoUtilizado) + (539.6 * altura);
-        tmb = base + incremento; // PA = 1.00 (baseline)
-        get = (base + pa * incremento) * fatorClinicoBase;
-      } else {
-        const base = 354 - (6.91 * idade);
-        const incremento = (9.36 * pesoUtilizado) + (726 * altura);
-        tmb = base + incremento; // PA = 1.00 (baseline)
-        get = (base + pa * incremento) * fatorClinicoBase;
+        tmb = (89 * pesoUtilizado) - 100 + incrementoCrescimento;
+        get = tmb * fatorClinicoBase; // sem fator de atividade nesta faixa
+      } else if (idade >= 3 && idade <= 18) {
+        // EER / DRI (IOM 2005), crianças/adolescentes 3-18 anos — ver
+        // docs/superpowers/specs/2026-07-03-formulas-pediatricas-design.md
+        const pafTabelaEERPediatrico = {
+          masculino: { sedentario: 1.00, pouco_ativo: 1.13, ativo: 1.26, muito_ativo: 1.42 },
+          feminino: { sedentario: 1.00, pouco_ativo: 1.16, ativo: 1.31, muito_ativo: 1.56 },
+        };
+        const categoriaPediatrica = input.categoriaAtividadeEER || 'sedentario';
+        const paf = pafTabelaEERPediatrico[sexo][categoriaPediatrica];
+
+        if (sexo === 'masculino') {
+          const base = 88.5 - (61.9 * idade);
+          const incremento = (26.7 * pesoUtilizado) + (903 * altura);
+          tmb = base + incremento + 20; // PAF = 1.00 (baseline)
+          get = (base + paf * incremento + 20) * fatorClinicoBase;
+        } else {
+          const base = 135.3 - (30.8 * idade);
+          const incremento = (10.0 * pesoUtilizado) + (934 * altura);
+          tmb = base + incremento + 20; // PAF = 1.00 (baseline)
+          get = (base + paf * incremento + 20) * fatorClinicoBase;
+        }
+      } else if (idade >= 19) {
+        // EER / DRI (IOM 2002/2005), adultos 19+. PA já incorpora atividade física —
+        // nivelAtividade não é usado neste branch.
+        const paTabelaEER = {
+          masculino: { sedentario: 1.00, pouco_ativo: 1.11, ativo: 1.25, muito_ativo: 1.48 },
+          feminino: { sedentario: 1.00, pouco_ativo: 1.12, ativo: 1.27, muito_ativo: 1.45 },
+        };
+        const categoria = input.categoriaAtividadeEER || 'sedentario';
+        const pa = paTabelaEER[sexo][categoria];
+
+        if (sexo === 'masculino') {
+          const base = 662 - (9.53 * idade);
+          const incremento = (15.91 * pesoUtilizado) + (539.6 * altura);
+          tmb = base + incremento; // PA = 1.00 (baseline)
+          get = (base + pa * incremento) * fatorClinicoBase;
+        } else {
+          const base = 354 - (6.91 * idade);
+          const incremento = (9.36 * pesoUtilizado) + (726 * altura);
+          tmb = base + incremento; // PA = 1.00 (baseline)
+          get = (base + pa * incremento) * fatorClinicoBase;
+        }
       }
+      // idade < 3 sem idadeMeses válido: nenhuma equação disponível — tmb/get
+      // permanecem 0 (o controller bloqueia esse caso antes de chegar aqui, Task 3).
     } else if (formulaUtilizada === 'kcal_kg') {
       const kcalKg = input.kcalKgValor || 25; // default 25 if not provided
       tmb = kcalKg * pesoUtilizado; // Para registro de onde veio a base
