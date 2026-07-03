@@ -698,8 +698,8 @@ export const MealPlanEditor = ({
         const initialServing = servings[0];
         item.unit = initialServing.label;
 
-        // Macros por 100g (base_quantity sempre 100 para cálculo correto)
-        // base_kcal/protein/carbs/fat = valores per 100g do alimento
+        // base_kcal/protein/carbs/fat = valores totais para base_quantity do alimento
+        // (100g/ml para TACO, ou a quantidade base cadastrada para alimentos próprios)
         item.base_kcal = food.kcal;
         item.base_protein = food.protein;
         item.base_carbs = food.carbs;
@@ -715,7 +715,7 @@ export const MealPlanEditor = ({
           item.quantity = food.baseQuantity.toString();
           const weightInGrams = food.baseQuantity;
           item.weight_in_grams = weightInGrams;
-          const ratio = weightInGrams / 100;
+          const ratio = weightInGrams / food.baseQuantity;
           item.kcal = Math.round(food.kcal * ratio);
           item.protein = Math.round(food.protein * ratio);
           item.carbs = Math.round(food.carbs * ratio);
@@ -725,7 +725,7 @@ export const MealPlanEditor = ({
           item.quantity = "1";
           const weightInGrams = initialServing.weightInGrams;
           item.weight_in_grams = weightInGrams;
-          const ratio = weightInGrams / 100;
+          const ratio = weightInGrams / food.baseQuantity;
           item.kcal = Math.round(food.kcal * ratio);
           item.protein = Math.round(food.protein * ratio);
           item.carbs = Math.round(food.carbs * ratio);
@@ -787,7 +787,7 @@ export const MealPlanEditor = ({
 
           const weightInGrams = newQty * selectedServing.weightInGrams;
           item.weight_in_grams = weightInGrams;
-          const ratio = weightInGrams / 100;
+          const ratio = weightInGrams / (item.base_quantity || 100);
           item.kcal = Math.round((item.base_kcal || 0) * ratio);
           item.protein = Math.round((item.base_protein || 0) * ratio);
           item.carbs = Math.round((item.base_carbs || 0) * ratio);
