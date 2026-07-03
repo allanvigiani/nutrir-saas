@@ -202,6 +202,59 @@ describe('TMB — Fórmula Schofield (peso + altura)', () => {
     const result = calculateNutrition(baseInput({ idade: 65, formulaOverride: 'schofield' }));
     expect(result.tmb).toBe(1466);
   });
+
+  it('calcula TMB masculino 0-3 anos via Schofield pediátrico', () => {
+    // 59.512*12 + 13.04*0.85 - 30.8 = 714.144 + 11.084 - 30.8 = 694.428
+    const result = calculateNutrition(baseInput({ idade: 2, peso: 12, altura: 0.85, formulaOverride: 'schofield' }));
+    expect(result.tmb).toBe(694);
+  });
+
+  it('calcula TMB feminino 0-3 anos via Schofield pediátrico', () => {
+    // 58.317*11 + 3.11*0.83 - 59.0 = 641.487 + 2.5813 - 59.0 = 585.0683
+    const result = calculateNutrition(baseInput({ sexo: 'feminino', idade: 2, peso: 11, altura: 0.83, formulaOverride: 'schofield' }));
+    expect(result.tmb).toBe(585);
+  });
+
+  it('calcula TMB masculino 3-10 anos via Schofield pediátrico', () => {
+    // 22.706*22 + 504.3*1.20 + 89.5 = 499.532 + 605.16 + 89.5 = 1194.192
+    const result = calculateNutrition(baseInput({ idade: 7, peso: 22, altura: 1.20, formulaOverride: 'schofield' }));
+    expect(result.tmb).toBe(1194);
+  });
+
+  it('calcula TMB feminino 3-10 anos via Schofield pediátrico', () => {
+    // 20.315*21 + 485.9*1.18 + 98.5 = 426.615 + 573.362 + 98.5 = 1098.477
+    const result = calculateNutrition(baseInput({ sexo: 'feminino', idade: 7, peso: 21, altura: 1.18, formulaOverride: 'schofield' }));
+    expect(result.tmb).toBe(1098);
+  });
+
+  it('calcula TMB masculino 10-18 anos via Schofield pediátrico', () => {
+    // 17.686*55 + 658.2*1.68 + 48.3 = 972.73 + 1105.776 + 48.3 = 2126.806
+    const result = calculateNutrition(baseInput({ idade: 15, peso: 55, altura: 1.68, formulaOverride: 'schofield' }));
+    expect(result.tmb).toBe(2127);
+  });
+
+  it('calcula TMB feminino 10-18 anos via Schofield pediátrico', () => {
+    // 13.384*50 + 692.6*1.60 + 35.4 = 669.2 + 1108.16 + 35.4 = 1812.76
+    const result = calculateNutrition(baseInput({ sexo: 'feminino', idade: 15, peso: 50, altura: 1.60, formulaOverride: 'schofield' }));
+    expect(result.tmb).toBe(1813);
+  });
+
+  it('usa a equação pediátrica em idade=18 e a adulta em idade=19 (corte de faixa)', () => {
+    // 18 anos: 17.686*60 + 658.2*1.65 + 48.3 = 1061.16 + 1086.03 + 48.3 = 2195.49
+    const crianca = calculateNutrition(baseInput({ idade: 18, peso: 60, altura: 1.65, formulaOverride: 'schofield' }));
+    expect(crianca.tmb).toBe(2195);
+
+    // 19 anos: 15.296*60 - 27.008*1.65 + 717.017 = 917.76 - 44.5632 + 717.017 = 1590.2138
+    const adulto = calculateNutrition(baseInput({ idade: 19, peso: 60, altura: 1.65, formulaOverride: 'schofield' }));
+    expect(adulto.tmb).toBe(1590);
+  });
+
+  it('emite alerta ao usar Schofield pediátrico (idade <= 18)', () => {
+    const result = calculateNutrition(baseInput({ idade: 10, peso: 25, altura: 1.30, formulaOverride: 'schofield' }));
+    expect(result.alertas).toContain(
+      'Schofield para menores de 18 anos utiliza a equação pediátrica (peso + altura); os coeficientes diferem da variante adulta.'
+    );
+  });
 });
 
 describe('TMB/GET — Fórmula EER/DRI (IOM)', () => {

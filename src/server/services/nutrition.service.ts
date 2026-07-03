@@ -11,6 +11,7 @@ export interface NutritionCalculationInput {
   kcalKgValor?: number; // for kcal/kg formula (e.g. 25-30)
   formulaOverride?: 'mifflin' | 'harris' | 'oms' | 'kcal_kg' | 'schofield' | 'eer';
   categoriaAtividadeEER?: 'sedentario' | 'pouco_ativo' | 'ativo' | 'muito_ativo'; // usado apenas quando formulaOverride === 'eer'
+  idadeMeses?: number; // 0-35; usado apenas por 'eer' para resolver a equação de lactente
   percentualLip?: number; // default 25
   percentualPtn?: number; // percentual override
   percentualCho?: number; // percentual override
@@ -155,18 +156,33 @@ export function createNutritionService() {
       }
       get = tmb * nivelAtividade * fatorClinicoBase;
     } else if (formulaUtilizada === 'schofield') {
-      // Schofield 1985 (peso + altura), adultos 19+ — FAO/WHO/UNU Table 5.2.
-      // Coeficientes peso+altura vêm de fonte secundária (ver spec); validar contra a
-      // publicação original (Schofield WN, 1985, Human Nutrition: Clinical Nutrition
-      // 39 Suppl 1) antes de uso clínico crítico.
-      if (sexo === 'masculino') {
-        if (idade <= 30) tmb = (15.296 * pesoUtilizado) - (27.008 * altura) + 717.017;
-        else if (idade <= 60) tmb = (11.233 * pesoUtilizado) + (16.013 * altura) + 900.813;
-        else tmb = (8.843 * pesoUtilizado) + (1128.107 * altura) - 1070.985;
+      if (idade <= 18) {
+        // Schofield 1985 (peso + altura), pediátrico 0-18 anos — ver
+        // docs/superpowers/specs/2026-07-03-formulas-pediatricas-design.md
+        if (sexo === 'masculino') {
+          if (idade <= 3) tmb = (59.512 * pesoUtilizado) + (13.04 * altura) - 30.8;
+          else if (idade <= 10) tmb = (22.706 * pesoUtilizado) + (504.3 * altura) + 89.5;
+          else tmb = (17.686 * pesoUtilizado) + (658.2 * altura) + 48.3;
+        } else {
+          if (idade <= 3) tmb = (58.317 * pesoUtilizado) + (3.11 * altura) - 59.0;
+          else if (idade <= 10) tmb = (20.315 * pesoUtilizado) + (485.9 * altura) + 98.5;
+          else tmb = (13.384 * pesoUtilizado) + (692.6 * altura) + 35.4;
+        }
+        alertas.push('Schofield para menores de 18 anos utiliza a equação pediátrica (peso + altura); os coeficientes diferem da variante adulta.');
       } else {
-        if (idade <= 30) tmb = (13.384 * pesoUtilizado) + (333.891 * altura) + 34.895;
-        else if (idade <= 60) tmb = (8.604 * pesoUtilizado) - (25.096 * altura) + 864.962;
-        else tmb = (9.082 * pesoUtilizado) + (636.950 * altura) - 302.103;
+        // Schofield 1985 (peso + altura), adultos 19+ — FAO/WHO/UNU Table 5.2.
+        // Coeficientes peso+altura vêm de fonte secundária (ver spec); validar contra a
+        // publicação original (Schofield WN, 1985, Human Nutrition: Clinical Nutrition
+        // 39 Suppl 1) antes de uso clínico crítico.
+        if (sexo === 'masculino') {
+          if (idade <= 30) tmb = (15.296 * pesoUtilizado) - (27.008 * altura) + 717.017;
+          else if (idade <= 60) tmb = (11.233 * pesoUtilizado) + (16.013 * altura) + 900.813;
+          else tmb = (8.843 * pesoUtilizado) + (1128.107 * altura) - 1070.985;
+        } else {
+          if (idade <= 30) tmb = (13.384 * pesoUtilizado) + (333.891 * altura) + 34.895;
+          else if (idade <= 60) tmb = (8.604 * pesoUtilizado) - (25.096 * altura) + 864.962;
+          else tmb = (9.082 * pesoUtilizado) + (636.950 * altura) - 302.103;
+        }
       }
       get = tmb * nivelAtividade * fatorClinicoBase;
     } else if (formulaUtilizada === 'eer') {
