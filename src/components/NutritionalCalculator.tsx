@@ -146,6 +146,9 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
   useEffect(() => {
     const idadeNum = idade ? parseInt(idade) : null;
     const idadeMesesNum = idadeMeses ? parseInt(idadeMeses) : null;
+    if (idadeNum !== null && idadeNum >= 3 && idadeMeses) {
+      setIdadeMeses('');
+    }
     const eerEligible = idadeNum !== null && (idadeNum >= 3 || (idadeMesesNum !== null && idadeMesesNum >= 0 && idadeMesesNum <= 35));
     if (formulaOverride === 'eer' && !eerEligible) {
       setFormulaOverride('');
