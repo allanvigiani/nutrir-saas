@@ -142,6 +142,8 @@ export function MealPlanEdit() {
 
       void logEvent(planId && planId !== 'new' ? 'plano_alimentar_atualizado' : 'novo_plano_alimentar');
       toast.success(planId && planId !== 'new' ? "Plano alimentar atualizado!" : "Plano alimentar criado!");
+      setMealPlan(prev => ({ ...(prev as MealPlan), ...planPayload }));
+      setMealItems(data.items);
       if ((!planId || planId === 'new') && currentPlanId) {
         navigate(`/patients/${patientId}/meal-plan/${currentPlanId}`, { replace: true });
       }

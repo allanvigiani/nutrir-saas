@@ -84,11 +84,11 @@ export function generateMealPlanPDF(
 
   mealsToDisplay.forEach((meal) => {
     const mealItems = items.filter(i => i.meal === meal.id);
-    if (mealItems.length === 0) return;
+    const observation = (plan.mealObservations as Record<string, string> | undefined)?.[meal.id];
+    if (mealItems.length === 0 && !observation) return;
 
     const mealLabel = meal.label;
     const mealTime = meal.time ? ` (${meal.time})` : '';
-    const observation = (plan.mealObservations as Record<string, string> | undefined)?.[meal.id];
 
     // Meal Header
     doc.setFillColor(248, 250, 252); // slate-50
@@ -100,33 +100,35 @@ export function generateMealPlanPDF(
 
     currentY += 12;
 
-    const tableData = mealItems.map(item => [
-      item.food,
-      `${item.quantity} ${item.unit}`,
-      `${item.kcal || 0} kcal`
-    ]);
+    if (mealItems.length > 0) {
+      const tableData = mealItems.map(item => [
+        item.food,
+        `${item.quantity} ${item.unit}`,
+        `${item.kcal || 0} kcal`
+      ]);
 
-    autoTable(doc, {
-      startY: currentY,
-      head: [['Alimento', 'Quantidade', 'Calorias']],
-      body: tableData,
-      theme: 'striped',
-      headStyles: { fillColor: [5, 150, 105], fontSize: 9, halign: 'center' },
-      bodyStyles: { fontSize: 9 },
-      columnStyles: {
-        0: { cellWidth: 'auto', halign: 'left' },
-        1: { cellWidth: 40, halign: 'center' },
-        2: { cellWidth: 30, halign: 'center' }
-      },
-      margin: { left: 14, right: 14 },
-      didParseCell: (data) => {
-        if (data.section === 'head' && data.column.index === 0) {
-          data.cell.styles.halign = 'left';
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Alimento', 'Quantidade', 'Calorias']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: { fillColor: [5, 150, 105], fontSize: 9, halign: 'center' },
+        bodyStyles: { fontSize: 9 },
+        columnStyles: {
+          0: { cellWidth: 'auto', halign: 'left' },
+          1: { cellWidth: 40, halign: 'center' },
+          2: { cellWidth: 30, halign: 'center' }
+        },
+        margin: { left: 14, right: 14 },
+        didParseCell: (data) => {
+          if (data.section === 'head' && data.column.index === 0) {
+            data.cell.styles.halign = 'left';
+          }
         }
-      }
-    });
+      });
 
-    currentY = (doc as any).lastAutoTable.finalY + 5;
+      currentY = (doc as any).lastAutoTable.finalY + 5;
+    }
 
     if (observation) {
       const splitObs = doc.splitTextToSize(observation, pageWidth - 36);
