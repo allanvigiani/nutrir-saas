@@ -59,6 +59,7 @@ import { UpgradeModal } from '../components/UpgradeModal';
 import { useFreeplanLimits } from '../hooks/useFreeplanLimits';
 import { maskCPF, maskPhone } from '../lib/masks';
 import { cn } from '../lib/utils';
+import { calculateImc, classifyImc, idealWeightRangeByBmi } from '../lib/nutrition-calculations/imc';
 import { FoodAutocomplete } from '../components/FoodAutocomplete';
 import { TacoFood } from '../data/taco';
 import { CustomFoodDialog } from '../components/CustomFoodDialog';
@@ -728,7 +729,7 @@ export const PatientProfile = () => {
     }
 
     try {
-      const imc = data.height > 0 ? data.weight / ((data.height / 100) * (data.height / 100)) : 0;
+      const imc = data.height > 0 ? calculateImc(data.weight, data.height / 100) : 0;
 
       // Clean up optional numbers to ensure they are finite or null
       const cleanData = { ...data };
@@ -2855,11 +2856,17 @@ export const PatientProfile = () => {
                 const latest = sorted[sorted.length - 1];
                 const prev = sorted.length > 1 ? sorted[sorted.length - 2] : null;
 
+                const IMC_BADGE_CLASSES: Record<string, string> = {
+                  'Baixo peso': 'text-muted-foreground bg-muted',
+                  'Eutrófico': 'text-primary bg-primary/10',
+                  'Sobrepeso': 'text-accent-foreground bg-accent/30',
+                  'Obesidade grau I': 'text-destructive bg-destructive/10',
+                  'Obesidade grau II': 'text-destructive bg-destructive/10',
+                  'Obesidade grau III (mórbida)': 'text-destructive bg-destructive/10',
+                };
                 const imcInfo = (imc: number) => {
-                  if (imc < 18.5) return { label: 'Abaixo do peso', cls: 'text-muted-foreground bg-muted' };
-                  if (imc < 25) return { label: 'Normal', cls: 'text-primary bg-primary/10' };
-                  if (imc < 30) return { label: 'Sobrepeso', cls: 'text-accent-foreground bg-accent/30' };
-                  return { label: 'Obesidade', cls: 'text-destructive bg-destructive/10' };
+                  const label = classifyImc(imc);
+                  return { label, cls: IMC_BADGE_CLASSES[label] };
                 };
 
                 const fmtDelta = (curr?: number, prevVal?: number, unit = '') => {
@@ -2872,8 +2879,9 @@ export const PatientProfile = () => {
 
                 const imc = imcInfo(latest.imc);
                 const h = latest.height;
-                const idealMin = h ? (18.5 * h * h).toFixed(1) : null;
-                const idealMax = h ? (24.9 * h * h).toFixed(1) : null;
+                const idealRange = h ? idealWeightRangeByBmi(h) : null;
+                const idealMin = idealRange ? idealRange.min.toFixed(1) : null;
+                const idealMax = idealRange ? idealRange.max.toFixed(1) : null;
 
                 const cards = [
                   {
@@ -3085,13 +3093,25 @@ export const PatientProfile = () => {
 
               {/* Tabela Completa */}
               {consultations.length > 0 && (() => {
+                const IMC_TABLE_LABELS: Record<string, string> = {
+                  'Baixo peso': 'Abaixo',
+                  'Eutrófico': 'Normal',
+                  'Sobrepeso': 'Sobrepeso',
+                  'Obesidade grau I': 'Obesidade I',
+                  'Obesidade grau II': 'Obesidade II',
+                  'Obesidade grau III (mórbida)': 'Obesidade III',
+                };
+                const IMC_TABLE_CLASSES: Record<string, string> = {
+                  'Baixo peso': 'text-muted-foreground',
+                  'Eutrófico': 'text-primary',
+                  'Sobrepeso': 'text-accent-foreground',
+                  'Obesidade grau I': 'text-destructive',
+                  'Obesidade grau II': 'text-destructive',
+                  'Obesidade grau III (mórbida)': 'text-destructive',
+                };
                 const imcLabel = (imc: number) => {
-                  if (imc < 18.5) return { text: 'Abaixo', cls: 'text-muted-foreground' };
-                  if (imc < 25) return { text: 'Normal', cls: 'text-primary' };
-                  if (imc < 30) return { text: 'Sobrepeso', cls: 'text-accent-foreground' };
-                  if (imc < 35) return { text: 'Obesidade I', cls: 'text-destructive' };
-                  if (imc < 40) return { text: 'Obesidade II', cls: 'text-destructive' };
-                  return { text: 'Obesidade III', cls: 'text-destructive' };
+                  const label = classifyImc(imc);
+                  return { text: IMC_TABLE_LABELS[label], cls: IMC_TABLE_CLASSES[label] };
                 };
 
                 const deltaTag = (curr?: number, prevVal?: number, unit = '') => {
