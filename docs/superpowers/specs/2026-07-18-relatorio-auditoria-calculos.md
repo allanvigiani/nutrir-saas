@@ -279,7 +279,7 @@ Um único arquivo, `src/server/services/nutrition.service.ts`, com **377 linhas*
 
 ### Depois
 
-`nutrition.service.ts` agora tem **196 linhas** e é um orquestrador fino: recebe `NutritionCalculationInput`, chama as funções puras dos 13 módulos abaixo na ordem certa, e monta `NutritionCalculationOutput` — o contrato HTTP usado pelo controller não mudou em nada. Cada fórmula agora é uma função pura, sem I/O, testável isoladamente, em `src/lib/nutrition-calculations/`:
+`nutrition.service.ts` agora tem **196 linhas** e é um orquestrador fino: recebe `NutritionCalculationInput`, chama as funções puras dos 14 módulos abaixo na ordem certa, e monta `NutritionCalculationOutput` — o contrato HTTP usado pelo controller não mudou em nada. Cada fórmula agora é uma função pura, sem I/O, testável isoladamente, em `src/lib/nutrition-calculations/`:
 
 | Arquivo | Responsabilidade |
 |---|---|
@@ -299,7 +299,7 @@ Um único arquivo, `src/server/services/nutrition.service.ts`, com **377 linhas*
 | `ajusteObjetivoCalorico.ts` | Ajuste calórico por objetivo (déficit/superávit) + bônus calórico de gestação |
 | `macronutrientes.ts` | Distribuição de proteína/carboidrato/lipídio |
 
-Cada um desses 13 arquivos (fora `types.ts`) tem um arquivo de teste correspondente em `src/tests/lib/nutrition-calculations/`, com casos de referência citando a fonte usada para conferir o valor esperado — isso é o que torna possível, daqui para frente, verificar rapidamente se uma fórmula continua batendo com a literatura sem precisar rodar o fluxo completo do sistema.
+Cada um desses 14 arquivos (fora `types.ts`) tem um arquivo de teste correspondente em `src/tests/lib/nutrition-calculations/`, com casos de referência citando a fonte usada para conferir o valor esperado — isso é o que torna possível, daqui para frente, verificar rapidamente se uma fórmula continua batendo com a literatura sem precisar rodar o fluxo completo do sistema.
 
 `PatientProfile.tsx` e `NutritionalCalculator.tsx` (frontend) passaram a importar `imc.ts` e `nivelAtividade.ts` diretamente, em vez de reimplementar essa lógica — ver Seção 5.
 
