@@ -12,6 +12,7 @@ import { Activity, Beaker, Calculator, AlertCircle, RefreshCw, Info } from 'luci
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { cn } from '../lib/utils';
 import { NutritionCalculationInput, NutritionCalculationOutput } from '../server/services/nutrition.service'; // We will import the interface
+import { NIVEL_ATIVIDADE_ADULTO, NIVEL_ATIVIDADE_PEDIATRICO } from '../lib/nutrition-calculations/nivelAtividade';
 
 // Define the interface here to avoid importing from backend directly into frontend if paths are strictly separated,
 // but since it's a monorepo structure without strict boundary, we can redefine or import.
@@ -156,8 +157,8 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
   }, [idade, idadeMeses]);
 
   useEffect(() => {
-    const valoresPediatricos = ['1.20', '1.40', '1.55', '1.75', '2.00'];
-    const valoresAdultos = ['1.2', '1.375', '1.55', '1.725'];
+    const valoresPediatricos: readonly string[] = NIVEL_ATIVIDADE_PEDIATRICO;
+    const valoresAdultos: readonly string[] = NIVEL_ATIVIDADE_ADULTO;
     if (isPediatricSchofield && !valoresPediatricos.includes(nivelAtividade)) {
       setNivelAtividade('1.40');
     } else if (!isPediatricSchofield && formulaOverride !== 'eer' && !valoresAdultos.includes(nivelAtividade)) {
