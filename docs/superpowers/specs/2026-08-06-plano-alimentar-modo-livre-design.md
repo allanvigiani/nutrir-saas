@@ -100,3 +100,13 @@ Todos os planos existentes recebem `type: 'blocks'` via default da migration —
 - Vínculo de receitas no modo Livre.
 - Alternar o tipo de um plano já criado.
 - Qualquer parsing/estruturação automática do texto colado (ex.: extrair itens automaticamente) — o texto é tratado como conteúdo opaco.
+
+---
+
+## Addendum — modal "Visualizar" (descoberto durante o planejamento)
+
+Levantamento do código durante a fase de plano revelou uma terceira superfície que renderiza o conteúdo do plano além dos dois geradores de PDF: o modal "Visualizar" em `PatientProfile.tsx` (`isViewMealPlanModalOpen`, linhas ~1867–2211, acionado por `viewMealPlan`). Ele itera `selectedMealPlan.customMeals` e `selectedMealPlanItems` para montar cards de refeição na tela — para um plano `type: 'free'` isso resultaria em uma tela vazia (sem cards, já que não há `customMeals`).
+
+Decisão: esse modal ganha o mesmo tratamento condicional por `type` que o PDF — quando `type === 'free'`, renderiza meta de água + orientações gerais + `freeTextContent` (texto corrido) no lugar da grade de cards de refeição/macros. Consistente com a decisão já tomada de manter água e orientações gerais disponíveis no modo Livre.
+
+Não afetado: os blocos com classes `print:`/`hidden print:*` dentro desse mesmo modal (linhas ~1897–2061) e o container `print-content-wrapper` oculto (linhas ~2258+) são código morto — não há nenhum `window.print()` nem trigger ativo no código atual (o botão "Imprimir PDF" chama `exportMealPlanPDF`, que usa jsPDF). Esses blocos não são tocados nesta implementação.
