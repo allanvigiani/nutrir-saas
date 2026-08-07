@@ -66,6 +66,33 @@ useEffect(() => {
 - **Auth**: The backend auth middleware validates Firebase ID tokens. Protected API routes require `Authorization: Bearer <token>`. Super-admin access is controlled by the `SUPER_ADMIN_EMAILS` env var.
 - **Firebase config**: `firebase-applet-config.json` must be valid for the target Firebase project. Google sign-in popup flow is configured in Firebase Console, not via env vars.
 
+## Vercel Deploy
+
+> Use a skill `/vercel-deploy` para validação completa. Esta seção é um resumo.
+
+O deploy na Vercel usa uma arquitetura de **pré-compilação com esbuild** — necessária porque `"type": "module"` no `package.json` é incompatível com o `@vercel/node` runtime.
+
+### Pipeline de build (`vercel-build`)
+```
+1. npx prisma generate          → Prisma Client em node_modules/.prisma/
+2. npx esbuild server-vercel.ts → Bundle do backend em api/server.mjs
+3. vite build                   → Frontend React em dist/
+```
+
+### Arquivos de deploy — não modificar sem consultar a skill
+- **`api/index.js`** — entry point da função (`.js`, não `.ts`). Contém apenas: `export { default } from './server.mjs'`
+- **`api/server.mjs`** — bundle gerado pelo esbuild. Está no `.gitignore`. **Não commitar.**
+- **`server-vercel.ts`** — código fonte do backend. Entry point do esbuild.
+- **`vercel.json`** — rewrites: `/api/*` → `api/index`, `/*` → `index.html`. `includeFiles` inclui Prisma Client.
+
+### Regras críticas
+- `pino-pretty` **não pode ser usado em produção** — usa worker threads incompatíveis com Lambda. O `logger.ts` já condiciona pelo `NODE_ENV`.
+- `JSON.parse()` em nível de módulo (sem try/catch) crasha toda a função serverless. Firebase service account já está protegido.
+- Logs de startup (`[startup] ...`) aparecem no painel **Vercel → Functions → Logs** para diagnóstico.
+
+### Env vars obrigatórias na Vercel
+`FIREBASE_SERVICE_ACCOUNT` (JSON minificado via `cat sa.json | jq -c .`), `FIREBASE_PROJECT_ID`, `DATABASE_URL`, `ENCRYPTION_KEY`.
+
 ## Testing
 
 Tests live in `src/tests/`. Coverage targets `src/server/**/*.ts` (business logic services/controllers). The `src/tests/setup.ts` file configures the test environment. Write tests with `describe` + `it`; use helper functions to generate base input fixtures.

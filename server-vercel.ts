@@ -1,14 +1,14 @@
 import express from "express";
-import { createRequire } from "module";
 import admin from "firebase-admin";
 import { google } from "googleapis";
-import { registerApiRoutes } from "../src/server/register-api-routes.ts";
-import { createAuthenticateMiddleware, requirePremiumOrAdmin } from "../src/server/middlewares/auth.ts";
-import { createSubscriptionExpiryMiddleware } from "../src/server/middlewares/subscription-expiry.ts";
-import { logger } from "../src/server/logger.ts";
+import { registerApiRoutes } from "./src/server/register-api-routes";
+import { createAuthenticateMiddleware, requirePremiumOrAdmin } from "./src/server/middlewares/auth";
+import { createSubscriptionExpiryMiddleware } from "./src/server/middlewares/subscription-expiry";
+import { logger } from "./src/server/logger";
 
-const require = createRequire(import.meta.url);
-const firebaseConfig = require("../firebase-applet-config.json");
+console.log("[startup] server-vercel.ts iniciando...");
+
+const FIREBASE_PROJECT_ID = process.env.FIREBASE_PROJECT_ID || "ai-studio-applet-webapp-667b6";
 
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY || "";
 const ASAAS_API_URL = process.env.ASAAS_API_URL || "https://sandbox.asaas.com/api/v3";
@@ -26,17 +26,38 @@ function isSuperAdmin(user: { email?: string | null }) {
   return email.length > 0 && SUPER_ADMIN_EMAILS.includes(email);
 }
 
-if (!admin.apps.length) {
-  const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT
-    ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT)
-    : null;
+console.log("[startup] env check:", {
+  FIREBASE_PROJECT_ID: !!process.env.FIREBASE_PROJECT_ID,
+  FIREBASE_SERVICE_ACCOUNT: !!process.env.FIREBASE_SERVICE_ACCOUNT,
+  DATABASE_URL: !!process.env.DATABASE_URL,
+  ENCRYPTION_KEY: !!process.env.ENCRYPTION_KEY,
+  NODE_ENV: process.env.NODE_ENV,
+});
 
-  admin.initializeApp({
-    credential: serviceAccount
-      ? admin.credential.cert(serviceAccount)
-      : admin.credential.applicationDefault(),
-    projectId: firebaseConfig.projectId,
-  });
+if (!admin.apps.length) {
+  let serviceAccount: object | null = null;
+  if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+    try {
+      serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+      console.log("[startup] Firebase: service account carregado OK");
+    } catch (e) {
+      console.error("[startup] Firebase: FIREBASE_SERVICE_ACCOUNT não é JSON válido:", e);
+    }
+  } else {
+    console.warn("[startup] Firebase: FIREBASE_SERVICE_ACCOUNT não configurada — usando applicationDefault()");
+  }
+
+  try {
+    admin.initializeApp({
+      credential: serviceAccount
+        ? admin.credential.cert(serviceAccount as admin.ServiceAccount)
+        : admin.credential.applicationDefault(),
+      projectId: FIREBASE_PROJECT_ID,
+    });
+    console.log("[startup] Firebase Admin inicializado OK");
+  } catch (e) {
+    console.error("[startup] Firebase Admin falhou ao inicializar:", e);
+  }
 }
 
 const app = express();
@@ -80,6 +101,7 @@ async function authenticate(req: any, res: any, next: any): Promise<void> {
     .catch((err) => next(err));
 }
 
+console.log("[startup] registrando rotas...");
 registerApiRoutes({
   app,
   authenticate,
@@ -93,6 +115,8 @@ registerApiRoutes({
   asaasApiKey: ASAAS_API_KEY,
   asaasWebhookToken: ASAAS_WEBHOOK_TOKEN,
 });
+
+console.log("[startup] servidor pronto ✓");
 
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   logger.error("Erro não tratado na rota", err, { path: req.path });

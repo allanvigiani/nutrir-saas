@@ -21,8 +21,10 @@ import {
   Calendar,
   AlertCircle,
   RefreshCw,
-  ShieldCheck
+  ShieldCheck,
+  Settings2
 } from 'lucide-react';
+import { PageHeader } from '../components/PageHeader';
 import { 
   Card, 
   CardContent, 
@@ -81,7 +83,7 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 
 export const Settings = () => {
-  const { nutritionist, user } = useAuth();
+  const { nutritionist, user, reloadNutritionist } = useAuth();
   const isPremiumOrAdmin = isAdminOrPremium(nutritionist);
   const [searchParams] = useSearchParams();
   const { 
@@ -281,11 +283,11 @@ export const Settings = () => {
   };
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
+    const handleMessage = async (event: MessageEvent) => {
       if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
-        toast.success('Google Agenda conectado com sucesso!');
-        // Refresh nutritionist data if needed, or just let the snapshot handle it
         setIsConnectingGoogle(false);
+        await reloadNutritionist();
+        toast.success('Google Agenda conectado com sucesso!');
       }
     };
     window.addEventListener('message', handleMessage);
@@ -325,6 +327,7 @@ export const Settings = () => {
         googleCalendarConnected: false,
         googleCalendarTokens: null,
       });
+      await reloadNutritionist();
       toast.success('Google Agenda desconectado.', { id: toastId });
     } catch (error) {
       console.error("Error disconnecting Google:", error);
@@ -421,16 +424,21 @@ export const Settings = () => {
     }
   };
 
-  const filteredFoods = customFoods.filter(food => 
-    food.name.toLowerCase().includes(foodSearch.toLowerCase())
-  );
+  const filteredFoods = customFoods.filter(food => {
+    const normalize = (s: string) =>
+      s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+    const terms = normalize(foodSearch).split(/\s+/).filter(Boolean);
+    const normalized = normalize(food.name);
+    return terms.every(term => normalized.includes(term));
+  });
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold text-foreground tracking-tight">Configurações</h1>
-        <p className="text-muted-foreground">Gerencie seu perfil e preferências do sistema.</p>
-      </div>
+      <PageHeader
+        icon={Settings2}
+        title="Configurações"
+        description="Gerencie seu perfil e preferências do sistema."
+      />
 
       <Tabs defaultValue={defaultTab} className="w-full">
         <TabsList className="flex w-full items-center justify-start gap-2 bg-transparent border-b border-border p-0 rounded-none h-auto mb-8 overflow-x-auto">
@@ -671,7 +679,11 @@ export const Settings = () => {
                             {food.baseQuantity}{food.baseUnit}
                           </td>
                           <td className="px-4 py-4 text-center text-muted-foreground">
-                            {food.serving ? `1 ${food.serving.name} (${food.serving.weight}g)` : '-'}
+                            {food.serving
+                              ? Array.isArray(food.serving)
+                                ? food.serving.map((s) => `${s.name} (${s.weight}g)`).join(', ')
+                                : `1 ${food.serving.name} (${food.serving.weight}g)`
+                              : '-'}
                           </td>
                           <td className="px-4 py-4 text-center font-medium text-muted-foreground">
                             {food.kcal}

@@ -2,17 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Patient, MealPlan, MealPlanItem, NutritionCalculation } from '../types';
-import { MealPlanEditor } from '../components/MealPlanEditor';
+import { MealPlanEditor, MealType } from '../components/MealPlanEditor';
+import { ReceitasVinculadasPanel } from '../components/ReceitasVinculadasPanel';
 import { toast } from 'sonner';
 import { logEvent } from '../lib/firebase';
 import { apiRequest } from '../hooks/useApi';
 import { Loader2 } from 'lucide-react';
+import { generateMealPlanPDF } from '../lib/meal-plan-pdf';
+import { format } from 'date-fns';
 
 export function MealPlanEdit() {
   const { patientId, planId } = useParams<{ patientId: string; planId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, nutritionist } = useAuth();
   
   const [loading, setLoading] = useState(true);
   const [patient, setPatient] = useState<Patient | null>(null);
@@ -22,6 +25,15 @@ export function MealPlanEdit() {
 
   // Get calculation from location state if we're creating from one
   const stateCalculation = location.state?.calculation as NutritionCalculation | undefined;
+
+  // Plano copiado de consulta anterior (deep clone enviado por PatientProfile)
+  const copiedMealPlan = location.state?.copiedMealPlan as {
+    generalInstructions: string;
+    waterIntake: string;
+    mealObservations: Record<string, string>;
+    customMeals: MealType[];
+    items: MealPlanItem[];
+  } | undefined;
 
   useEffect(() => {
     async function fetchData() {
@@ -46,7 +58,20 @@ export function MealPlanEdit() {
           if (planData) {
             const { items, ...plan } = planData;
             setMealPlan(plan as MealPlan);
-            setMealItems(items || []);
+            // Ordena por meal e depois por position para respeitar a ordem salva
+            const sortedItems = (items || []).slice().sort((a: any, b: any) => {
+              if (a.meal < b.meal) return -1;
+              if (a.meal > b.meal) return 1;
+              return (a.position ?? 0) - (b.position ?? 0);
+            });
+            setMealItems(sortedItems);
+
+            // Busca o cálculo nutricional vinculado para exibir as metas de macros
+            if (planData.calculation_id) {
+              const calcs = await apiRequest<NutritionCalculation[]>(`/api/patients/${patientId}/calculations`, 'GET');
+              const linked = calcs?.find(c => c.id === planData.calculation_id) ?? null;
+              setCalculation(linked);
+            }
           }
         } else if (stateCalculation) {
           setCalculation(stateCalculation);
@@ -88,9 +113,15 @@ export function MealPlanEdit() {
         calculation_id: stateCalculation?.id || mealPlan?.calculation_id || null,
       };
 
-      const cleanItems = data.items.map(({ id: _id, ...item }: any) => {
+      // Calcula position relativo ao grupo (meal) antes de limpar os itens
+      const mealPositionCounters: Record<string, number> = {};
+      const cleanItems = data.items.map(({ id: _id, position: _pos, ...item }: any) => {
+        const mealId = item.meal as string;
+        if (mealPositionCounters[mealId] === undefined) mealPositionCounters[mealId] = 0;
+        const position = mealPositionCounters[mealId]++;
         const clean: Record<string, any> = {};
         Object.entries(item).forEach(([k, v]) => { clean[k] = v === undefined ? null : v; });
+        clean.position = position;
         return clean;
       });
 
@@ -111,12 +142,31 @@ export function MealPlanEdit() {
 
       void logEvent(planId && planId !== 'new' ? 'plano_alimentar_atualizado' : 'novo_plano_alimentar');
       toast.success(planId && planId !== 'new' ? "Plano alimentar atualizado!" : "Plano alimentar criado!");
-      navigate(`/patients/${patientId}`);
+      setMealPlan(prev => ({ ...(prev as MealPlan), ...planPayload }));
+      setMealItems(data.items);
+      if ((!planId || planId === 'new') && currentPlanId) {
+        navigate(`/patients/${patientId}/meal-plan/${currentPlanId}`, { replace: true });
+      }
       return true;
     } catch (error) {
       console.error("Error saving meal plan:", error);
       toast.error("Não foi possível salvar o plano alimentar. Verifique sua conexão e tente novamente.");
       return false;
+    }
+  };
+
+  const handlePrint = async () => {
+    if (!mealPlan || !patient || !planId || planId === 'new') return;
+    const toastId = toast.loading('Gerando PDF do plano alimentar...');
+    try {
+      const receitasVinculadas = await apiRequest<any[]>(`/api/meal-plans/${planId}/recipes`, 'GET') ?? [];
+      const doc = generateMealPlanPDF(mealPlan, mealItems as MealPlanItem[], patient.name, nutritionist, receitasVinculadas);
+      doc.save(`Plano_Alimentar_${patient.name.replace(/\s+/g, '_')}_${format(new Date(), 'ddMMyyyy')}.pdf`);
+      void logEvent('exportar_pdf_plano_alimentar');
+      toast.success('PDF gerado com sucesso!', { id: toastId });
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Erro ao gerar PDF.', { id: toastId });
     }
   };
 
@@ -139,26 +189,47 @@ export function MealPlanEdit() {
     );
   }
 
-  const safeCustomMeals = Array.isArray(mealPlan?.customMeals) ? mealPlan.customMeals : [];
+  const safeCustomMeals = (Array.isArray(mealPlan?.customMeals) ? mealPlan.customMeals : []) as import('../components/MealPlanEditor').MealType[];
   const safeMealObservations = (mealPlan?.mealObservations && typeof mealPlan.mealObservations === 'object' && !Array.isArray(mealPlan.mealObservations))
     ? mealPlan.mealObservations as Record<string, string>
     : {};
 
+  // Tipos de refeição para o painel de receitas vinculadas
+  const mealTypesForPanel = safeCustomMeals.length > 0
+    ? safeCustomMeals.map((m: any) => ({ id: m.id, label: m.label || m.id }))
+    : [];
+
+  // Chave de rascunho: edit:{planId} ou new:{patientId}
+  const draftKey = planId && planId !== 'new'
+    ? `nutrir:draft:mealplan:edit:${planId}`
+    : patientId
+    ? `nutrir:draft:mealplan:new:${patientId}`
+    : 'nutrir:draft:mealplan:new';
+
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen overflow-hidden">
       <MealPlanEditor
-        initialName={mealPlan?.name || (calculation ? `Plano - ${calculation.result.getAjustado} kcal` : '')}
-        initialItems={mealItems}
-        initialGeneralInstructions={mealPlan?.generalInstructions || ''}
-        initialWaterIntake={mealPlan?.waterIntake || ''}
-        initialMealObservations={safeMealObservations}
-        initialCustomMeals={safeCustomMeals}
+        initialName={copiedMealPlan ? '' : (mealPlan?.name || (calculation ? `Plano - ${calculation.result.getAjustado} kcal` : ''))}
+        initialItems={copiedMealPlan ? copiedMealPlan.items : mealItems}
+        initialGeneralInstructions={copiedMealPlan ? copiedMealPlan.generalInstructions : (mealPlan?.generalInstructions || '')}
+        initialWaterIntake={copiedMealPlan ? copiedMealPlan.waterIntake : (mealPlan?.waterIntake || '')}
+        initialMealObservations={copiedMealPlan ? copiedMealPlan.mealObservations : safeMealObservations}
+        initialCustomMeals={copiedMealPlan ? copiedMealPlan.customMeals : safeCustomMeals}
         selectedCalculation={calculation}
         foodDataSource="Todas"
         isNew={!planId || planId === 'new'}
+        draftKey={draftKey}
         onSave={handleSave}
+        onPrint={planId && planId !== 'new' ? handlePrint : undefined}
         onClose={() => navigate(`/patients/${patientId}`)}
-      />
+      >
+        {planId && planId !== 'new' && (
+          <ReceitasVinculadasPanel
+            planId={planId}
+            mealTypes={mealTypesForPanel}
+          />
+        )}
+      </MealPlanEditor>
     </div>
   );
 }

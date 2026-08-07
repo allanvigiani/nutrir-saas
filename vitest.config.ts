@@ -11,7 +11,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
-      include: ['src/server/**/*.ts'],
+      include: ['src/server/**/*.ts', 'src/lib/nutrition-calculations/**/*.ts'],
       exclude: [
         'src/server/register-api-routes.ts', // apenas glue code
         'src/server/firestore-helpers.ts',    // integração com Firebase (não testamos aqui)

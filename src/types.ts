@@ -108,6 +108,8 @@ export interface MealPlanItem {
   food: string;
   quantity: string;
   unit: string;
+  weight_in_grams?: number;
+  position?: number;
   kcal?: number;
   protein?: number;
   carbs?: number;
@@ -121,6 +123,11 @@ export interface MealPlanItem {
   serving_weight?: number;
 }
 
+export interface CustomFoodServing {
+  name: string;
+  weight: number;
+}
+
 export interface CustomFood {
   id: string;
   nutritionist_id: string;
@@ -131,10 +138,8 @@ export interface CustomFood {
   fat: number;
   baseUnit: string;
   baseQuantity: number;
-  serving?: {
-    name: string;
-    weight: number;
-  };
+  /** Medidas caseiras — pode ser objeto único (legado) ou array (novo formato) */
+  serving?: CustomFoodServing | CustomFoodServing[];
 }
 
 export interface LabExamMarker {

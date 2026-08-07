@@ -8,6 +8,7 @@ export interface FoodServing {
 export interface TbcaFood {
   id: string;
   name: string;
+  category?: string;
   kcal: number;
   protein: number;
   carbs: number;
@@ -20,6 +21,7 @@ export interface TbcaFood {
 interface TabelaAlimento {
   id: string | number;
   description: string;
+  category?: string;
   energy_kcal: number;
   protein_g: number;
   carbohydrate_g: number;
@@ -46,6 +48,7 @@ export const tbcaData: TbcaFood[] = rawFoods.map((food) => {
   return {
     id: String(food.id),
     name: food.description,
+    category: food.category,
     kcal: Number(food.energy_kcal ?? 0),
     protein: Number(food.protein_g ?? 0),
     carbs: Number(food.carbohydrate_g ?? 0),

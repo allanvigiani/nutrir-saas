@@ -49,6 +49,7 @@ import { toast } from 'sonner';
 import { logEvent } from '../lib/firebase';
 import { PremiumFeature } from '../components/PremiumFeature';
 import { PremiumBanner } from '../components/PremiumBanner';
+import { PageHeader } from '../components/PageHeader';
 import { maskCPF, maskPhone } from '../lib/masks';
 import { Skeleton } from '../components/ui/skeleton';
 
@@ -62,10 +63,10 @@ const patientSchema = z.object({
     return birthDate <= today;
   }, 'Data de nascimento não pode ser no futuro'),
   gender: z.enum(['male', 'female', 'other']),
-  cpf: z.string().min(11, 'CPF inválido').transform((val) => val.replace(/\D/g, '')).refine((val) => val.length === 11, 'O CPF deve conter 11 dígitos'),
-  phone: z.string().min(10, 'Telefone inválido').transform((val) => val.replace(/\D/g, '')).refine((val) => val.length >= 10, 'Telefone deve conter pelo menos 10 dígitos'),
-  email: z.string().email('E-mail inválido'),
-  address: z.string().min(5, 'Endereço é obrigatório'),
+  cpf: z.string().optional().transform((val) => val?.replace(/\D/g, '') ?? '').refine((val) => val === '' || val.length === 11, 'O CPF deve conter 11 dígitos'),
+  phone: z.string().optional().transform((val) => val?.replace(/\D/g, '') ?? '').refine((val) => val === '' || val.length >= 10, 'Telefone deve conter pelo menos 10 dígitos'),
+  email: z.string().optional().refine((val) => !val || z.string().email().safeParse(val).success, 'E-mail inválido'),
+  address: z.string().optional(),
   objective: z.string().min(3, 'Objetivo é obrigatório'),
   activityLevel: z.string().min(3, 'Nível de atividade é obrigatório'),
   diseases: z.string().optional(),
@@ -219,13 +220,13 @@ export const Patients = () => {
     }
 
     try {
-      const cpfExists = patients.some(p => p.cpf === data.cpf && p.id !== editingPatient?.id);
+      const cpfExists = data.cpf && patients.some(p => p.cpf === data.cpf && p.id !== editingPatient?.id);
       if (cpfExists) {
         toast.error('Já existe um paciente cadastrado com este CPF.');
         return;
       }
 
-      const emailExists = patients.some(p => p.email === data.email && p.id !== editingPatient?.id);
+      const emailExists = data.email && patients.some(p => p.email === data.email && p.id !== editingPatient?.id);
       if (emailExists) {
         toast.error('Já existe um paciente cadastrado com este e-mail.');
         return;
@@ -307,28 +308,23 @@ export const Patients = () => {
       )}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight text-balance">Pacientes</h1>
-          {!loading && (
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {patients.length} {patients.length === 1 ? 'paciente cadastrado' : 'pacientes cadastrados'}
-            </p>
-          )}
-        </div>
-
-        <Dialog open={isModalOpen} onOpenChange={(open) => {
-          setIsModalOpen(open);
-          if (!open) setEditingPatient(null);
-        }}>
-          <PremiumFeature active={isLimitReached}>
-            <DialogTrigger
-              render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-9 px-4 gap-2 font-medium text-sm transition-all active:scale-95" onClick={openNewModal} />}
-              nativeButton={true}
-            >
-              <UserPlus className="w-4 h-4" aria-hidden="true" /> Novo Paciente
-            </DialogTrigger>
-          </PremiumFeature>
+      <PageHeader
+        icon={Users}
+        title="Pacientes"
+        description={!loading ? `${patients.length} ${patients.length === 1 ? 'paciente cadastrado' : 'pacientes cadastrados'}` : undefined}
+        action={
+          <Dialog open={isModalOpen} onOpenChange={(open) => {
+            setIsModalOpen(open);
+            if (!open) setEditingPatient(null);
+          }}>
+            <PremiumFeature active={isLimitReached}>
+              <DialogTrigger
+                render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-9 px-4 gap-2 font-medium text-sm transition-all active:scale-95" onClick={openNewModal} />}
+                nativeButton={true}
+              >
+                <UserPlus className="w-4 h-4" aria-hidden="true" /> Novo Paciente
+              </DialogTrigger>
+            </PremiumFeature>
 
           <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-4xl max-h-[90vh] overflow-y-auto rounded-2xl border-none shadow-2xl p-4">
             <DialogHeader className="mb-4">
@@ -459,8 +455,9 @@ export const Patients = () => {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
-      </div>
+          </Dialog>
+        }
+      />
 
       {!isPremium && isLimitReached && (
         <PremiumBanner
@@ -544,7 +541,7 @@ export const Patients = () => {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{patient.cpf || '—'}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{patient.cpf || <span className="italic">Não informado</span>}</p>
                       </div>
                     </div>
                     {/* Delete action: visible on hover AND on keyboard focus within the card */}
@@ -564,11 +561,11 @@ export const Patients = () => {
                   <div className="space-y-1.5 mb-4 pl-0.5">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Mail className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                      <span className="truncate">{patient.email}</span>
+                      <span className="truncate">{patient.email || <span className="italic">Não informado</span>}</span>
                     </div>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <Phone className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
-                      <span>{patient.phone || '—'}</span>
+                      <span>{patient.phone || <span className="italic">Não informado</span>}</span>
                     </div>
                     {patient.objective && (
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">

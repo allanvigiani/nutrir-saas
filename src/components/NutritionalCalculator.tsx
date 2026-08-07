@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { differenceInMonths } from 'date-fns';
 import { Card, CardContent, CardHeader } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -11,6 +12,7 @@ import { Activity, Beaker, Calculator, AlertCircle, RefreshCw, Info } from 'luci
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { cn } from '../lib/utils';
 import { NutritionCalculationInput, NutritionCalculationOutput } from '../server/services/nutrition.service'; // We will import the interface
+import { NIVEL_ATIVIDADE_ADULTO, NIVEL_ATIVIDADE_PEDIATRICO } from '../lib/nutrition-calculations/nivelAtividade';
 
 // Define the interface here to avoid importing from backend directly into frontend if paths are strictly separated,
 // but since it's a monorepo structure without strict boundary, we can redefine or import.
@@ -19,10 +21,9 @@ interface CalculatorProps {
   latestConsultation?: Consultation;
   existingCalculation?: { id: string; input: any; result: any } | null;
   onSaveCalculation?: (input: NutritionCalculationInput, result: NutritionCalculationOutput, name: string) => Promise<void>;
-  onCreateMealPlan?: (input: NutritionCalculationInput, result: NutritionCalculationOutput) => void;
 }
 
-export const NutritionalCalculator = ({ patient, latestConsultation, existingCalculation, onSaveCalculation, onCreateMealPlan }: CalculatorProps) => {
+export const NutritionalCalculator = ({ patient, latestConsultation, existingCalculation, onSaveCalculation }: CalculatorProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<NutritionCalculationOutput | null>(existingCalculation?.result ?? null);
@@ -35,15 +36,26 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
 
   // Form State — pré-populado com cálculo existente quando disponível
   const [peso, setPeso] = useState<string>(ex?.peso?.toString() || latestConsultation?.weight?.toString() || '');
-  const [altura, setAltura] = useState<string>(ex?.altura?.toString() || latestConsultation?.height?.toString() || '');
+  const metersToAlturaDisplay = (v: number) => Math.round(v * 100).toString();
+  const [altura, setAltura] = useState<string>(
+    ex?.altura ? metersToAlturaDisplay(ex.altura) :
+    latestConsultation?.height ? latestConsultation.height.toString() : ''
+  );
   const [idade, setIdade] = useState<string>(
     ex?.idade?.toString() ||
     (patient.birthDate ? Math.floor((new Date().getTime() - new Date(patient.birthDate).getTime()) / 31557600000).toString() : '')
+  );
+  const [idadeMeses, setIdadeMeses] = useState<string>(
+    ex?.idadeMeses?.toString() ||
+    (patient.birthDate && differenceInMonths(new Date(), new Date(patient.birthDate)) < 36
+      ? differenceInMonths(new Date(), new Date(patient.birthDate)).toString()
+      : '')
   );
   const [sexo, setSexo] = useState<'masculino' | 'feminino'>(
     ex?.sexo || (patient.gender === 'female' ? 'feminino' : 'masculino')
   );
   const [nivelAtividade, setNivelAtividade] = useState<string>(ex?.nivelAtividade?.toString() || '1.2');
+  const [categoriaAtividadeEER, setCategoriaAtividadeEER] = useState<string>(ex?.categoriaAtividadeEER || 'sedentario');
   const [objetivo, setObjetivo] = useState<string>(ex?.objetivo || 'manutencao');
   const [condicoesClinicas, setCondicoesClinicas] = useState<string[]>(ex?.condicoesClinicas || []);
   const [formulaOverride, setFormulaOverride] = useState<string>(ex?.formulaOverride || '');
@@ -72,6 +84,13 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                      (percentualCho ? parseFloat(percentualCho) : 0);
   const isPercentError = sumPercent > 100;
 
+  const idadeNum = idade ? parseInt(idade) : null;
+  const idadeMesesNum = idadeMeses ? parseInt(idadeMeses) : null;
+  const isSchofieldEligible = idadeNum !== null;
+  const isEerEligible = idadeNum !== null && (idadeNum >= 3 || (idadeMesesNum !== null && idadeMesesNum >= 0 && idadeMesesNum <= 35));
+  const isPediatricSchofield = formulaOverride === 'schofield' && idadeNum !== null && idadeNum <= 18;
+  const isLactenteEER = formulaOverride === 'eer' && idadeMesesNum !== null && idadeMesesNum >= 0 && idadeMesesNum <= 35;
+
   const handleCalculate = async () => {
     if (!peso || !altura || !idade || isPercentError) return;
 
@@ -86,13 +105,15 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
         },
         body: JSON.stringify({
           peso: parseFloat(peso),
-          altura: parseFloat(altura) > 3 ? parseFloat(altura) / 100 : parseFloat(altura), // handle cm vs m
+          altura: parseFloat(altura) / 100,
           idade: parseInt(idade),
+          idadeMeses: idadeMeses ? parseInt(idadeMeses) : undefined,
           sexo,
           nivelAtividade: parseFloat(nivelAtividade),
           objetivo,
           condicoesClinicas,
           formulaOverride: formulaOverride || undefined,
+          categoriaAtividadeEER: formulaOverride === 'eer' ? categoriaAtividadeEER : undefined,
           ajusteObjetivoValor: ajusteObjetivoValor ? parseFloat(ajusteObjetivoValor) : undefined,
           percentualLip: percentualLip ? parseFloat(percentualLip) : undefined,
           percentualPtn: percentualPtn ? parseFloat(percentualPtn) : undefined,
@@ -121,7 +142,29 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
       const timeoutId = setTimeout(() => handleCalculate(), 500);
       return () => clearTimeout(timeoutId);
     }
-  }, [peso, altura, idade, sexo, nivelAtividade, objetivo, condicoesClinicas, formulaOverride, ajusteObjetivoValor, percentualLip, percentualPtn, percentualCho, trimestreGestacao]);
+  }, [peso, altura, idade, idadeMeses, sexo, nivelAtividade, objetivo, condicoesClinicas, formulaOverride, categoriaAtividadeEER, ajusteObjetivoValor, percentualLip, percentualPtn, percentualCho, trimestreGestacao]);
+
+  useEffect(() => {
+    const idadeNum = idade ? parseInt(idade) : null;
+    const idadeMesesNum = idadeMeses ? parseInt(idadeMeses) : null;
+    if (idadeNum !== null && idadeNum >= 3 && idadeMeses) {
+      setIdadeMeses('');
+    }
+    const eerEligible = idadeNum !== null && (idadeNum >= 3 || (idadeMesesNum !== null && idadeMesesNum >= 0 && idadeMesesNum <= 35));
+    if (formulaOverride === 'eer' && !eerEligible) {
+      setFormulaOverride('');
+    }
+  }, [idade, idadeMeses]);
+
+  useEffect(() => {
+    const valoresPediatricos: readonly string[] = NIVEL_ATIVIDADE_PEDIATRICO;
+    const valoresAdultos: readonly string[] = NIVEL_ATIVIDADE_ADULTO;
+    if (isPediatricSchofield && !valoresPediatricos.includes(nivelAtividade)) {
+      setNivelAtividade('1.40');
+    } else if (!isPediatricSchofield && formulaOverride !== 'eer' && !valoresAdultos.includes(nivelAtividade)) {
+      setNivelAtividade('1.2');
+    }
+  }, [isPediatricSchofield]);
 
   const handleSave = async () => {
     if (!onSaveCalculation || !result || !latestConsultation) {
@@ -138,13 +181,15 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
     try {
       const input: NutritionCalculationInput = {
         peso: parseFloat(peso),
-        altura: parseFloat(altura) > 3 ? parseFloat(altura) / 100 : parseFloat(altura),
+        altura: parseFloat(altura) / 100,
         idade: parseInt(idade),
+        idadeMeses: idadeMeses ? parseInt(idadeMeses) : null,
         sexo,
         nivelAtividade: parseFloat(nivelAtividade),
         objetivo: objetivo as any,
         condicoesClinicas,
         formulaOverride: formulaOverride as any || null,
+        categoriaAtividadeEER: formulaOverride === 'eer' ? (categoriaAtividadeEER as any) : null,
         ajusteObjetivoValor: ajusteObjetivoValor ? parseFloat(ajusteObjetivoValor) : null,
         percentualLip: percentualLip ? parseFloat(percentualLip) : null,
         percentualPtn: percentualPtn ? parseFloat(percentualPtn) : null,
@@ -203,13 +248,13 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                       <Info className="w-3.5 h-3.5" />
                     </TooltipTrigger>
                     <TooltipContent side="top">
-                      Aceita metros (ex: 1,70) ou centímetros (ex: 170) — a conversão é automática.
+                      Informe a altura em centímetros (ex: 170).
                     </TooltipContent>
                   </Tooltip>
                 </div>
                 <div className="relative">
-                  <Input type="number" step="0.01" value={altura} onChange={e => setAltura(e.target.value)} className="pr-8" />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">m</span>
+                  <Input type="number" step="1" value={altura} onChange={e => setAltura(e.target.value)} className="pr-10" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">cm</span>
                 </div>
               </div>
             </div>
@@ -239,24 +284,90 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
               </div>
             </div>
 
+            {idadeNum !== null && idadeNum < 3 && (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1">
+                  <Label>Idade em meses</Label>
+                  <Tooltip>
+                    <TooltipTrigger className="text-muted-foreground hover:text-foreground transition-colors" aria-label="Sobre idade em meses">
+                      <Info className="w-3.5 h-3.5" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-[260px]">
+                      Usado pela fórmula EER/DRI para lactentes (0 a 35 meses). Opcional para as demais fórmulas.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="relative">
+                  <Input type="number" min={0} max={35} value={idadeMeses} onChange={e => setIdadeMeses(e.target.value)} className="pr-14" />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground pointer-events-none select-none">meses</span>
+                </div>
+              </div>
+            )}
+
             <div className="space-y-2">
-              <Label>Nível de Atividade Física</Label>
-              <Select value={nivelAtividade} onValueChange={setNivelAtividade}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione">
-                    {nivelAtividade === '1.2' ? 'Sedentário (1.2)' :
-                     nivelAtividade === '1.375' ? 'Leve (1.375)' :
-                     nivelAtividade === '1.55' ? 'Moderado (1.55)' :
-                     nivelAtividade === '1.725' ? 'Intenso (1.725)' : undefined}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1.2">Sedentário (1.2)</SelectItem>
-                  <SelectItem value="1.375">Leve (1.375)</SelectItem>
-                  <SelectItem value="1.55">Moderado (1.55)</SelectItem>
-                  <SelectItem value="1.725">Intenso (1.725)</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label>
+                {isLactenteEER ? 'Atividade (EER/DRI Lactente)' :
+                 formulaOverride === 'eer' ? 'Categoria de Atividade (EER/DRI)' :
+                 isPediatricSchofield ? 'Fator de Atividade (Schofield Pediátrico)' : 'Nível de Atividade Física'}
+              </Label>
+              {isLactenteEER ? (
+                <p className="text-xs text-muted-foreground border border-dashed border-border rounded-md px-3 py-2">
+                  A fórmula EER/DRI para lactentes (0 a 35 meses) não usa fator de atividade — o cálculo considera apenas o peso.
+                </p>
+              ) : formulaOverride === 'eer' ? (
+                <Select value={categoriaAtividadeEER} onValueChange={setCategoriaAtividadeEER}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione">
+                      {categoriaAtividadeEER === 'sedentario' ? 'Sedentário' :
+                       categoriaAtividadeEER === 'pouco_ativo' ? 'Pouco ativo' :
+                       categoriaAtividadeEER === 'ativo' ? 'Ativo' :
+                       categoriaAtividadeEER === 'muito_ativo' ? 'Muito ativo' : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sedentario">Sedentário</SelectItem>
+                    <SelectItem value="pouco_ativo">Pouco ativo</SelectItem>
+                    <SelectItem value="ativo">Ativo</SelectItem>
+                    <SelectItem value="muito_ativo">Muito ativo</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : isPediatricSchofield ? (
+                <Select value={nivelAtividade} onValueChange={setNivelAtividade}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione">
+                      {nivelAtividade === '1.20' ? 'Repouso/acamado (1.20)' :
+                       nivelAtividade === '1.40' ? 'Sedentário (1.40)' :
+                       nivelAtividade === '1.55' ? 'Levemente ativo (1.55)' :
+                       nivelAtividade === '1.75' ? 'Moderadamente ativo (1.75)' :
+                       nivelAtividade === '2.00' ? 'Muito ativo (2.00)' : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1.20">Repouso/acamado (1.20)</SelectItem>
+                    <SelectItem value="1.40">Sedentário (1.40)</SelectItem>
+                    <SelectItem value="1.55">Levemente ativo (1.55)</SelectItem>
+                    <SelectItem value="1.75">Moderadamente ativo (1.75)</SelectItem>
+                    <SelectItem value="2.00">Muito ativo (2.00)</SelectItem>
+                  </SelectContent>
+                </Select>
+              ) : (
+                <Select value={nivelAtividade} onValueChange={setNivelAtividade}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione">
+                      {nivelAtividade === '1.2' ? 'Sedentário (1.2)' :
+                       nivelAtividade === '1.375' ? 'Leve (1.375)' :
+                       nivelAtividade === '1.55' ? 'Moderado (1.55)' :
+                       nivelAtividade === '1.725' ? 'Intenso (1.725)' : undefined}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1.2">Sedentário (1.2)</SelectItem>
+                    <SelectItem value="1.375">Leve (1.375)</SelectItem>
+                    <SelectItem value="1.55">Moderado (1.55)</SelectItem>
+                    <SelectItem value="1.725">Intenso (1.725)</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -281,11 +392,14 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
             
             {(objetivo === 'emagrecimento' || objetivo === 'hipertrofia') && (
               <div className="space-y-1.5">
-                <Label>Ajuste Calórico Específico (opcional)</Label>
+                <Label>
+                  {objetivo === 'emagrecimento' ? 'Reduzir o GET em até (opcional)' : 'Aumentar o GET em até (opcional)'}
+                </Label>
                 <div className="relative">
                   <Input
                     type="number"
-                    placeholder={objetivo === 'emagrecimento' ? "-400" : "+400"}
+                    min={0}
+                    placeholder="400"
                     value={ajusteObjetivoValor}
                     onChange={e => setAjusteObjetivoValor(e.target.value)}
                     className="pr-12"
@@ -399,7 +513,9 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                          formulaOverride === 'mifflin' ? 'Mifflin-St Jeor' :
                          formulaOverride === 'harris' ? 'Harris-Benedict' :
                          formulaOverride === 'oms' ? 'OMS/FAO' :
-                         formulaOverride === 'kcal_kg' ? 'Kcal/kg' : undefined}
+                         formulaOverride === 'kcal_kg' ? 'Kcal/kg' :
+                         formulaOverride === 'schofield' ? 'Schofield (peso + altura)' :
+                         formulaOverride === 'eer' ? 'EER/DRI (IOM)' : undefined}
                       </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
@@ -408,6 +524,8 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                       <SelectItem value="harris">Harris-Benedict</SelectItem>
                       <SelectItem value="oms">OMS/FAO</SelectItem>
                       <SelectItem value="kcal_kg">Kcal/kg</SelectItem>
+                      <SelectItem value="schofield" disabled={!isSchofieldEligible}>Schofield (peso + altura)</SelectItem>
+                      <SelectItem value="eer" disabled={!isEerEligible}>EER/DRI (IOM)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -626,15 +744,9 @@ export const NutritionalCalculator = ({ patient, latestConsultation, existingCal
                 {!latestConsultation && (
                   <span className="text-xs text-muted-foreground mr-auto">Requer consulta base</span>
                 )}
-                {onCreateMealPlan && (
-                  <Button
-                    variant="outline"
-                    onClick={() => onCreateMealPlan(result as any, result as any)}
-                    className="h-9 text-sm px-4"
-                  >
-                    Criar Plano com este Cálculo
-                  </Button>
-                )}
+                <span className="text-xs text-muted-foreground mr-auto">
+                  Para criar o plano alimentar, acesse a consulta do paciente.
+                </span>
                 <Button
                   onClick={handleSave}
                   disabled={isSaving || !latestConsultation}

@@ -60,6 +60,7 @@ import { logEvent } from '../lib/firebase';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { cn } from '../lib/utils';
+import { PageHeader } from '../components/PageHeader';
 
 
 const maskCurrency = (value: string) => {
@@ -378,21 +379,22 @@ export const Financial = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">Financeiro</h1>
-          <p className="text-muted-foreground">Gerencie pagamentos e emita recibos para seus pacientes.</p>
-        </div>
-        <Button
-          className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95"
-          onClick={() => {
-            reset();
-            setIsModalOpen(true);
-          }}
-        >
-          <Plus className="w-4 h-4" /> Novo Pagamento
-        </Button>
-      </div>
+      <PageHeader
+        icon={DollarSign}
+        title="Financeiro"
+        description="Gerencie pagamentos e emita recibos para seus pacientes."
+        action={
+          <Button
+            className="bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95"
+            onClick={() => {
+              reset();
+              setIsModalOpen(true);
+            }}
+          >
+            <Plus className="w-4 h-4" /> Novo Pagamento
+          </Button>
+        }
+      />
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -427,12 +429,14 @@ export const Financial = () => {
           },
         ].map((card) => (
           <Card key={card.label} className="border-border/60 shadow-sm">
-            <CardContent className="p-4">
-              <div className={cn('w-9 h-9 rounded-lg flex items-center justify-center mb-3', card.iconBg)}>
-                <card.icon className={cn('w-4 h-4', card.iconColor)} />
+            <CardContent className="p-3">
+              <div className="flex items-center gap-2.5 mb-1.5">
+                <div className={cn('w-7 h-7 rounded-md flex items-center justify-center shrink-0', card.iconBg)}>
+                  <card.icon className={cn('w-3.5 h-3.5', card.iconColor)} />
+                </div>
+                <p className="text-xs font-medium text-muted-foreground">{card.label}</p>
               </div>
-              <p className="text-xs font-medium text-muted-foreground mb-0.5">{card.label}</p>
-              <p className="text-xl font-bold text-foreground tabular-nums">{card.value}</p>
+              <p className="text-lg font-bold text-foreground tabular-nums">{card.value}</p>
             </CardContent>
           </Card>
         ))}

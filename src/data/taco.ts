@@ -8,6 +8,7 @@ export interface FoodServing {
 export interface TacoFood {
   id: string;
   name: string;
+  category?: string;
   kcal: number;
   protein: number;
   carbs: number;
@@ -20,6 +21,7 @@ export interface TacoFood {
 interface TabelaAlimento {
   id: string | number;
   description: string;
+  category?: string;
   energy_kcal: number;
   protein_g: number;
   carbohydrate_g: number;
@@ -61,6 +63,7 @@ export const tacoData: TacoFood[] = rawFoods.map((food) => {
   return {
     id: String(food.id),
     name: food.description,
+    category: food.category,
     kcal: Number(food.energy_kcal ?? 0),
     protein: Number(food.protein_g ?? 0),
     carbs: Number(food.carbohydrate_g ?? 0),

@@ -12,6 +12,21 @@ function computeGracePeriodOver(req: any): boolean {
 export function registerMealPlansRoutes(deps: BaseRouteDeps) {
   const service = createMealPlansService();
 
+  // Histórico de planos alimentares de consultas anteriores (deve vir antes de /:patientId/meal-plans)
+  deps.app.get('/api/patients/:patientId/meal-plans/history', deps.authenticate, async (req: any, res: any) => {
+    try {
+      await withNutritionistRLS(req.user.uid, async () => {
+        const excludeConsultationId = typeof req.query.excludeConsultationId === 'string'
+          ? req.query.excludeConsultationId
+          : undefined;
+        const historico = await service.getHistory(req.user.uid, req.params.patientId, excludeConsultationId);
+        res.json(historico);
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   deps.app.get('/api/patients/:patientId/meal-plans', deps.authenticate, async (req: any, res: any) => {
     try {
       await withNutritionistRLS(req.user.uid, async () => {

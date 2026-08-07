@@ -6,6 +6,7 @@ import { PageLoader } from './components/PageLoader';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { Landing } from './pages/Landing';
 import { PatientAccess } from './pages/PatientAccess';
 import { SubscriptionSuccess } from './pages/SubscriptionSuccess';
@@ -30,6 +31,7 @@ const Schedule = lazy(() => import('./pages/Schedule').then(m => ({ default: m.S
 const Financial = lazy(() => import('./pages/Financial').then(m => ({ default: m.Financial })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const Recipes = lazy(() => import('./pages/Recipes').then(m => ({ default: m.Recipes })));
 
 export default function App() {
   return (
@@ -46,6 +48,7 @@ export default function App() {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/subscription-success" element={<SubscriptionSuccess />} />
                 <Route path="/patient-access/:id" element={<PatientAccess />} />
                 <Route path="/privacidade" element={<Privacidade />} />
@@ -62,6 +65,7 @@ export default function App() {
                   <Route path="/financial" element={<Financial />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/recipes" element={<Recipes />} />
                 </Route>
 
                 <Route path="*" element={<Navigate to="/" replace />} />

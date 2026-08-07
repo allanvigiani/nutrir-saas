@@ -1,5 +1,5 @@
 import React, { Suspense } from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet, Navigate, useMatch } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Sidebar } from './Sidebar';
 import { PageLoader } from './PageLoader';
@@ -23,21 +23,31 @@ export const Layout = () => {
     return <Navigate to="/register" replace />;
   }
 
+  const isFullScreen = !!useMatch('/patients/:patientId/meal-plan/:planId');
+
   return (
     <TooltipProvider>
       <div className="flex h-screen bg-background overflow-hidden text-foreground">
         <div className="hidden md:flex">
           <Sidebar />
         </div>
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
           <MobileHeader />
-          <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 md:pb-8">
-            <div className="max-w-7xl mx-auto">
+          {isFullScreen ? (
+            <div className="flex-1 overflow-hidden">
               <Suspense fallback={<PageLoader message="Carregando página..." />}>
                 <Outlet />
               </Suspense>
             </div>
-          </main>
+          ) : (
+            <main className="flex-1 overflow-y-auto p-4 md:p-8 pb-20 md:pb-8">
+              <div className="max-w-7xl mx-auto">
+                <Suspense fallback={<PageLoader message="Carregando página..." />}>
+                  <Outlet />
+                </Suspense>
+              </div>
+            </main>
+          )}
         </div>
         <BottomNav />
       </div>

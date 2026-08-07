@@ -2,7 +2,65 @@ import { getDb } from '../lib/rls-context.ts';
 import { prisma } from '../lib/prisma.ts';
 import { FREE_PLAN_LIMITS } from '../../lib/planLimits.ts';
 
-function itemToSnakeCase(item: any) {
+interface MealPlanItemPayload {
+  id?: string;
+  mealPlanId?: string;
+  nutritionistId?: string;
+  meal: string;
+  food: string;
+  quantity: string;
+  unit: string;
+  kcal?: number | null;
+  protein?: number | null;
+  carbs?: number | null;
+  fat?: number | null;
+  baseKcal?: number | null;
+  baseProtein?: number | null;
+  baseCarbs?: number | null;
+  baseFat?: number | null;
+  baseQuantity?: number | null;
+  servingName?: string | null;
+  servingWeight?: number | null;
+  weightInGrams?: number;
+  position?: number;
+}
+
+interface MealPlanItemRow {
+  id?: string;
+  meal: string;
+  food: string;
+  quantity: string;
+  unit: string;
+  kcal?: number | null;
+  protein?: number | null;
+  carbs?: number | null;
+  fat?: number | null;
+  base_kcal?: number | null;
+  base_protein?: number | null;
+  base_carbs?: number | null;
+  base_fat?: number | null;
+  base_quantity?: number | null;
+  serving_name?: string | null;
+  serving_weight?: number | null;
+  weight_in_grams?: number;
+  position?: number;
+}
+
+interface HistoricoPlanoAlimentar {
+  consultationId: string;
+  consultationDate: string;
+  mealPlan: {
+    id: string;
+    name: string;
+    generalInstructions: string | null;
+    waterIntake: string | null;
+    mealObservations: Record<string, string> | null;
+    customMeals: string[] | null;
+    items: ReturnType<typeof itemToSnakeCase>[];
+  };
+}
+
+function itemToSnakeCase(item: MealPlanItemPayload) {
   return {
     id: item.id,
     meal_plan_id: item.mealPlanId,
@@ -22,6 +80,8 @@ function itemToSnakeCase(item: any) {
     base_quantity: item.baseQuantity,
     serving_name: item.servingName,
     serving_weight: item.servingWeight,
+    weight_in_grams: item.weightInGrams ?? 0,
+    position: item.position ?? 0,
   };
 }
 
@@ -49,7 +109,7 @@ export function createMealPlansService() {
   async function getOne(nutritionistId: string, id: string) {
     const plan = await getDb().mealPlan.findFirst({
       where: { id, nutritionistId, deletedAt: null },
-      include: { items: true },
+      include: { items: { orderBy: [{ position: 'asc' }, { id: 'asc' }] } },
     });
     if (!plan) throw new Error('Plano não encontrado');
     return toSnakeCase(plan);
@@ -90,7 +150,7 @@ export function createMealPlansService() {
     });
   }
 
-  function mapItem(item: any, mealPlanId: string, nutritionistId: string) {
+  function mapItem(item: MealPlanItemRow, mealPlanId: string, nutritionistId: string) {
     return {
       mealPlanId,
       nutritionistId,
@@ -109,6 +169,8 @@ export function createMealPlansService() {
       baseQuantity: item.base_quantity ?? null,
       servingName: item.serving_name ?? null,
       servingWeight: item.serving_weight ?? null,
+      weightInGrams: item.weight_in_grams ?? 0,
+      position: item.position ?? 0,
     };
   }
 
@@ -120,7 +182,7 @@ export function createMealPlansService() {
       prisma.mealPlanItem.deleteMany({ where: { mealPlanId: id } }),
       ...items.map(item =>
         prisma.mealPlanItem.create({
-          data: mapItem(item, id, nutritionistId),
+          data: mapItem(item as unknown as MealPlanItemRow, id, nutritionistId),
         })
       ),
     ]);
@@ -136,7 +198,10 @@ export function createMealPlansService() {
   async function listItems(nutritionistId: string, mealPlanId: string) {
     const plan = await getDb().mealPlan.findFirst({ where: { id: mealPlanId, nutritionistId, deletedAt: null } });
     if (!plan) throw new Error('Não autorizado');
-    return getDb().mealPlanItem.findMany({ where: { mealPlanId } });
+    return getDb().mealPlanItem.findMany({
+      where: { mealPlanId },
+      orderBy: [{ position: 'asc' }, { id: 'asc' }],
+    });
   }
 
   async function createItem(nutritionistId: string, mealPlanId: string, data: Record<string, unknown>) {
@@ -157,5 +222,67 @@ export function createMealPlansService() {
     return getDb().mealPlanItem.delete({ where: { id: itemId } });
   }
 
-  return { list, getOne, create, update, remove, listItems, createItem, updateItem, removeItem, replaceItems };
+  // Histórico de planos alimentares vinculados a consultas anteriores
+  async function getHistory(
+    nutritionistId: string,
+    patientId: string,
+    excludeConsultationId?: string
+  ): Promise<HistoricoPlanoAlimentar[]> {
+    const planos = await getDb().mealPlan.findMany({
+      where: {
+        patientId,
+        nutritionistId,
+        deletedAt: null,
+        consultationId: excludeConsultationId
+          ? { not: excludeConsultationId }
+          : { not: null },
+      },
+      include: {
+        items: { orderBy: [{ position: 'asc' }, { id: 'asc' }] },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (planos.length === 0) return [];
+
+    // Busca datas das consultas em lote
+    const consultationIds = [...new Set(planos.map(p => p.consultationId as string))];
+    const consultas = await getDb().consultation.findMany({
+      where: { id: { in: consultationIds }, nutritionistId, deletedAt: null },
+      select: { id: true, date: true },
+    });
+
+    const consultaMap = new Map(consultas.map(c => [c.id, c.date]));
+
+    // Um plano por consulta — o mais recente (primeiro da lista ordenada por createdAt desc)
+    const visto = new Set<string>();
+    const resultado: HistoricoPlanoAlimentar[] = [];
+
+    for (const plano of planos) {
+      const consultaId = plano.consultationId as string;
+      if (visto.has(consultaId)) continue;
+      visto.add(consultaId);
+
+      const dataConsulta = consultaMap.get(consultaId);
+      if (!dataConsulta) continue; // consulta deletada ou de outro nutricionista
+
+      resultado.push({
+        consultationId: consultaId,
+        consultationDate: dataConsulta,
+        mealPlan: {
+          id: plano.id,
+          name: plano.name,
+          generalInstructions: plano.generalInstructions ?? null,
+          waterIntake: plano.waterIntake ?? null,
+          mealObservations: (plano.mealObservations as Record<string, string> | null) ?? null,
+          customMeals: (plano.customMeals as string[] | null) ?? null,
+          items: plano.items.map(itemToSnakeCase),
+        },
+      });
+    }
+
+    return resultado;
+  }
+
+  return { list, getOne, create, update, remove, listItems, createItem, updateItem, removeItem, replaceItems, getHistory };
 }

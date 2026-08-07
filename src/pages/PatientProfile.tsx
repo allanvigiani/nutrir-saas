@@ -59,11 +59,13 @@ import { UpgradeModal } from '../components/UpgradeModal';
 import { useFreeplanLimits } from '../hooks/useFreeplanLimits';
 import { maskCPF, maskPhone } from '../lib/masks';
 import { cn } from '../lib/utils';
+import { calculateImc, classifyImc, idealWeightRangeByBmi } from '../lib/nutrition-calculations/imc';
 import { FoodAutocomplete } from '../components/FoodAutocomplete';
 import { TacoFood } from '../data/taco';
 import { CustomFoodDialog } from '../components/CustomFoodDialog';
 import { NutritionalCalculator } from '../components/NutritionalCalculator';
 import { MealPlanEditor } from '../components/MealPlanEditor';
+import { CopyMealPlanModal, type MealPlanHistoryEntry } from '../components/CopyMealPlanModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -234,6 +236,8 @@ export const PatientProfile = () => {
   const [evolutionMetric, setEvolutionMetric] = useState<'weight' | 'fatPercentage' | 'imc' | 'measurements'>('weight');
   const [isDeleteMealPlanConfirmOpen, setIsDeleteMealPlanConfirmOpen] = useState(false);
   const [mealPlanToDelete, setMealPlanToDelete] = useState<string | null>(null);
+  const [isCopyMealPlanModalOpen, setIsCopyMealPlanModalOpen] = useState(false);
+  const [pendingConsultationForPlan, setPendingConsultationForPlan] = useState<{ consultationId: string; calcDaConsulta: NutritionCalculation | undefined } | null>(null);
   const [isDeleteLabExamConfirmOpen, setIsDeleteLabExamConfirmOpen] = useState(false);
   const [labExamToDelete, setLabExamToDelete] = useState<string | null>(null);
   const [isDeleteConsultationConfirmOpen, setIsDeleteConsultationConfirmOpen] = useState(false);
@@ -263,7 +267,7 @@ export const PatientProfile = () => {
 
   const defaultMealTypes: any[] = [];
 
-  const generateMealPlanPDF = (plan: MealPlan, items: MealPlanItem[]) => {
+  const generateMealPlanPDF = (plan: MealPlan, items: MealPlanItem[], receitasVinculadas?: Array<{ meal: string; recipe: { name: string; ingredients: Array<{ name: string; quantity: string; unit: string }>; prepMode?: string } }>) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -376,20 +380,20 @@ export const PatientProfile = () => {
 
       // Observation for this meal
       if (observation) {
-        doc.setFillColor(255, 251, 235); // amber-50
-        doc.setDrawColor(251, 191, 36); // amber-400
-
         const splitObs = doc.splitTextToSize(observation, pageWidth - 36);
         const obsHeight = (splitObs.length * 5) + 6;
 
-        // Check if we need a new page
         if (currentY + obsHeight > doc.internal.pageSize.getHeight() - 20) {
           doc.addPage();
           currentY = 20;
         }
 
+        // setFillColor/setDrawColor sempre imediatamente antes do rect —
+        // autoTable e addPage podem resetar o estado de cores do jsPDF
+        doc.setFillColor(255, 251, 235); // amber-50
+        doc.setDrawColor(251, 191, 36); // amber-400
         doc.rect(14, currentY, pageWidth - 28, obsHeight, 'F');
-        doc.line(14, currentY, 14, currentY + obsHeight); // Left border accent
+        doc.line(14, currentY, 14, currentY + obsHeight);
 
         doc.setTextColor(146, 64, 14); // amber-800
         doc.setFontSize(9);
@@ -468,6 +472,113 @@ export const PatientProfile = () => {
 
     currentY = (doc as any).lastAutoTable.finalY + 15;
 
+    // Receitas vinculadas ao plano — agrupadas por refeição
+    if (receitasVinculadas && receitasVinculadas.length > 0) {
+      // Agrupa mantendo a ordem de aparição, deduplicando receita dentro de cada grupo
+      const grupos = new Map<string, typeof receitasVinculadas>();
+      for (const link of receitasVinculadas) {
+        if (!grupos.has(link.meal)) grupos.set(link.meal, []);
+        const grupo = grupos.get(link.meal)!;
+        const jaExiste = grupo.some((l) => l.recipe.name === link.recipe.name);
+        if (!jaExiste) grupo.push(link);
+      }
+
+      if (currentY > doc.internal.pageSize.getHeight() - 60) {
+        doc.addPage();
+        currentY = 20;
+      }
+
+      doc.setTextColor(30, 41, 59);
+      doc.setFontSize(13);
+      doc.setFont('helvetica', 'bold');
+      doc.text('RECEITAS', 14, currentY + 10);
+      doc.line(14, currentY + 12, pageWidth - 14, currentY + 12);
+      currentY += 20;
+
+      for (const [meal, links] of grupos) {
+        if (currentY > doc.internal.pageSize.getHeight() - 40) {
+          doc.addPage();
+          currentY = 20;
+        }
+
+        // Cabeçalho da refeição
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(71, 85, 105);
+        doc.text(meal.toUpperCase(), 14, currentY);
+        currentY += 3;
+        doc.setDrawColor(203, 213, 225);
+        doc.line(14, currentY, pageWidth - 14, currentY);
+        currentY += 6;
+
+        for (const { recipe } of links) {
+          if (currentY > doc.internal.pageSize.getHeight() - 50) {
+            doc.addPage();
+            currentY = 20;
+          }
+
+          // Título da receita
+          doc.setFillColor(241, 245, 249);
+          doc.rect(14, currentY, pageWidth - 28, 10, 'F');
+          doc.setTextColor(15, 23, 42);
+          doc.setFontSize(10);
+          doc.setFont('helvetica', 'bold');
+          doc.text(recipe.name, 18, currentY + 7);
+          currentY += 14;
+
+          // Ingredientes
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(9);
+          doc.setTextColor(71, 85, 105);
+          doc.text('Ingredientes:', 14, currentY);
+          currentY += 5;
+
+          recipe.ingredients.forEach((ing) => {
+            if (currentY > doc.internal.pageSize.getHeight() - 20) {
+              doc.addPage();
+              currentY = 20;
+            }
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(51, 65, 85);
+            doc.text(`• ${ing.quantity} ${ing.unit} de ${ing.name}`, 18, currentY);
+            currentY += 5;
+          });
+
+          // Modo de preparo
+          if (recipe.prepMode) {
+            currentY += 3;
+            if (currentY > doc.internal.pageSize.getHeight() - 30) {
+              doc.addPage();
+              currentY = 20;
+            }
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            doc.setTextColor(71, 85, 105);
+            doc.text('Modo de Preparo:', 14, currentY);
+            currentY += 5;
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8.5);
+            doc.setTextColor(51, 65, 85);
+            const splitPrepMode = doc.splitTextToSize(recipe.prepMode, pageWidth - 28);
+            splitPrepMode.forEach((linha: string) => {
+              if (currentY > doc.internal.pageSize.getHeight() - 15) {
+                doc.addPage();
+                currentY = 20;
+              }
+              doc.text(linha, 14, currentY);
+              currentY += 5;
+            });
+          }
+
+          currentY += 8;
+        }
+
+        currentY += 6;
+      }
+    }
+
     // Signature and Stamp Area
     if (currentY > doc.internal.pageSize.getHeight() - 60) {
       doc.addPage();
@@ -506,8 +617,8 @@ export const PatientProfile = () => {
     return doc;
   };
 
-  const handleExportPDF = (plan: MealPlan, items: MealPlanItem[]) => {
-    const doc = generateMealPlanPDF(plan, items);
+  const handleExportPDF = (plan: MealPlan, items: MealPlanItem[], receitasVinculadas?: Array<{ meal: string; recipe: { name: string; ingredients: Array<{ name: string; quantity: string; unit: string }>; prepMode?: string } }>) => {
+    const doc = generateMealPlanPDF(plan, items, receitasVinculadas);
     doc.save(`Plano_Alimentar_${patient?.name.replace(/\s+/g, '_')}_${format(new Date(), 'ddMMyyyy')}.pdf`);
   };
 
@@ -517,12 +628,18 @@ export const PatientProfile = () => {
 
     try {
       const token = await auth.currentUser?.getIdToken();
-      const itemsRes = await fetch(`/api/meal-plans/${plan.id}/items`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [itemsRes, receitasEmailRes] = await Promise.all([
+        fetch(`/api/meal-plans/${plan.id}/items`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`/api/meal-plans/${plan.id}/recipes`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
       const items: MealPlanItem[] = itemsRes.ok ? await itemsRes.json() : [];
+      const receitasEmail = receitasEmailRes.ok ? await receitasEmailRes.json() : [];
 
-      const doc = generateMealPlanPDF(plan, items);
+      const doc = generateMealPlanPDF(plan, items, receitasEmail);
       const pdfBase64 = doc.output('datauristring').split(',')[1];
       const fileName = `Plano_Alimentar_${patient.name.replace(/\s+/g, '_')}.pdf`;
 
@@ -556,12 +673,18 @@ export const PatientProfile = () => {
     setSelectedMealPlan(plan);
     try {
       const token = await auth.currentUser?.getIdToken();
-      const itemsRes = await fetch(`/api/meal-plans/${plan.id}/items`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const [itemsRes, receitasRes] = await Promise.all([
+        fetch(`/api/meal-plans/${plan.id}/items`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+        fetch(`/api/meal-plans/${plan.id}/recipes`, {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
+      ]);
       const items: MealPlanItem[] = itemsRes.ok ? await itemsRes.json() : [];
+      const receitasVinculadas = receitasRes.ok ? await receitasRes.json() : [];
 
-      handleExportPDF(plan, items);
+      handleExportPDF(plan, items, receitasVinculadas);
       void logEvent('exportar_pdf_plano_alimentar');
       toast.success("PDF gerado com sucesso!", { id: toastId });
     } catch (error) {
@@ -606,7 +729,7 @@ export const PatientProfile = () => {
     }
 
     try {
-      const imc = data.height > 0 ? data.weight / ((data.height / 100) * (data.height / 100)) : 0;
+      const imc = data.height > 0 ? calculateImc(data.weight, data.height / 100) : 0;
 
       // Clean up optional numbers to ensure they are finite or null
       const cleanData = { ...data };
@@ -1374,7 +1497,7 @@ export const PatientProfile = () => {
                           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
                             <div className="p-3 rounded-xl bg-muted/30 border border-border">
                               <p className="text-xs font-medium text-muted-foreground mb-1">Altura</p>
-                              <p className="font-bold text-foreground">{consultation.height}m</p>
+                              <p className="font-bold text-foreground">{consultation.height} cm</p>
                             </div>
                             <div className="p-3 rounded-xl bg-muted/30 border border-border">
                               <p className="text-xs font-medium text-muted-foreground mb-1">Gordura</p>
@@ -1440,6 +1563,8 @@ export const PatientProfile = () => {
                                 <div className="flex items-center gap-2">
                                   {(() => {
                                     const planDaConsulta = mealPlans.find(p => p.consultation_id === consultation.id);
+                                    const calcDaConsulta = calculations.find(c => c.consultation_id === consultation.id);
+                                    const semCalculo = !planDaConsulta && !calcDaConsulta;
                                     return (
                                       <TooltipProvider>
                                         <Tooltip>
@@ -1448,18 +1573,29 @@ export const PatientProfile = () => {
                                               size="sm"
                                               variant="outline"
                                               className="text-primary border-primary/60 bg-primary/5 hover:bg-primary/15 hover:border-primary h-8 text-xs font-semibold gap-1.5 shadow-sm"
-                                              disabled={isPatientReadOnly}
+                                              disabled={isPatientReadOnly || semCalculo}
                                               onClick={() => {
                                                 if (planDaConsulta) {
                                                   navigate(`/patients/${id}/meal-plan/${planDaConsulta.id}`);
                                                 } else {
-                                                  const calcDaConsulta = calculations.find(c => c.consultation_id === consultation.id);
-                                                  navigate(`/patients/${id}/meal-plan/new`, {
-                                                    state: {
+                                                  // Verifica se há planos anteriores para oferecer cópia
+                                                  const planosAnteriores = mealPlans.filter(
+                                                    p => p.consultation_id && p.consultation_id !== consultation.id
+                                                  );
+                                                  if (planosAnteriores.length > 0) {
+                                                    setPendingConsultationForPlan({
                                                       consultationId: consultation.id,
-                                                      ...(calcDaConsulta ? { calculation: calcDaConsulta } : {}),
-                                                    },
-                                                  });
+                                                      calcDaConsulta,
+                                                    });
+                                                    setIsCopyMealPlanModalOpen(true);
+                                                  } else {
+                                                    navigate(`/patients/${id}/meal-plan/new`, {
+                                                      state: {
+                                                        consultationId: consultation.id,
+                                                        ...(calcDaConsulta ? { calculation: calcDaConsulta } : {}),
+                                                      },
+                                                    });
+                                                  }
                                                 }
                                               }}
                                             >
@@ -1470,7 +1606,9 @@ export const PatientProfile = () => {
                                           <TooltipContent side="bottom">
                                             {planDaConsulta
                                               ? 'Editar o plano alimentar desta consulta'
-                                              : 'Criar plano alimentar vinculado a esta consulta'}
+                                              : semCalculo
+                                                ? 'Realize um cálculo nutricional para esta consulta antes de criar o plano alimentar'
+                                                : 'Criar plano alimentar vinculado a esta consulta'}
                                           </TooltipContent>
                                         </Tooltip>
                                       </TooltipProvider>
@@ -1657,12 +1795,36 @@ export const PatientProfile = () => {
             <CardContent>
               {mealPlans.length > 0 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {mealPlans.map((plan) => (
+                  {(() => {
+                    const consultsByDate = [...consultations].sort(
+                      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+                    );
+                    return mealPlans.map((plan) => {
+                      const linkedConsult = plan.consultation_id
+                        ? consultations.find(c => c.id === plan.consultation_id)
+                        : null;
+                      const consultNum = linkedConsult
+                        ? consultsByDate.findIndex(c => c.id === linkedConsult.id) + 1
+                        : null;
+                      return (
                     <div key={plan.id} className="p-4 rounded-xl border border-border hover:border-primary/30 transition-colors">
                       <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <p className="font-bold text-foreground">{plan.name || `Plano Alimentar #${plan.id.slice(0, 4)}`}</p>
-                          <p className="text-xs text-muted-foreground">Criado em {formatDateSafely(plan.createdAt, 'dd/MM/yyyy')}</p>
+                        <div className="min-w-0 flex-1 mr-2">
+                          <p className="font-bold text-foreground truncate">{plan.name || `Plano Alimentar #${plan.id.slice(0, 4)}`}</p>
+                          {linkedConsult ? (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Calendar className="w-3 h-3 text-primary/70 shrink-0" />
+                              <span className="text-xs text-primary/80 font-medium">
+                                {consultNum}ª consulta
+                              </span>
+                              <span className="text-xs text-muted-foreground">·</span>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDateSafely(linkedConsult.date, "dd/MM/yyyy")}
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-xs text-muted-foreground mt-0.5">Criado em {formatDateSafely(plan.createdAt, 'dd/MM/yyyy')}</p>
+                          )}
                         </div>
                         <span className={cn(
                           "px-2 py-1 rounded-full text-xs font-medium",
@@ -1686,7 +1848,9 @@ export const PatientProfile = () => {
                         </Button>
                       </div>
                     </div>
-                  ))}
+                      );
+                    });
+                  })()}
                 </div>
               ) : (
                 <div className="text-center py-12">
@@ -1731,33 +1895,169 @@ export const PatientProfile = () => {
 
               <div className="flex-1 overflow-y-auto p-6 space-y-8 print:p-0">
                 {/* Print Header (Only visible when printing) */}
-                <div className="hidden print:flex items-center justify-between mb-8 pb-6 border-b border-primary/30">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-xl">
-                      N
-                    </div>
+                <div className="hidden print:flex items-center justify-between px-8 py-5 -mx-6 -mt-6 mb-6" style={{ backgroundColor: 'var(--primary, #16a34a)', color: 'white' }}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xl" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>N</div>
                     <div>
-                      <h2 className="text-2xl font-bold text-foreground leading-none">Nutrir</h2>
-                      <p className="text-xs text-muted-foreground mt-1">Gestão Nutricional</p>
+                      <div className="font-bold text-lg leading-none">Nutrir</div>
+                      <div className="text-xs mt-0.5" style={{ opacity: 0.8 }}>Gestão Nutricional</div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <h3 className="text-lg font-bold text-primary">Plano Alimentar</h3>
-                    <p className="text-xs text-muted-foreground">{selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}</p>
+                    <div className="font-bold text-base">Plano Alimentar</div>
+                    <div className="text-xs mt-0.5" style={{ opacity: 0.8 }}>
+                      {selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}
+                    </div>
                   </div>
                 </div>
 
-                <div className="hidden print:grid grid-cols-1 md:grid-cols-2 gap-6 mb-8 p-6 bg-card border border-primary/20 rounded-2xl">
+                <div className="hidden print:grid grid-cols-2 gap-4 mb-6 p-5 border border-gray-200 rounded-xl">
                   <div>
-                    <p className="text-[10px] font-medium text-muted-foreground mb-1">Paciente</p>
-                    <p className="font-bold text-foreground text-lg">{patient?.name}</p>
-                    <p className="text-sm text-muted-foreground">{patient?.email}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">Paciente</p>
+                    <p className="font-bold text-gray-900 text-base">{patient?.name}</p>
+                    {patient?.email && <p className="text-xs text-gray-500 mt-0.5">{patient.email}</p>}
                   </div>
-                  <div className="md:text-right">
-                    <p className="text-[10px] font-medium text-muted-foreground mb-1">Nutricionista</p>
-                    <p className="font-bold text-foreground text-lg">{user?.displayName || 'Nutricionista'}</p>
-                    <p className="text-sm text-muted-foreground">CRN: 12345/P</p>
+                  <div className="text-right">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">Nutricionista</p>
+                    <p className="font-bold text-gray-900 text-base">{nutritionist?.name || user?.displayName || 'Nutricionista'}</p>
+                    {nutritionist?.crn && <p className="text-xs text-gray-500 mt-0.5">CRN: {nutritionist.crn}</p>}
                   </div>
+                </div>
+
+                {/* Print: Macro totais */}
+                <div className="hidden print:grid grid-cols-4 gap-3 mb-6">
+                  {[
+                    { label: 'Calorias', value: `${viewMealTotals.kcal}`, unit: 'kcal', accent: 'var(--primary, #16a34a)' },
+                    { label: 'Proteínas', value: viewMealTotals.protein.toFixed(1), unit: 'g', accent: '#6b7280' },
+                    { label: 'Carboidratos', value: viewMealTotals.carbs.toFixed(1), unit: 'g', accent: '#6b7280' },
+                    { label: 'Gorduras', value: viewMealTotals.fat.toFixed(1), unit: 'g', accent: '#6b7280' },
+                  ].map((macro) => (
+                    <div key={macro.label} className="rounded-xl border border-gray-200 p-3 text-center" style={{ borderTop: `3px solid ${macro.accent}` }}>
+                      <p className="text-[10px] text-gray-500 font-medium">{macro.label}</p>
+                      <p className="font-bold text-lg text-gray-900 leading-tight mt-0.5">{macro.value}</p>
+                      <p className="text-[10px] text-gray-400">{macro.unit}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Print: Orientações gerais */}
+                {selectedMealPlan?.generalInstructions && (
+                  <div className="hidden print:block mb-6 rounded-xl p-4" style={{ borderLeft: '4px solid var(--primary, #16a34a)', backgroundColor: '#f0fdf4' }}>
+                    <p className="text-xs font-bold text-gray-700 mb-1">Orientações Gerais</p>
+                    <p className="text-sm text-gray-600 italic whitespace-pre-wrap leading-relaxed">
+                      {selectedMealPlan.generalInstructions}
+                    </p>
+                  </div>
+                )}
+
+                {/* Print: Refeições com subtotais e observações */}
+                <div className="hidden print:block space-y-5 mb-6">
+                  {(selectedMealPlan?.customMeals && selectedMealPlan.customMeals.length > 0
+                    ? selectedMealPlan.customMeals
+                    : defaultMealTypes
+                  ).map((meal: any) => {
+                    const items = selectedMealPlanItems.filter(item => item.meal === meal.id);
+                    if (items.length === 0) return null;
+                    const subtotal = items.reduce(
+                      (acc, i) => ({
+                        kcal: acc.kcal + (Number(i.kcal) || 0),
+                        protein: acc.protein + (Number(i.protein) || 0),
+                        carbs: acc.carbs + (Number(i.carbs) || 0),
+                        fat: acc.fat + (Number(i.fat) || 0),
+                      }),
+                      { kcal: 0, protein: 0, carbs: 0, fat: 0 }
+                    );
+                    const obs = (selectedMealPlan as any)?.mealObservations?.[meal.id];
+                    return (
+                      <div key={meal.id} className="rounded-xl border border-gray-200 overflow-hidden" style={{ breakInside: 'avoid' }}>
+                        <div className="flex items-center justify-between px-5 py-3" style={{ backgroundColor: '#f0fdf4', borderBottom: '1px solid #d1fae5' }}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-gray-800">{meal.label}</span>
+                            {meal.time && <span className="text-xs text-gray-500 bg-black/5 px-1.5 py-0.5 rounded font-medium">{meal.time}</span>}
+                          </div>
+                          <span className="text-xs text-gray-600 font-medium">
+                            {subtotal.kcal} kcal · {subtotal.protein.toFixed(1)}g P · {subtotal.carbs.toFixed(1)}g C · {subtotal.fat.toFixed(1)}g G
+                          </span>
+                        </div>
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-gray-50 border-b border-gray-100">
+                              <th className="px-5 py-2 text-left font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Alimento</th>
+                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Quantidade</th>
+                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Kcal</th>
+                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">P (g)</th>
+                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">C (g)</th>
+                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">G (g)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {items.map((item, idx) => (
+                              <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                <td className="px-5 py-2 font-medium text-gray-800">{item.food}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{item.quantity || '0'} {item.unit || 'g'}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{item.kcal || 0}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.protein || 0).toFixed(1)}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.carbs || 0).toFixed(1)}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.fat || 0).toFixed(1)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                        {obs && (
+                          <div className="px-5 py-3 text-xs text-gray-600 italic border-t border-gray-100 bg-yellow-50">
+                            <span className="font-semibold not-italic text-gray-700">Obs.: </span>{obs}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Print: Tabela de Medidas Caseiras */}
+                <div className="hidden print:block mt-4 pt-4 border-t border-gray-200 mb-6">
+                  <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Tabela de Medidas Caseiras (Referência)</p>
+                  <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                    <thead>
+                      <tr className="bg-gray-50">
+                        <th className="px-4 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">Medida</th>
+                        <th className="px-4 py-2 text-center font-semibold text-gray-600 border-b border-gray-200">Peso aprox.</th>
+                        <th className="px-4 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">Medida</th>
+                        <th className="px-4 py-2 text-center font-semibold text-gray-600 border-b border-gray-200">Peso aprox.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        ['Colher de chá', '~4 g', 'Copo (200ml)', '~200 ml'],
+                        ['Colher de sobremesa', '~9 g', 'Concha pequena', '~80 g'],
+                        ['Colher de sopa', '~13 g', 'Concha média', '~150 g'],
+                        ['Colher de servir', '~30 g', 'Xícara (sólidos)', '~80 g'],
+                        ['Unidade (fruta média)', '~130 g', 'Xícara (líquidos)', '~200 ml'],
+                        ['Fatia (fruta)', '~80 g', 'Lata', '~350 ml'],
+                      ].map(([m1, p1, m2, p2], i) => (
+                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-4 py-1.5 text-gray-700">{m1}</td>
+                          <td className="px-4 py-1.5 text-center text-gray-500">{p1}</td>
+                          <td className="px-4 py-1.5 text-gray-700">{m2}</td>
+                          <td className="px-4 py-1.5 text-center text-gray-500">{p2}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p className="text-[9px] text-gray-400 mt-1.5 italic">
+                    Valores de referência (Pinheiro et al. 2004 / TBCA). Pesos reais variam conforme o alimento e forma de preparo.
+                  </p>
+                </div>
+
+                {/* Print: Rodapé assinatura */}
+                <div className="hidden print:flex flex-col items-center mt-6 pt-4">
+                  <div style={{ height: '48px' }} />
+                  <div className="w-56 border-t border-gray-400 pt-3 text-center">
+                    <p className="font-bold text-gray-800 text-sm">{nutritionist?.name || user?.displayName || 'Nutricionista'}</p>
+                    {nutritionist?.crn && <p className="text-xs text-gray-500 mt-0.5">CRN: {nutritionist.crn}</p>}
+                  </div>
+                  <p className="text-[9px] text-gray-400 mt-4">
+                    Gerado em {formatDateSafely(new Date().toISOString(), 'dd/MM/yyyy')}
+                  </p>
                 </div>
 
                 {/* Nutritional Summary */}
@@ -1905,12 +2205,6 @@ export const PatientProfile = () => {
                     })}
                 </div>
 
-                {/* Print Signature */}
-                <div className="hidden print:flex flex-col items-center mt-20 pt-10 border-t border-border">
-                  <div className="w-64 h-px bg-border mb-4"></div>
-                  <p className="text-base font-bold text-foreground">{user?.displayName || 'Nutricionista'}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Assinatura do Profissional</p>
-                </div>
               </div>
             </div>
           </DialogContent>
@@ -1963,116 +2257,194 @@ export const PatientProfile = () => {
 
         {/* Hidden Print Container - Always in DOM for silent printing */}
         <div className="hidden print-content-wrapper pointer-events-none opacity-0 fixed -z-50">
-          <div className="p-8 bg-card">
-            <div className="flex items-center justify-between mb-8 pb-6 border-b border-primary/30">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-white font-bold text-xl">
-                  N
-                </div>
+          <div className="bg-white text-gray-900" style={{ fontFamily: 'system-ui, sans-serif', width: '210mm', minHeight: '297mm', padding: '0' }}>
+
+            {/* 1. Cabeçalho */}
+            <div className="flex items-center justify-between px-8 py-5" style={{ backgroundColor: 'var(--primary, #16a34a)', color: 'white' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center font-bold text-xl">N</div>
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground leading-none">Nutrir</h2>
-                  <p className="text-xs text-muted-foreground mt-1">Gestão Nutricional</p>
+                  <div className="font-bold text-lg leading-none">Nutrir</div>
+                  <div className="text-xs opacity-80 mt-0.5">Gestão Nutricional</div>
                 </div>
               </div>
               <div className="text-right">
-                <h3 className="text-lg font-bold text-primary">Plano Alimentar</h3>
-                <p className="text-xs text-muted-foreground">{selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-6 mb-8 p-6 bg-card border border-primary/20 rounded-2xl">
-              <div>
-                <p className="text-[10px] font-medium text-muted-foreground mb-1">Paciente</p>
-                <p className="font-bold text-foreground text-lg">{patient?.name}</p>
-                <p className="text-sm text-muted-foreground">{patient?.email}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[10px] font-medium text-muted-foreground mb-1">Nutricionista</p>
-                <p className="font-bold text-foreground text-lg">{user?.displayName || 'Nutricionista'}</p>
-                <p className="text-sm text-muted-foreground">CRN: 12345/P</p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-4 gap-4 mb-8">
-              <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-xs font-medium text-muted-foreground">Calorias</p>
-                <p className="text-lg font-bold text-foreground">{viewMealTotals.kcal} kcal</p>
-              </div>
-              <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-xs font-medium text-muted-foreground">Proteínas</p>
-                <p className="text-lg font-bold text-foreground">{viewMealTotals.protein.toFixed(1)} g</p>
-              </div>
-              <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-xs font-medium text-muted-foreground">Carboidratos</p>
-                <p className="text-lg font-bold text-foreground">{viewMealTotals.carbs.toFixed(1)} g</p>
-              </div>
-              <div className="p-4 border border-border rounded-xl text-center">
-                <p className="text-xs font-medium text-muted-foreground">Gorduras</p>
-                <p className="text-lg font-bold text-foreground">{viewMealTotals.fat.toFixed(1)} g</p>
-              </div>
-            </div>
-
-            {selectedMealPlan?.generalInstructions && (
-              <div className="mb-8">
-                <h4 className="font-medium text-secondary-foreground text-sm mb-2">Orientações Gerais</h4>
-                <div className="p-5 bg-card rounded-xl border border-border text-muted-foreground text-sm leading-relaxed whitespace-pre-wrap">
-                  {selectedMealPlan.generalInstructions}
+                <div className="font-bold text-base">Plano Alimentar</div>
+                <div className="text-xs opacity-80 mt-0.5">
+                  {selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}
                 </div>
               </div>
-            )}
+            </div>
 
-            <div className="space-y-8">
-              {(selectedMealPlan?.customMeals && selectedMealPlan.customMeals.length > 0
-                ? selectedMealPlan.customMeals
-                : defaultMealTypes).map((meal) => {
+            <div className="px-8 py-6 space-y-6">
+
+              {/* 2. Identificação: Paciente + Nutricionista */}
+              <div className="grid grid-cols-2 gap-4 p-5 rounded-xl border border-gray-200">
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">Paciente</p>
+                  <p className="font-bold text-gray-900 text-base">{patient?.name}</p>
+                  {patient?.email && <p className="text-xs text-gray-500 mt-0.5">{patient.email}</p>}
+                </div>
+                <div className="text-right">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">Nutricionista</p>
+                  <p className="font-bold text-gray-900 text-base">{nutritionist?.name || user?.displayName || 'Nutricionista'}</p>
+                  {nutritionist?.crn && <p className="text-xs text-gray-500 mt-0.5">CRN: {nutritionist.crn}</p>}
+                </div>
+              </div>
+
+              {/* 3. Resumo de macros totais */}
+              <div className="grid grid-cols-4 gap-3">
+                {[
+                  { label: 'Calorias', value: `${viewMealTotals.kcal}`, unit: 'kcal', accent: 'var(--primary, #16a34a)' },
+                  { label: 'Proteínas', value: viewMealTotals.protein.toFixed(1), unit: 'g', accent: '#6b7280' },
+                  { label: 'Carboidratos', value: viewMealTotals.carbs.toFixed(1), unit: 'g', accent: '#6b7280' },
+                  { label: 'Gorduras', value: viewMealTotals.fat.toFixed(1), unit: 'g', accent: '#6b7280' },
+                ].map((macro) => (
+                  <div key={macro.label} className="rounded-xl border border-gray-200 p-3 text-center" style={{ borderTop: `3px solid ${macro.accent}` }}>
+                    <p className="text-[10px] text-gray-500 font-medium">{macro.label}</p>
+                    <p className="font-bold text-lg text-gray-900 leading-tight mt-0.5">{macro.value}</p>
+                    <p className="text-[10px] text-gray-400">{macro.unit}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* 4. Orientações gerais */}
+              {selectedMealPlan?.generalInstructions && (
+                <div className="rounded-xl p-4" style={{ borderLeft: '4px solid var(--primary, #16a34a)', backgroundColor: '#f0fdf4' }}>
+                  <p className="text-xs font-bold text-gray-700 mb-1">Orientações Gerais</p>
+                  <p className="text-sm text-gray-600 italic whitespace-pre-wrap leading-relaxed">
+                    {selectedMealPlan.generalInstructions}
+                  </p>
+                </div>
+              )}
+
+              {/* 5. Refeições */}
+              <div className="space-y-5">
+                {(selectedMealPlan?.customMeals && selectedMealPlan.customMeals.length > 0
+                  ? selectedMealPlan.customMeals
+                  : defaultMealTypes
+                ).map((meal: any) => {
                   const items = selectedMealPlanItems.filter(item => item.meal === meal.id);
                   if (items.length === 0) return null;
-                  const Icon = (meal as any).icon || Activity;
+
+                  const subtotal = items.reduce(
+                    (acc, i) => ({
+                      kcal: acc.kcal + (Number(i.kcal) || 0),
+                      protein: acc.protein + (Number(i.protein) || 0),
+                      carbs: acc.carbs + (Number(i.carbs) || 0),
+                      fat: acc.fat + (Number(i.fat) || 0),
+                    }),
+                    { kcal: 0, protein: 0, carbs: 0, fat: 0 }
+                  );
+
+                  const obs = (selectedMealPlan as any)?.mealObservations?.[meal.id];
 
                   return (
-                    <div key={meal.id} className="border border-border rounded-2xl overflow-hidden break-inside-avoid">
-                      <div className={cn("px-6 py-3 border-b flex items-center gap-3", meal.color)}>
-                        <Icon className="w-5 h-5" />
+                    <div key={meal.id} className="rounded-xl border border-gray-200 overflow-hidden" style={{ breakInside: 'avoid' }}>
+                      {/* Header da refeição */}
+                      <div className="flex items-center justify-between px-5 py-3" style={{ backgroundColor: '#f0fdf4', borderBottom: '1px solid #d1fae5' }}>
                         <div className="flex items-center gap-2">
-                          <h4 className="font-bold text-lg">{meal.label}</h4>
-                          {meal.time && <span className="text-xs font-bold opacity-60 bg-black/5 px-1.5 py-0.5 rounded">{meal.time}</span>}
+                          <span className="font-bold text-gray-800">{meal.label}</span>
+                          {meal.time && (
+                            <span className="text-xs text-gray-500 bg-black/5 px-1.5 py-0.5 rounded font-medium">{meal.time}</span>
+                          )}
                         </div>
+                        <span className="text-xs text-gray-600 font-medium">
+                          {subtotal.kcal} kcal · {subtotal.protein.toFixed(1)}g P · {subtotal.carbs.toFixed(1)}g C · {subtotal.fat.toFixed(1)}g G
+                        </span>
                       </div>
-                      <table className="w-full text-sm">
+
+                      {/* Tabela de alimentos */}
+                      <table className="w-full text-xs">
                         <thead>
-                          <tr className="bg-muted/30 text-muted-foreground text-left border-b">
-                            <th className="px-6 py-3 font-medium text-[11px]">Alimento</th>
-                            <th className="px-4 py-3 font-medium text-[11px] text-center">Qtd</th>
-                            <th className="px-4 py-3 font-medium text-[11px] text-center">Unidade</th>
-                            <th className="px-4 py-3 font-medium text-[11px] text-center">Kcal</th>
-                            <th className="px-4 py-3 font-medium text-[11px] text-center">P (g)</th>
-                            <th className="px-4 py-3 font-medium text-[11px] text-center">C (g)</th>
-                            <th className="px-4 py-3 font-medium text-[11px] text-center">G (g)</th>
+                          <tr className="bg-gray-50 border-b border-gray-100">
+                            <th className="px-5 py-2 text-left font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Alimento</th>
+                            <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Quantidade</th>
+                            <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Kcal</th>
+                            <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">P (g)</th>
+                            <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">C (g)</th>
+                            <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">G (g)</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-border">
-                          {items.map((item, idx) => (
-                            <tr key={idx}>
-                              <td className="px-6 py-3 font-medium text-foreground">{item.food}</td>
-                              <td className="px-4 py-3 text-muted-foreground text-center">{item.quantity}</td>
-                              <td className="px-4 py-3 text-muted-foreground text-center">{item.unit}</td>
-                              <td className="px-4 py-3 text-muted-foreground text-center">{item.kcal || 0}</td>
-                              <td className="px-4 py-3 text-muted-foreground text-center">{item.protein || 0}</td>
-                              <td className="px-4 py-3 text-muted-foreground text-center">{item.carbs || 0}</td>
-                              <td className="px-4 py-3 text-muted-foreground text-center">{item.fat || 0}</td>
-                            </tr>
-                          ))}
+                        <tbody>
+                          {items.map((item, idx) => {
+                            const unit = item.unit || 'g';
+                            const qty = item.quantity || '0';
+                            const qtyDisplay = `${qty} ${unit}`;
+                            return (
+                              <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                                <td className="px-5 py-2 font-medium text-gray-800">{item.food}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{qtyDisplay}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{item.kcal || 0}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.protein || 0).toFixed(1)}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.carbs || 0).toFixed(1)}</td>
+                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.fat || 0).toFixed(1)}</td>
+                              </tr>
+                            );
+                          })}
                         </tbody>
                       </table>
+
+                      {/* Observações da refeição */}
+                      {obs && (
+                        <div className="px-5 py-3 text-xs text-gray-600 italic border-t border-gray-100 bg-yellow-50">
+                          <span className="font-semibold not-italic text-gray-700">Obs.: </span>{obs}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
-            </div>
+              </div>
 
-            <div className="flex flex-col items-center mt-20 pt-10 border-t border-border">
-              <div className="w-64 h-px bg-border mb-4"></div>
-              <p className="text-base font-bold text-foreground">{user?.displayName || 'Nutricionista'}</p>
-              <p className="text-xs text-muted-foreground mt-1">Assinatura do Profissional</p>
+              {/* 6. Tabela de Medidas Caseiras */}
+              <div className="mt-6 pt-5 border-t border-gray-200">
+                <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Tabela de Medidas Caseiras (Referência)</p>
+                <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="px-4 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">Medida</th>
+                      <th className="px-4 py-2 text-center font-semibold text-gray-600 border-b border-gray-200">Peso aprox.</th>
+                      <th className="px-4 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">Medida</th>
+                      <th className="px-4 py-2 text-center font-semibold text-gray-600 border-b border-gray-200">Peso aprox.</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ['Colher de chá', '~4 g', 'Copo (200ml)', '~200 ml'],
+                      ['Colher de sobremesa', '~9 g', 'Concha pequena', '~80 g'],
+                      ['Colher de sopa', '~13 g', 'Concha média', '~150 g'],
+                      ['Colher de servir', '~30 g', 'Xícara (sólidos)', '~80 g'],
+                      ['Unidade (fruta média)', '~130 g', 'Xícara (líquidos)', '~200 ml'],
+                      ['Fatia (fruta)', '~80 g', 'Lata', '~350 ml'],
+                    ].map(([m1, p1, m2, p2], i) => (
+                      <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-4 py-1.5 text-gray-700">{m1}</td>
+                        <td className="px-4 py-1.5 text-center text-gray-500">{p1}</td>
+                        <td className="px-4 py-1.5 text-gray-700">{m2}</td>
+                        <td className="px-4 py-1.5 text-center text-gray-500">{p2}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="text-[9px] text-gray-400 mt-1.5 italic">
+                  Valores de referência (Pinheiro et al. 2004 / TBCA). Pesos reais variam conforme o alimento e forma de preparo.
+                </p>
+              </div>
+
+              {/* 7. Rodapé — Assinatura/Carimbo */}
+              <div className="mt-8 pt-6 flex flex-col items-center">
+                <div style={{ height: '48px' }} /> {/* espaço para assinatura manuscrita */}
+                <div className="w-56 border-t border-gray-400 pt-3 text-center">
+                  <p className="font-bold text-gray-800 text-sm">{nutritionist?.name || user?.displayName || 'Nutricionista'}</p>
+                  {nutritionist?.crn && (
+                    <p className="text-xs text-gray-500 mt-0.5">CRN: {nutritionist.crn}</p>
+                  )}
+                </div>
+                <p className="text-[9px] text-gray-400 mt-4">
+                  Gerado em {formatDateSafely(new Date().toISOString(), 'dd/MM/yyyy')}
+                </p>
+              </div>
+
             </div>
           </div>
         </div>
@@ -2484,11 +2856,17 @@ export const PatientProfile = () => {
                 const latest = sorted[sorted.length - 1];
                 const prev = sorted.length > 1 ? sorted[sorted.length - 2] : null;
 
+                const IMC_BADGE_CLASSES: Record<string, string> = {
+                  'Baixo peso': 'text-muted-foreground bg-muted',
+                  'Eutrófico': 'text-primary bg-primary/10',
+                  'Sobrepeso': 'text-accent-foreground bg-accent/30',
+                  'Obesidade grau I': 'text-destructive bg-destructive/10',
+                  'Obesidade grau II': 'text-destructive bg-destructive/10',
+                  'Obesidade grau III (mórbida)': 'text-destructive bg-destructive/10',
+                };
                 const imcInfo = (imc: number) => {
-                  if (imc < 18.5) return { label: 'Abaixo do peso', cls: 'text-muted-foreground bg-muted' };
-                  if (imc < 25) return { label: 'Normal', cls: 'text-primary bg-primary/10' };
-                  if (imc < 30) return { label: 'Sobrepeso', cls: 'text-accent-foreground bg-accent/30' };
-                  return { label: 'Obesidade', cls: 'text-destructive bg-destructive/10' };
+                  const label = classifyImc(imc);
+                  return { label, cls: IMC_BADGE_CLASSES[label] };
                 };
 
                 const fmtDelta = (curr?: number, prevVal?: number, unit = '') => {
@@ -2501,8 +2879,9 @@ export const PatientProfile = () => {
 
                 const imc = imcInfo(latest.imc);
                 const h = latest.height;
-                const idealMin = h ? (18.5 * h * h).toFixed(1) : null;
-                const idealMax = h ? (24.9 * h * h).toFixed(1) : null;
+                const idealRange = h ? idealWeightRangeByBmi(h) : null;
+                const idealMin = idealRange ? idealRange.min.toFixed(1) : null;
+                const idealMax = idealRange ? idealRange.max.toFixed(1) : null;
 
                 const cards = [
                   {
@@ -2714,13 +3093,25 @@ export const PatientProfile = () => {
 
               {/* Tabela Completa */}
               {consultations.length > 0 && (() => {
+                const IMC_TABLE_LABELS: Record<string, string> = {
+                  'Baixo peso': 'Abaixo',
+                  'Eutrófico': 'Normal',
+                  'Sobrepeso': 'Sobrepeso',
+                  'Obesidade grau I': 'Obesidade I',
+                  'Obesidade grau II': 'Obesidade II',
+                  'Obesidade grau III (mórbida)': 'Obesidade III',
+                };
+                const IMC_TABLE_CLASSES: Record<string, string> = {
+                  'Baixo peso': 'text-muted-foreground',
+                  'Eutrófico': 'text-primary',
+                  'Sobrepeso': 'text-accent-foreground',
+                  'Obesidade grau I': 'text-destructive',
+                  'Obesidade grau II': 'text-destructive',
+                  'Obesidade grau III (mórbida)': 'text-destructive',
+                };
                 const imcLabel = (imc: number) => {
-                  if (imc < 18.5) return { text: 'Abaixo', cls: 'text-muted-foreground' };
-                  if (imc < 25) return { text: 'Normal', cls: 'text-primary' };
-                  if (imc < 30) return { text: 'Sobrepeso', cls: 'text-accent-foreground' };
-                  if (imc < 35) return { text: 'Obesidade I', cls: 'text-destructive' };
-                  if (imc < 40) return { text: 'Obesidade II', cls: 'text-destructive' };
-                  return { text: 'Obesidade III', cls: 'text-destructive' };
+                  const label = classifyImc(imc);
+                  return { text: IMC_TABLE_LABELS[label], cls: IMC_TABLE_CLASSES[label] };
                 };
 
                 const deltaTag = (curr?: number, prevVal?: number, unit = '') => {
@@ -2853,14 +3244,6 @@ export const PatientProfile = () => {
                 latestConsultation={selectedConsultationForCalc}
                 existingCalculation={selectedExistingCalc}
                 onSaveCalculation={handleSaveCalculation}
-                onCreateMealPlan={(input, result) => {
-                  setIsCalculatorModalOpen(false);
-                  navigate(`/patients/${id}/meal-plan/new`, {
-                    state: {
-                      calculation: { result, input, name: 'Cálculo Temporário', createdAt: new Date().toISOString() }
-                    }
-                  });
-                }}
               />
             )}
           </div>
@@ -2970,6 +3353,66 @@ export const PatientProfile = () => {
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
       />
+
+      {/* Modal de cópia de plano alimentar */}
+      {pendingConsultationForPlan && (
+        <CopyMealPlanModal
+          isOpen={isCopyMealPlanModalOpen}
+          patientId={id ?? ''}
+          currentConsultationId={pendingConsultationForPlan.consultationId}
+          onClose={() => {
+            setIsCopyMealPlanModalOpen(false);
+            setPendingConsultationForPlan(null);
+          }}
+          onCreateFromScratch={() => {
+            setIsCopyMealPlanModalOpen(false);
+            const pending = pendingConsultationForPlan;
+            setPendingConsultationForPlan(null);
+            navigate(`/patients/${id}/meal-plan/new`, {
+              state: {
+                consultationId: pending.consultationId,
+                ...(pending.calcDaConsulta ? { calculation: pending.calcDaConsulta } : {}),
+              },
+            });
+          }}
+          onCopyPlan={(entrada: MealPlanHistoryEntry) => {
+            setIsCopyMealPlanModalOpen(false);
+            const pending = pendingConsultationForPlan;
+            setPendingConsultationForPlan(null);
+            navigate(`/patients/${id}/meal-plan/new`, {
+              state: {
+                consultationId: pending?.consultationId,
+                ...(pending?.calcDaConsulta ? { calculation: pending.calcDaConsulta } : {}),
+                copiedMealPlan: {
+                  generalInstructions: entrada.mealPlan.generalInstructions ?? '',
+                  waterIntake: entrada.mealPlan.waterIntake ?? '',
+                  mealObservations: entrada.mealPlan.mealObservations ?? {},
+                  customMeals: entrada.mealPlan.customMeals ?? [],
+                  items: entrada.mealPlan.items.map(item => ({
+                    meal: item.meal,
+                    food: item.food,
+                    quantity: item.quantity,
+                    unit: item.unit,
+                    weight_in_grams: item.weight_in_grams,
+                    kcal: item.kcal,
+                    protein: item.protein,
+                    carbs: item.carbs,
+                    fat: item.fat,
+                    base_kcal: item.base_kcal,
+                    base_protein: item.base_protein,
+                    base_carbs: item.base_carbs,
+                    base_fat: item.base_fat,
+                    base_quantity: item.base_quantity,
+                    serving_name: item.serving_name,
+                    serving_weight: item.serving_weight,
+                    position: item.position,
+                  })),
+                },
+              },
+            });
+          }}
+        />
+      )}
     </div>
   );
 };

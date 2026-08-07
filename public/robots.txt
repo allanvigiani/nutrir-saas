@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /dashboard
+Disallow: /patients
+Disallow: /schedule
+Disallow: /financial
+Disallow: /settings
+Disallow: /admin
+Disallow: /api/
+
+Sitemap: https://nutrir.com.br/sitemap.xml
