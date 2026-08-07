@@ -52,8 +52,10 @@ interface HistoricoPlanoAlimentar {
   mealPlan: {
     id: string;
     name: string;
+    type: string;
     generalInstructions: string | null;
     waterIntake: string | null;
+    freeTextContent: string | null;
     mealObservations: Record<string, string> | null;
     customMeals: string[] | null;
     items: ReturnType<typeof itemToSnakeCase>[];
@@ -97,6 +99,14 @@ function toSnakeCase(plan: any) {
   };
 }
 
+const VALID_MEAL_PLAN_TYPES = new Set(['blocks', 'free']);
+
+function assertValidType(data: Record<string, unknown>) {
+  if (data.type !== undefined && !VALID_MEAL_PLAN_TYPES.has(data.type as string)) {
+    throw new Error('Tipo de plano inválido');
+  }
+}
+
 export function createMealPlansService() {
   async function list(nutritionistId: string, patientId: string) {
     const plans = await getDb().mealPlan.findMany({
@@ -116,6 +126,7 @@ export function createMealPlansService() {
   }
 
   async function create(nutritionistId: string, patientId: string, data: Record<string, unknown>, isPremium: boolean) {
+    assertValidType(data);
     if (!isPremium) {
       const activeCount = await getDb().mealPlan.count({
         where: { patientId, nutritionistId, status: 'active', deletedAt: null },
@@ -137,6 +148,7 @@ export function createMealPlansService() {
   }
 
   async function update(nutritionistId: string, id: string, data: Record<string, unknown>) {
+    assertValidType(data);
     const existing = await getDb().mealPlan.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
     const { items, consultation_id, calculation_id, ...rest } = data as any;
@@ -272,8 +284,10 @@ export function createMealPlansService() {
         mealPlan: {
           id: plano.id,
           name: plano.name,
+          type: plano.type,
           generalInstructions: plano.generalInstructions ?? null,
           waterIntake: plano.waterIntake ?? null,
+          freeTextContent: plano.freeTextContent ?? null,
           mealObservations: (plano.mealObservations as Record<string, string> | null) ?? null,
           customMeals: (plano.customMeals as string[] | null) ?? null,
           items: plano.items.map(itemToSnakeCase),
