@@ -44,8 +44,10 @@ export interface MealPlanHistoryEntry {
   mealPlan: {
     id: string;
     name: string;
+    type: 'blocks' | 'free';
     generalInstructions: string | null;
     waterIntake: string | null;
+    freeTextContent: string | null;
     mealObservations: Record<string, string> | null;
     customMeals: string[] | null;
     items: MealPlanItemHistory[];
@@ -60,8 +62,8 @@ interface CopyMealPlanModalProps {
   /** ID da consulta atual — exclui ela da lista */
   currentConsultationId: string;
   onClose: () => void;
-  /** Chamado quando o usuário quer criar do zero (sem dados copiados) */
-  onCreateFromScratch: () => void;
+  /** Chamado quando o usuário quer criar do zero — recebe o tipo escolhido */
+  onCreateFromScratch: (type: 'blocks' | 'free') => void;
   /** Chamado quando o usuário seleciona um plano para copiar */
   onCopyPlan: (entry: MealPlanHistoryEntry) => void;
 }
@@ -250,15 +252,25 @@ export function CopyMealPlanModal({
             </Button>
           )}
 
-          {/* Criar do zero — sempre visível */}
-          <Button
-            variant="outline"
-            className="w-full gap-2"
-            onClick={onCreateFromScratch}
-          >
-            <FilePlus className="w-4 h-4" />
-            Criar do zero
-          </Button>
+          {/* Criar do zero — sempre visíveis, dois tipos */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => onCreateFromScratch('blocks')}
+            >
+              <FilePlus className="w-4 h-4" />
+              Por Refeição
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => onCreateFromScratch('free')}
+            >
+              <FilePlus className="w-4 h-4" />
+              Livre
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
