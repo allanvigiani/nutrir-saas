@@ -140,11 +140,10 @@ export function MealPlanEdit() {
 
       let currentPlanId: string | undefined = planId;
 
-      if (planId && planId !== 'new') {
-        await apiRequest(`/api/meal-plans/${planId}`, 'PATCH', planPayload);
-        if (!isFree) {
-          const mealPositionCounters: Record<string, number> = {};
-          const cleanItems = (data as any).items.map(({ id: _id, position: _pos, ...item }: any) => {
+      // Item cleaning só se aplica a planos "blocks" (Por Refeição) — planos "free" nunca tocam /items.
+      const mealPositionCounters: Record<string, number> = {};
+      const cleanItems = !isFree
+        ? (data as any).items.map(({ id: _id, position: _pos, ...item }: any) => {
             const mealId = item.meal as string;
             if (mealPositionCounters[mealId] === undefined) mealPositionCounters[mealId] = 0;
             const position = mealPositionCounters[mealId]++;
@@ -152,23 +151,18 @@ export function MealPlanEdit() {
             Object.entries(item).forEach(([k, v]) => { clean[k] = v === undefined ? null : v; });
             clean.position = position;
             return clean;
-          });
+          })
+        : undefined;
+
+      if (planId && planId !== 'new') {
+        await apiRequest(`/api/meal-plans/${planId}`, 'PATCH', planPayload);
+        if (!isFree) {
           await apiRequest(`/api/meal-plans/${planId}/items`, 'PUT', cleanItems);
         }
       } else {
         const created = await apiRequest<{ id: string }>(`/api/patients/${patientId}/meal-plans`, 'POST', planPayload);
         currentPlanId = created?.id;
         if (currentPlanId && !isFree) {
-          const mealPositionCounters: Record<string, number> = {};
-          const cleanItems = (data as any).items.map(({ id: _id, position: _pos, ...item }: any) => {
-            const mealId = item.meal as string;
-            if (mealPositionCounters[mealId] === undefined) mealPositionCounters[mealId] = 0;
-            const position = mealPositionCounters[mealId]++;
-            const clean: Record<string, any> = {};
-            Object.entries(item).forEach(([k, v]) => { clean[k] = v === undefined ? null : v; });
-            clean.position = position;
-            return clean;
-          });
           await apiRequest(`/api/meal-plans/${currentPlanId}/items`, 'PUT', cleanItems);
         }
       }
