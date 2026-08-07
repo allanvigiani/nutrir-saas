@@ -138,10 +138,12 @@ export function CopyMealPlanModal({
             </div>
             <div>
               <DialogTitle className="text-base font-semibold text-foreground leading-tight">
-                Copiar Plano Alimentar
+                {!loading && historico.length === 0 ? 'Novo Plano Alimentar' : 'Copiar Plano Alimentar'}
               </DialogTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Selecione um plano de consulta anterior ou crie do zero
+                {!loading && historico.length === 0
+                  ? 'Escolha como criar o plano alimentar'
+                  : 'Selecione um plano de consulta anterior ou crie do zero'}
               </p>
             </div>
           </div>
@@ -230,7 +232,7 @@ export function CopyMealPlanModal({
             </>
           )}
 
-          {/* Sem histórico — não deveria aparecer (o modal só abre se há histórico), mas por segurança */}
+          {/* Sem histórico — primeiro plano do paciente */}
           {!loading && !error && historico.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-6">
               Nenhum plano alimentar anterior encontrado.
@@ -241,7 +243,7 @@ export function CopyMealPlanModal({
         {/* Rodapé com ações */}
         <div className="px-6 pb-6 pt-2 border-t border-border space-y-2">
           {/* Copiar selecionado */}
-          {!loading && !error && (
+          {!loading && !error && historico.length > 0 && (
             <Button
               className="w-full gap-2"
               disabled={!selecionado}

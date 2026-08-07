@@ -37,18 +37,12 @@ import {
   ArrowLeft,
   Droplets,
   Loader2,
-  Download,
-  Utensils,
-  Sun,
-  Coffee,
-  Moon,
-  CloudMoon
+  Download
 } from 'lucide-react';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
 import { format, parseISO, differenceInYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { generateMealPlanPDF } from '../lib/meal-plan-pdf';
 
 
 export const PatientAccess = () => {
@@ -123,273 +117,22 @@ export const PatientAccess = () => {
     }
   }, [isAuthenticated]);
 
-  const generateMealPlanPDF = (plan: MealPlan, items: MealPlanItem[]) => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    
-    const mealTypesList = [
-      { id: 'breakfast', label: 'Café da Manhã', icon: Sun, color: 'bg-amber-50 border-amber-100 text-amber-700' },
-      { id: 'morning_snack', label: 'Lanche da Manhã', icon: Apple, color: 'bg-rose-50 border-rose-100 text-rose-700' },
-      { id: 'lunch', label: 'Almoço', icon: Utensils, color: 'bg-primary/10 border-primary/20 text-primary' },
-      { id: 'afternoon_snack', label: 'Lanche da Tarde', icon: Coffee, color: 'bg-orange-50 border-orange-100 text-orange-700' },
-      { id: 'dinner', label: 'Jantar', icon: Moon, color: 'bg-indigo-50 border-indigo-100 text-indigo-700' },
-      { id: 'supper', label: 'Ceia', icon: CloudMoon, color: 'bg-muted/30 border-border text-muted-foreground' },
-    ];
-
-    // Header background
-    doc.setFillColor(5, 150, 105); // emerald-600
-    doc.rect(0, 0, pageWidth, 45, 'F');
-    
-    // Title
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PLANO ALIMENTAR', pageWidth / 2, 20, { align: 'center' });
-    
-    // Nutritionist Info in Header
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Nutricionista: ${nutritionist?.name || 'Não informado'}`, pageWidth / 2, 28, { align: 'center' });
-    
-    let headerY = 33;
-    if (nutritionist?.crn) {
-      doc.text(`CRN: ${nutritionist.crn}`, pageWidth / 2, headerY, { align: 'center' });
-      headerY += 5;
-    }
-    if (nutritionist?.phone) {
-      doc.text(`Tel: ${nutritionist.phone}`, pageWidth / 2, headerY, { align: 'center' });
-    }
-
-    // Patient Info Section
-    doc.setTextColor(30, 41, 59); // slate-800
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DADOS DO PACIENTE', 14, 60);
-    doc.setDrawColor(226, 232, 240); // slate-200
-    doc.line(14, 62, pageWidth - 14, 62);
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Paciente:', 14, 70);
-    doc.setFont('helvetica', 'normal');
-    doc.text(patient?.name || 'Não informado', 35, 70);
-    
-    doc.setFont('helvetica', 'bold');
-    doc.text('Data:', 14, 77);
-    doc.setFont('helvetica', 'normal');
-    doc.text(format(new Date(), 'dd/MM/yyyy'), 28, 77);
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Plano:', 14, 84);
-    doc.setFont('helvetica', 'normal');
-    doc.text(plan.name || 'Plano Alimentar', 30, 84);
-
-    let currentY = 95;
-    if (plan.waterIntake) {
-      doc.setFont('helvetica', 'bold');
-      doc.text('Meta de Água:', 14, 91);
-      doc.setFont('helvetica', 'normal');
-      doc.text(plan.waterIntake, 43, 91);
-      currentY = 102;
-    }
-
-    // Group items by meal
-    const order = ['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner', 'supper'];
-    
-    order.forEach((mealId) => {
-      const mealItems = items.filter(i => i.meal === mealId);
-      if (mealItems.length === 0) return;
-
-      const mealLabel = mealTypesList.find(m => m.id === mealId)?.label || mealId;
-      const observation = plan.mealObservations?.[mealId];
-
-      // Meal Header
-      doc.setFillColor(248, 250, 252); // slate-50
-      doc.rect(14, currentY, pageWidth - 28, 10, 'F');
-      doc.setTextColor(5, 150, 105); // emerald-600
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text(mealLabel.toUpperCase(), 18, currentY + 7);
-      
-      currentY += 12;
-
-      // Table for this meal
-      const tableData = mealItems.map(item => [
-        item.food,
-        `${item.quantity} ${item.unit}`,
-        `${item.kcal || 0} kcal`
-      ]);
-
-      autoTable(doc, {
-        startY: currentY,
-        head: [['Alimento', 'Quantidade', 'Calorias']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { fillColor: [5, 150, 105], fontSize: 9, halign: 'center' },
-        bodyStyles: { fontSize: 9 },
-        columnStyles: {
-          0: { cellWidth: 'auto', halign: 'left' },
-          1: { cellWidth: 40, halign: 'center' },
-          2: { cellWidth: 30, halign: 'center' }
-        },
-        margin: { left: 14, right: 14 },
-        didParseCell: (data) => {
-          if (data.section === 'head' && data.column.index === 0) {
-            data.cell.styles.halign = 'left';
-          }
-        }
-      });
-
-      currentY = (doc as any).lastAutoTable.finalY + 5;
-
-      // Observation for this meal
-      if (observation) {
-        doc.setFillColor(255, 251, 235); // amber-50
-        doc.setDrawColor(251, 191, 36); // amber-400
-        
-        const splitObs = doc.splitTextToSize(observation, pageWidth - 36);
-        const obsHeight = (splitObs.length * 5) + 6;
-
-        // Check if we need a new page
-        if (currentY + obsHeight > doc.internal.pageSize.getHeight() - 20) {
-          doc.addPage();
-          currentY = 20;
-        }
-
-        doc.rect(14, currentY, pageWidth - 28, obsHeight, 'F');
-        doc.line(14, currentY, 14, currentY + obsHeight); // Left border accent
-        
-        doc.setTextColor(146, 64, 14); // amber-800
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'italic');
-        doc.text(splitObs, 18, currentY + 5);
-        
-        currentY += obsHeight + 10;
-      } else {
-        currentY += 5;
-      }
-
-      // Check if next meal needs a new page
-      if (currentY > doc.internal.pageSize.getHeight() - 40) {
-        doc.addPage();
-        currentY = 20;
-      }
-    });
-
-    // General Instructions at the end
-    if (plan.generalInstructions) {
-      if (currentY > doc.internal.pageSize.getHeight() - 60) {
-        doc.addPage();
-        currentY = 20;
-      }
-
-      doc.setTextColor(30, 41, 59);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ORIENTAÇÕES GERAIS', 14, currentY + 10);
-      doc.line(14, currentY + 12, pageWidth - 14, currentY + 12);
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      const splitInstructions = doc.splitTextToSize(plan.generalInstructions, pageWidth - 28);
-      doc.text(splitInstructions, 14, currentY + 20);
-      currentY += 20 + (splitInstructions.length * 5) + 15;
-    }
-
-    // Household Measurements Table (EXACT COPY FROM NUTRITIONIST PROFILE)
-    if (currentY > doc.internal.pageSize.getHeight() - 80) {
-      doc.addPage();
-      currentY = 20;
-    }
-
-    doc.setTextColor(30, 41, 59);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('EQUIVALÊNCIA DE MEDIDAS CASEIRAS', 14, currentY);
-    currentY += 5;
-
-    const householdMeasures = [
-      ['1 copo americano', '200 ml'],
-      ['1 xícara de chá', '200 ml'],
-      ['1 copo de requeijão', '250 ml'],
-      ['1 concha média', '100 g / 150 ml'],
-      ['1 colher de sopa', '15 g / 15 ml'],
-      ['1 colher de sobremesa', '10 g / 10 ml'],
-      ['1 colher de chá', '5 g / 5 ml'],
-      ['1 colher de café', '2.5 g / 2.5 ml'],
-      ['1 escumadeira média', '60 g']
-    ];
-
-    autoTable(doc, {
-      startY: currentY,
-      head: [['Medida Caseira', 'Equivalência Aproximada']],
-      body: householdMeasures,
-      theme: 'grid',
-      headStyles: { fillColor: [71, 85, 105], fontSize: 8, halign: 'center' },
-      bodyStyles: { fontSize: 8, halign: 'center' },
-      columnStyles: {
-        0: { cellWidth: 'auto', halign: 'left' },
-        1: { cellWidth: 60, halign: 'center' }
-      },
-      margin: { left: 14, right: 14 }
-    });
-
-    currentY = (doc as any).lastAutoTable.finalY + 15;
-
-    // Signature and Stamp Area (EXACT COPY FROM NUTRITIONIST PROFILE)
-    if (currentY > doc.internal.pageSize.getHeight() - 60) {
-      doc.addPage();
-      currentY = 30;
-    } else {
-      currentY += 30;
-    }
-
-    doc.setDrawColor(148, 163, 184); // slate-400
-    doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
-    doc.setFontSize(9);
-    doc.setTextColor(71, 85, 105); // slate-600
-    doc.text('Assinatura do Profissional', pageWidth / 2, currentY + 5, { align: 'center' });
-    
-    // Stamp Box
-    doc.setDrawColor(203, 213, 225); // slate-300
-    doc.rect(pageWidth - 54, currentY - 15, 40, 25);
-    doc.setFontSize(7);
-    doc.setTextColor(148, 163, 184); // slate-400
-    doc.text('ESPAÇO PARA CARIMBO', pageWidth - 34, currentY - 2, { align: 'center' });
-
-    // Footer with Disclaimer
-    const pageCount = (doc as any).internal.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(148, 163, 184); // slate-400
-      
-      const mainFooter = `Gerado por Nutrir em ${format(new Date(), 'dd/MM/yyyy HH:mm')} - Página ${i} de ${pageCount}`;
-      const patientDisclaimer = 'Este documento foi gerado pelo paciente através de link exclusivo de acesso.';
-      
-      doc.text(mainFooter, pageWidth / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' });
-      doc.setFont('helvetica', 'italic');
-      doc.text(patientDisclaimer, pageWidth / 2, doc.internal.pageSize.getHeight() - 10, { align: 'center' });
-    }
-
-    doc.save(`${patient?.name.replace(/\s+/g, '_')}_Plano_Alimentar.pdf`);
-  };
-
   const downloadMealPlan = async (plan: MealPlan) => {
     if (downloadingPlanId) return;
-    
+
     setDownloadingPlanId(plan.id);
     const toastId = toast.loading('Preparando seu plano alimentar para download...');
-    
+
     try {
       const res = await fetch(`/api/portal/meal-plans/${plan.id}/items?token=${encodeURIComponent(token || '')}`);
       if (!res.ok) throw new Error('Erro ao buscar itens do plano.');
       const items: MealPlanItem[] = await res.json();
 
-      if (items.length === 0) {
+      if (plan.type !== 'free' && items.length === 0) {
         toast.warning('Este plano alimentar parece estar vazio.', { id: toastId });
       } else {
-        generateMealPlanPDF(plan, items);
+        const doc = generateMealPlanPDF(plan, items, patient?.name || '', nutritionist);
+        doc.save(`${patient?.name?.replace(/\s+/g, '_') || 'Plano'}_Plano_Alimentar.pdf`);
         toast.success('Plano baixado com sucesso!', { id: toastId });
       }
     } catch (error) {

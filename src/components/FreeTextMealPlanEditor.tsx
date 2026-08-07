@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Droplets, Loader2, MessageSquare, Printer, Save } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -62,6 +62,18 @@ export function FreeTextMealPlanEditor({
       freeTextContent !== savedSnapshot.freeTextContent
     );
   }, [name, waterIntake, generalInstructions, freeTextContent, savedSnapshot]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
 
   const handleRequestClose = useCallback(() => {
     if (hasUnsavedChanges) {

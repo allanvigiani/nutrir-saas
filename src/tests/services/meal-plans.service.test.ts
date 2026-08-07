@@ -316,11 +316,26 @@ describe('meal-plans.service — type (blocks | free)', () => {
   });
 
   it('update() aceita type "blocks" sem alterar comportamento existente', async () => {
-    mealPlan.findFirst.mockResolvedValue({ id: 'mp-1', nutritionistId: 'nutri-1', deletedAt: null });
+    mealPlan.findFirst.mockResolvedValue({ id: 'mp-1', nutritionistId: 'nutri-1', type: 'blocks', deletedAt: null });
     mealPlan.update.mockResolvedValue({});
     await service.update('nutri-1', 'mp-1', { type: 'blocks', name: 'Renomeado' });
     expect(mealPlan.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ type: 'blocks', name: 'Renomeado' }) }),
     );
+  });
+
+  it('update() rejeita mudança de type em plano existente', async () => {
+    mealPlan.findFirst.mockResolvedValue({ id: 'mp-1', nutritionistId: 'nutri-1', type: 'blocks', deletedAt: null });
+    await expect(
+      service.update('nutri-1', 'mp-1', { type: 'free' })
+    ).rejects.toThrow('Não é possível alterar o tipo de um plano existente');
+    expect(mealPlan.update).not.toHaveBeenCalled();
+  });
+
+  it('update() aceita reenviar o mesmo type do plano existente', async () => {
+    mealPlan.findFirst.mockResolvedValue({ id: 'mp-1', nutritionistId: 'nutri-1', type: 'blocks', deletedAt: null });
+    mealPlan.update.mockResolvedValue({});
+    await service.update('nutri-1', 'mp-1', { type: 'blocks', name: 'Renomeado' });
+    expect(mealPlan.update).toHaveBeenCalled();
   });
 });

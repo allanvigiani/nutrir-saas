@@ -151,6 +151,9 @@ export function createMealPlansService() {
     assertValidType(data);
     const existing = await getDb().mealPlan.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
+    if (data.type !== undefined && data.type !== existing.type) {
+      throw new Error('Não é possível alterar o tipo de um plano existente');
+    }
     const { items, consultation_id, calculation_id, ...rest } = data as any;
     return getDb().mealPlan.update({
       where: { id },
