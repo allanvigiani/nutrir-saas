@@ -1578,24 +1578,11 @@ export const PatientProfile = () => {
                                                 if (planDaConsulta) {
                                                   navigate(`/patients/${id}/meal-plan/${planDaConsulta.id}`);
                                                 } else {
-                                                  // Verifica se há planos anteriores para oferecer cópia
-                                                  const planosAnteriores = mealPlans.filter(
-                                                    p => p.consultation_id && p.consultation_id !== consultation.id
-                                                  );
-                                                  if (planosAnteriores.length > 0) {
-                                                    setPendingConsultationForPlan({
-                                                      consultationId: consultation.id,
-                                                      calcDaConsulta,
-                                                    });
-                                                    setIsCopyMealPlanModalOpen(true);
-                                                  } else {
-                                                    navigate(`/patients/${id}/meal-plan/new`, {
-                                                      state: {
-                                                        consultationId: consultation.id,
-                                                        ...(calcDaConsulta ? { calculation: calcDaConsulta } : {}),
-                                                      },
-                                                    });
-                                                  }
+                                                  setPendingConsultationForPlan({
+                                                    consultationId: consultation.id,
+                                                    calcDaConsulta,
+                                                  });
+                                                  setIsCopyMealPlanModalOpen(true);
                                                 }
                                               }}
                                             >
@@ -3364,13 +3351,14 @@ export const PatientProfile = () => {
             setIsCopyMealPlanModalOpen(false);
             setPendingConsultationForPlan(null);
           }}
-          onCreateFromScratch={() => {
+          onCreateFromScratch={(type: 'blocks' | 'free') => {
             setIsCopyMealPlanModalOpen(false);
             const pending = pendingConsultationForPlan;
             setPendingConsultationForPlan(null);
             navigate(`/patients/${id}/meal-plan/new`, {
               state: {
                 consultationId: pending.consultationId,
+                mealPlanType: type,
                 ...(pending.calcDaConsulta ? { calculation: pending.calcDaConsulta } : {}),
               },
             });
@@ -3384,6 +3372,8 @@ export const PatientProfile = () => {
                 consultationId: pending?.consultationId,
                 ...(pending?.calcDaConsulta ? { calculation: pending.calcDaConsulta } : {}),
                 copiedMealPlan: {
+                  type: entrada.mealPlan.type,
+                  freeTextContent: entrada.mealPlan.freeTextContent ?? '',
                   generalInstructions: entrada.mealPlan.generalInstructions ?? '',
                   waterIntake: entrada.mealPlan.waterIntake ?? '',
                   mealObservations: entrada.mealPlan.mealObservations ?? {},
