@@ -47,14 +47,21 @@ export function FreeTextMealPlanEditor({
   const [isPrinting, setIsPrinting] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
+  const [savedSnapshot, setSavedSnapshot] = useState(() => ({
+    name: initialName,
+    waterIntake: initialWaterIntake,
+    generalInstructions: initialGeneralInstructions,
+    freeTextContent: initialFreeTextContent,
+  }));
+
   const hasUnsavedChanges = useMemo(() => {
     return (
-      name !== initialName ||
-      waterIntake !== initialWaterIntake ||
-      generalInstructions !== initialGeneralInstructions ||
-      freeTextContent !== initialFreeTextContent
+      name !== savedSnapshot.name ||
+      waterIntake !== savedSnapshot.waterIntake ||
+      generalInstructions !== savedSnapshot.generalInstructions ||
+      freeTextContent !== savedSnapshot.freeTextContent
     );
-  }, [name, waterIntake, generalInstructions, freeTextContent, initialName, initialWaterIntake, initialGeneralInstructions, initialFreeTextContent]);
+  }, [name, waterIntake, generalInstructions, freeTextContent, savedSnapshot]);
 
   const handleRequestClose = useCallback(() => {
     if (hasUnsavedChanges) {
@@ -70,7 +77,10 @@ export function FreeTextMealPlanEditor({
     }
     setIsSaving(true);
     try {
-      await onSave({ name, waterIntake, generalInstructions, freeTextContent });
+      const success = await onSave({ name, waterIntake, generalInstructions, freeTextContent });
+      if (success) {
+        setSavedSnapshot({ name, waterIntake, generalInstructions, freeTextContent });
+      }
     } finally {
       setIsSaving(false);
     }
