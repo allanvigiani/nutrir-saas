@@ -90,8 +90,10 @@ export interface MealPlan {
   calculation_id?: string;
   nutritionist_id: string;
   name: string;
+  type: 'blocks' | 'free';
   generalInstructions?: string;
   waterIntake?: string;
+  freeTextContent?: string;
   mealObservations?: Record<string, string>;
   customMeals?: { id: string; label: string; time?: string; icon?: string }[];
   access_token?: string;

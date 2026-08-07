@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Patient, MealPlan, MealPlanItem, NutritionCalculation } from '../types';
 import { MealPlanEditor, MealType } from '../components/MealPlanEditor';
+import { FreeTextMealPlanEditor } from '../components/FreeTextMealPlanEditor';
 import { ReceitasVinculadasPanel } from '../components/ReceitasVinculadasPanel';
 import { toast } from 'sonner';
 import { logEvent } from '../lib/firebase';
@@ -28,12 +29,17 @@ export function MealPlanEdit() {
 
   // Plano copiado de consulta anterior (deep clone enviado por PatientProfile)
   const copiedMealPlan = location.state?.copiedMealPlan as {
+    type: 'blocks' | 'free';
+    freeTextContent: string;
     generalInstructions: string;
     waterIntake: string;
     mealObservations: Record<string, string>;
     customMeals: MealType[];
     items: MealPlanItem[];
   } | undefined;
+
+  // Tipo escolhido no modal ao criar do zero (apenas relevante para plano novo sem cópia)
+  const stateMealPlanType = location.state?.mealPlanType as 'blocks' | 'free' | undefined;
 
   useEffect(() => {
     async function fetchData() {
@@ -95,55 +101,76 @@ export function MealPlanEdit() {
     waterIntake: string;
     mealObservations: Record<string, string>;
     customMeals: any[];
+  } | {
+    name: string;
+    waterIntake: string;
+    generalInstructions: string;
+    freeTextContent: string;
   }): Promise<boolean> => {
     if (!user || !patientId) return false;
 
     try {
-      const planPayload = {
-        name: data.name || '',
-        generalInstructions: data.generalInstructions || '',
-        waterIntake: data.waterIntake || '',
-        mealObservations: data.mealObservations || {},
-        customMeals: data.customMeals.map(m => ({
-          id: m.id,
-          label: m.label || '',
-          time: m.time || null
-        })),
-        consultation_id: stateCalculation?.consultation_id || location.state?.consultationId || mealPlan?.consultation_id || null,
-        calculation_id: stateCalculation?.id || mealPlan?.calculation_id || null,
-      };
-
-      // Calcula position relativo ao grupo (meal) antes de limpar os itens
-      const mealPositionCounters: Record<string, number> = {};
-      const cleanItems = data.items.map(({ id: _id, position: _pos, ...item }: any) => {
-        const mealId = item.meal as string;
-        if (mealPositionCounters[mealId] === undefined) mealPositionCounters[mealId] = 0;
-        const position = mealPositionCounters[mealId]++;
-        const clean: Record<string, any> = {};
-        Object.entries(item).forEach(([k, v]) => { clean[k] = v === undefined ? null : v; });
-        clean.position = position;
-        return clean;
-      });
+      const isFree = effectiveType === 'free';
+      const planPayload = isFree
+        ? {
+            type: 'free',
+            name: data.name || '',
+            generalInstructions: (data as any).generalInstructions || '',
+            waterIntake: (data as any).waterIntake || '',
+            freeTextContent: (data as any).freeTextContent || '',
+            mealObservations: {},
+            customMeals: [],
+            consultation_id: stateCalculation?.consultation_id || location.state?.consultationId || mealPlan?.consultation_id || null,
+            calculation_id: stateCalculation?.id || mealPlan?.calculation_id || null,
+          }
+        : {
+            type: 'blocks',
+            name: data.name || '',
+            generalInstructions: (data as any).generalInstructions || '',
+            waterIntake: (data as any).waterIntake || '',
+            mealObservations: (data as any).mealObservations || {},
+            customMeals: (data as any).customMeals.map((m: any) => ({
+              id: m.id,
+              label: m.label || '',
+              time: m.time || null
+            })),
+            consultation_id: stateCalculation?.consultation_id || location.state?.consultationId || mealPlan?.consultation_id || null,
+            calculation_id: stateCalculation?.id || mealPlan?.calculation_id || null,
+          };
 
       let currentPlanId: string | undefined = planId;
 
+      // Item cleaning só se aplica a planos "blocks" (Por Refeição) — planos "free" nunca tocam /items.
+      const mealPositionCounters: Record<string, number> = {};
+      const cleanItems = !isFree
+        ? (data as any).items.map(({ id: _id, position: _pos, ...item }: any) => {
+            const mealId = item.meal as string;
+            if (mealPositionCounters[mealId] === undefined) mealPositionCounters[mealId] = 0;
+            const position = mealPositionCounters[mealId]++;
+            const clean: Record<string, any> = {};
+            Object.entries(item).forEach(([k, v]) => { clean[k] = v === undefined ? null : v; });
+            clean.position = position;
+            return clean;
+          })
+        : undefined;
+
       if (planId && planId !== 'new') {
-        // Update existing plan metadata, then replace items atomically
         await apiRequest(`/api/meal-plans/${planId}`, 'PATCH', planPayload);
-        await apiRequest(`/api/meal-plans/${planId}/items`, 'PUT', cleanItems);
+        if (!isFree) {
+          await apiRequest(`/api/meal-plans/${planId}/items`, 'PUT', cleanItems);
+        }
       } else {
-        // Create new plan
         const created = await apiRequest<{ id: string }>(`/api/patients/${patientId}/meal-plans`, 'POST', planPayload);
         currentPlanId = created?.id;
-        if (currentPlanId) {
+        if (currentPlanId && !isFree) {
           await apiRequest(`/api/meal-plans/${currentPlanId}/items`, 'PUT', cleanItems);
         }
       }
 
       void logEvent(planId && planId !== 'new' ? 'plano_alimentar_atualizado' : 'novo_plano_alimentar');
       toast.success(planId && planId !== 'new' ? "Plano alimentar atualizado!" : "Plano alimentar criado!");
-      setMealPlan(prev => ({ ...(prev as MealPlan), ...planPayload }));
-      setMealItems(data.items);
+      setMealPlan(prev => ({ ...(prev as MealPlan), ...planPayload }) as MealPlan);
+      if (!isFree) setMealItems((data as any).items);
       if ((!planId || planId === 'new') && currentPlanId) {
         navigate(`/patients/${patientId}/meal-plan/${currentPlanId}`, { replace: true });
       }
@@ -206,6 +233,24 @@ export function MealPlanEdit() {
     ? `nutrir:draft:mealplan:new:${patientId}`
     : 'nutrir:draft:mealplan:new';
 
+  // Tipo efetivo: plano existente > plano copiado > escolha do modal > default 'blocks'
+  const effectiveType: 'blocks' | 'free' = mealPlan?.type ?? copiedMealPlan?.type ?? stateMealPlanType ?? 'blocks';
+
+  if (effectiveType === 'free') {
+    return (
+      <FreeTextMealPlanEditor
+        initialName={copiedMealPlan ? '' : (mealPlan?.name || '')}
+        initialWaterIntake={copiedMealPlan ? copiedMealPlan.waterIntake : (mealPlan?.waterIntake || '')}
+        initialGeneralInstructions={copiedMealPlan ? copiedMealPlan.generalInstructions : (mealPlan?.generalInstructions || '')}
+        initialFreeTextContent={copiedMealPlan ? copiedMealPlan.freeTextContent : (mealPlan?.freeTextContent || '')}
+        isNew={!planId || planId === 'new'}
+        onSave={handleSave as any}
+        onPrint={planId && planId !== 'new' ? handlePrint : undefined}
+        onClose={() => navigate(`/patients/${patientId}`)}
+      />
+    );
+  }
+
   return (
     <div className="h-screen overflow-hidden">
       <MealPlanEditor
@@ -219,7 +264,7 @@ export function MealPlanEdit() {
         foodDataSource="Todas"
         isNew={!planId || planId === 'new'}
         draftKey={draftKey}
-        onSave={handleSave}
+        onSave={handleSave as any}
         onPrint={planId && planId !== 'new' ? handlePrint : undefined}
         onClose={() => navigate(`/patients/${patientId}`)}
       >

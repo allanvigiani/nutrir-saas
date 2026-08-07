@@ -66,8 +66,7 @@ import { CustomFoodDialog } from '../components/CustomFoodDialog';
 import { NutritionalCalculator } from '../components/NutritionalCalculator';
 import { MealPlanEditor } from '../components/MealPlanEditor';
 import { CopyMealPlanModal, type MealPlanHistoryEntry } from '../components/CopyMealPlanModal';
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import { generateMealPlanPDF } from '../lib/meal-plan-pdf';
 
 type DraftMealItem = {
   meal: string;
@@ -267,358 +266,8 @@ export const PatientProfile = () => {
 
   const defaultMealTypes: any[] = [];
 
-  const generateMealPlanPDF = (plan: MealPlan, items: MealPlanItem[], receitasVinculadas?: Array<{ meal: string; recipe: { name: string; ingredients: Array<{ name: string; quantity: string; unit: string }>; prepMode?: string } }>) => {
-    const doc = new jsPDF();
-    const pageWidth = doc.internal.pageSize.getWidth();
-
-    // Header background
-    doc.setFillColor(5, 150, 105); // emerald-600
-    doc.rect(0, 0, pageWidth, 45, 'F');
-
-    // Title
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(22);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PLANO ALIMENTAR', pageWidth / 2, 20, { align: 'center' });
-
-    // Nutritionist Info in Header
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    doc.text(`Nutricionista: ${nutritionist?.name || 'Não informado'}`, pageWidth / 2, 28, { align: 'center' });
-
-    let headerY = 33;
-    if (nutritionist?.crn) {
-      doc.text(`CRN: ${nutritionist.crn}`, pageWidth / 2, headerY, { align: 'center' });
-      headerY += 5;
-    }
-    if (nutritionist?.phone) {
-      doc.text(`Tel: ${nutritionist.phone}`, pageWidth / 2, headerY, { align: 'center' });
-    }
-
-    // Patient Info Section
-    doc.setTextColor(30, 41, 59); // slate-800
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('DADOS DO PACIENTE', 14, 60);
-    doc.setDrawColor(226, 232, 240); // slate-200
-    doc.line(14, 62, pageWidth - 14, 62);
-
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'bold');
-    doc.text('Paciente:', 14, 70);
-    doc.setFont('helvetica', 'normal');
-    doc.text(patient?.name || 'Não informado', 35, 70);
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Data:', 14, 77);
-    doc.setFont('helvetica', 'normal');
-    doc.text(format(new Date(), 'dd/MM/yyyy'), 28, 77);
-
-    doc.setFont('helvetica', 'bold');
-    doc.text('Plano:', 14, 84);
-    doc.setFont('helvetica', 'normal');
-    doc.text(plan.name || 'Plano Alimentar', 30, 84);
-
-    let currentY = 95;
-    if (plan.waterIntake) {
-      doc.setFont('helvetica', 'bold');
-      doc.text('Meta de Água:', 14, 91);
-      doc.setFont('helvetica', 'normal');
-      doc.text(plan.waterIntake, 43, 91);
-      currentY = 102;
-    }
-
-    // Group items by meal
-    const mealsToDisplay = plan.customMeals && plan.customMeals.length > 0 ? plan.customMeals : defaultMealTypes;
-
-    mealsToDisplay.forEach((meal) => {
-      const mealItems = items.filter(i => i.meal === meal.id);
-      if (mealItems.length === 0) return;
-
-      const mealLabel = meal.label;
-      const mealTime = meal.time ? ` (${meal.time})` : '';
-      const observation = plan.mealObservations?.[meal.id];
-
-      // Meal Header
-      doc.setFillColor(248, 250, 252); // slate-50
-      doc.rect(14, currentY, pageWidth - 28, 10, 'F');
-      doc.setTextColor(5, 150, 105); // emerald-600
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text(`${mealLabel.toUpperCase()}${mealTime}`, 18, currentY + 7);
-
-      currentY += 12;
-
-      // Table for this meal
-      const tableData = mealItems.map(item => [
-        item.food,
-        `${item.quantity} ${item.unit}`,
-        `${item.kcal || 0} kcal`
-      ]);
-
-      autoTable(doc, {
-        startY: currentY,
-        head: [['Alimento', 'Quantidade', 'Calorias']],
-        body: tableData,
-        theme: 'striped',
-        headStyles: { fillColor: [5, 150, 105], fontSize: 9, halign: 'center' },
-        bodyStyles: { fontSize: 9 },
-        columnStyles: {
-          0: { cellWidth: 'auto', halign: 'left' },
-          1: { cellWidth: 40, halign: 'center' },
-          2: { cellWidth: 30, halign: 'center' }
-        },
-        margin: { left: 14, right: 14 },
-        didParseCell: (data) => {
-          if (data.section === 'head' && data.column.index === 0) {
-            data.cell.styles.halign = 'left';
-          }
-        }
-      });
-
-      currentY = (doc as any).lastAutoTable.finalY + 5;
-
-      // Observation for this meal
-      if (observation) {
-        const splitObs = doc.splitTextToSize(observation, pageWidth - 36);
-        const obsHeight = (splitObs.length * 5) + 6;
-
-        if (currentY + obsHeight > doc.internal.pageSize.getHeight() - 20) {
-          doc.addPage();
-          currentY = 20;
-        }
-
-        // setFillColor/setDrawColor sempre imediatamente antes do rect —
-        // autoTable e addPage podem resetar o estado de cores do jsPDF
-        doc.setFillColor(255, 251, 235); // amber-50
-        doc.setDrawColor(251, 191, 36); // amber-400
-        doc.rect(14, currentY, pageWidth - 28, obsHeight, 'F');
-        doc.line(14, currentY, 14, currentY + obsHeight);
-
-        doc.setTextColor(146, 64, 14); // amber-800
-        doc.setFontSize(9);
-        doc.setFont('helvetica', 'italic');
-        doc.text(splitObs, 18, currentY + 5);
-
-        currentY += obsHeight + 10;
-      } else {
-        currentY += 5;
-      }
-
-      // Check if next meal needs a new page
-      if (currentY > doc.internal.pageSize.getHeight() - 40) {
-        doc.addPage();
-        currentY = 20;
-      }
-    });
-
-    // General Instructions at the end
-    if (plan.generalInstructions) {
-      if (currentY > doc.internal.pageSize.getHeight() - 60) {
-        doc.addPage();
-        currentY = 20;
-      }
-
-      doc.setTextColor(30, 41, 59);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('ORIENTAÇÕES GERAIS', 14, currentY + 10);
-      doc.line(14, currentY + 12, pageWidth - 14, currentY + 12);
-
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      const splitInstructions = doc.splitTextToSize(plan.generalInstructions, pageWidth - 28);
-      doc.text(splitInstructions, 14, currentY + 20);
-      currentY += 20 + (splitInstructions.length * 5) + 15;
-    }
-
-    // Household Measurements Table
-    if (currentY > doc.internal.pageSize.getHeight() - 80) {
-      doc.addPage();
-      currentY = 20;
-    }
-
-    doc.setTextColor(30, 41, 59);
-    doc.setFontSize(11);
-    doc.setFont('helvetica', 'bold');
-    doc.text('EQUIVALÊNCIA DE MEDIDAS CASEIRAS', 14, currentY);
-    currentY += 5;
-
-    const householdMeasures = [
-      ['1 copo americano', '200 ml'],
-      ['1 xícara de chá', '200 ml'],
-      ['1 copo de requeijão', '250 ml'],
-      ['1 concha média', '100 g / 150 ml'],
-      ['1 colher de sopa', '15 g / 15 ml'],
-      ['1 colher de sobremesa', '10 g / 10 ml'],
-      ['1 colher de chá', '5 g / 5 ml'],
-      ['1 colher de café', '2.5 g / 2.5 ml'],
-      ['1 escumadeira média', '60 g']
-    ];
-
-    autoTable(doc, {
-      startY: currentY,
-      head: [['Medida Caseira', 'Equivalência Aproximada']],
-      body: householdMeasures,
-      theme: 'grid',
-      headStyles: { fillColor: [71, 85, 105], fontSize: 8, halign: 'center' },
-      bodyStyles: { fontSize: 8, halign: 'center' },
-      columnStyles: {
-        0: { cellWidth: 'auto', halign: 'left' },
-        1: { cellWidth: 60, halign: 'center' }
-      },
-      margin: { left: 14, right: 14 }
-    });
-
-    currentY = (doc as any).lastAutoTable.finalY + 15;
-
-    // Receitas vinculadas ao plano — agrupadas por refeição
-    if (receitasVinculadas && receitasVinculadas.length > 0) {
-      // Agrupa mantendo a ordem de aparição, deduplicando receita dentro de cada grupo
-      const grupos = new Map<string, typeof receitasVinculadas>();
-      for (const link of receitasVinculadas) {
-        if (!grupos.has(link.meal)) grupos.set(link.meal, []);
-        const grupo = grupos.get(link.meal)!;
-        const jaExiste = grupo.some((l) => l.recipe.name === link.recipe.name);
-        if (!jaExiste) grupo.push(link);
-      }
-
-      if (currentY > doc.internal.pageSize.getHeight() - 60) {
-        doc.addPage();
-        currentY = 20;
-      }
-
-      doc.setTextColor(30, 41, 59);
-      doc.setFontSize(13);
-      doc.setFont('helvetica', 'bold');
-      doc.text('RECEITAS', 14, currentY + 10);
-      doc.line(14, currentY + 12, pageWidth - 14, currentY + 12);
-      currentY += 20;
-
-      for (const [meal, links] of grupos) {
-        if (currentY > doc.internal.pageSize.getHeight() - 40) {
-          doc.addPage();
-          currentY = 20;
-        }
-
-        // Cabeçalho da refeição
-        doc.setFontSize(10);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(71, 85, 105);
-        doc.text(meal.toUpperCase(), 14, currentY);
-        currentY += 3;
-        doc.setDrawColor(203, 213, 225);
-        doc.line(14, currentY, pageWidth - 14, currentY);
-        currentY += 6;
-
-        for (const { recipe } of links) {
-          if (currentY > doc.internal.pageSize.getHeight() - 50) {
-            doc.addPage();
-            currentY = 20;
-          }
-
-          // Título da receita
-          doc.setFillColor(241, 245, 249);
-          doc.rect(14, currentY, pageWidth - 28, 10, 'F');
-          doc.setTextColor(15, 23, 42);
-          doc.setFontSize(10);
-          doc.setFont('helvetica', 'bold');
-          doc.text(recipe.name, 18, currentY + 7);
-          currentY += 14;
-
-          // Ingredientes
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(9);
-          doc.setTextColor(71, 85, 105);
-          doc.text('Ingredientes:', 14, currentY);
-          currentY += 5;
-
-          recipe.ingredients.forEach((ing) => {
-            if (currentY > doc.internal.pageSize.getHeight() - 20) {
-              doc.addPage();
-              currentY = 20;
-            }
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8.5);
-            doc.setTextColor(51, 65, 85);
-            doc.text(`• ${ing.quantity} ${ing.unit} de ${ing.name}`, 18, currentY);
-            currentY += 5;
-          });
-
-          // Modo de preparo
-          if (recipe.prepMode) {
-            currentY += 3;
-            if (currentY > doc.internal.pageSize.getHeight() - 30) {
-              doc.addPage();
-              currentY = 20;
-            }
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(9);
-            doc.setTextColor(71, 85, 105);
-            doc.text('Modo de Preparo:', 14, currentY);
-            currentY += 5;
-
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8.5);
-            doc.setTextColor(51, 65, 85);
-            const splitPrepMode = doc.splitTextToSize(recipe.prepMode, pageWidth - 28);
-            splitPrepMode.forEach((linha: string) => {
-              if (currentY > doc.internal.pageSize.getHeight() - 15) {
-                doc.addPage();
-                currentY = 20;
-              }
-              doc.text(linha, 14, currentY);
-              currentY += 5;
-            });
-          }
-
-          currentY += 8;
-        }
-
-        currentY += 6;
-      }
-    }
-
-    // Signature and Stamp Area
-    if (currentY > doc.internal.pageSize.getHeight() - 60) {
-      doc.addPage();
-      currentY = 30;
-    } else {
-      currentY += 30;
-    }
-
-    doc.setDrawColor(148, 163, 184); // slate-400
-    doc.line(pageWidth / 2 - 40, currentY, pageWidth / 2 + 40, currentY);
-    doc.setFontSize(9);
-    doc.setTextColor(71, 85, 105); // slate-600
-    doc.text('Assinatura do Profissional', pageWidth / 2, currentY + 5, { align: 'center' });
-
-    // Stamp Box
-    doc.setDrawColor(203, 213, 225); // slate-300
-    doc.rect(pageWidth - 54, currentY - 15, 40, 25);
-    doc.setFontSize(7);
-    doc.setTextColor(148, 163, 184); // slate-400
-    doc.text('ESPAÇO PARA CARIMBO', pageWidth - 34, currentY - 2, { align: 'center' });
-
-    // Footer
-    const pageCount = doc.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFontSize(8);
-      doc.setTextColor(148, 163, 184); // slate-400
-      doc.text(
-        `Gerado por Nutrir em ${format(new Date(), 'dd/MM/yyyy HH:mm')} - Página ${i} de ${pageCount}`,
-        pageWidth / 2,
-        doc.internal.pageSize.getHeight() - 10,
-        { align: 'center' }
-      );
-    }
-
-    return doc;
-  };
-
   const handleExportPDF = (plan: MealPlan, items: MealPlanItem[], receitasVinculadas?: Array<{ meal: string; recipe: { name: string; ingredients: Array<{ name: string; quantity: string; unit: string }>; prepMode?: string } }>) => {
-    const doc = generateMealPlanPDF(plan, items, receitasVinculadas);
+    const doc = generateMealPlanPDF(plan, items, patient?.name || '', nutritionist, receitasVinculadas);
     doc.save(`Plano_Alimentar_${patient?.name.replace(/\s+/g, '_')}_${format(new Date(), 'ddMMyyyy')}.pdf`);
   };
 
@@ -639,7 +288,7 @@ export const PatientProfile = () => {
       const items: MealPlanItem[] = itemsRes.ok ? await itemsRes.json() : [];
       const receitasEmail = receitasEmailRes.ok ? await receitasEmailRes.json() : [];
 
-      const doc = generateMealPlanPDF(plan, items, receitasEmail);
+      const doc = generateMealPlanPDF(plan, items, patient.name, nutritionist, receitasEmail);
       const pdfBase64 = doc.output('datauristring').split(',')[1];
       const fileName = `Plano_Alimentar_${patient.name.replace(/\s+/g, '_')}.pdf`;
 
@@ -1578,24 +1227,11 @@ export const PatientProfile = () => {
                                                 if (planDaConsulta) {
                                                   navigate(`/patients/${id}/meal-plan/${planDaConsulta.id}`);
                                                 } else {
-                                                  // Verifica se há planos anteriores para oferecer cópia
-                                                  const planosAnteriores = mealPlans.filter(
-                                                    p => p.consultation_id && p.consultation_id !== consultation.id
-                                                  );
-                                                  if (planosAnteriores.length > 0) {
-                                                    setPendingConsultationForPlan({
-                                                      consultationId: consultation.id,
-                                                      calcDaConsulta,
-                                                    });
-                                                    setIsCopyMealPlanModalOpen(true);
-                                                  } else {
-                                                    navigate(`/patients/${id}/meal-plan/new`, {
-                                                      state: {
-                                                        consultationId: consultation.id,
-                                                        ...(calcDaConsulta ? { calculation: calcDaConsulta } : {}),
-                                                      },
-                                                    });
-                                                  }
+                                                  setPendingConsultationForPlan({
+                                                    consultationId: consultation.id,
+                                                    calcDaConsulta,
+                                                  });
+                                                  setIsCopyMealPlanModalOpen(true);
                                                 }
                                               }}
                                             >
@@ -2060,150 +1696,188 @@ export const PatientProfile = () => {
                   </p>
                 </div>
 
-                {/* Nutritional Summary */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4">
-                  <SummaryCard label="Calorias" value={viewMealTotals.kcal} unit="kcal" icon={Activity} color="bg-primary/10 text-primary" progressColor="bg-primary" />
-                  <SummaryCard label="Proteínas" value={viewMealTotals.protein} unit="g" icon={Dna} color="bg-primary/10 text-primary" progressColor="bg-primary" />
-                  <SummaryCard label="Carboidratos" value={viewMealTotals.carbs} unit="g" icon={Zap} color="bg-primary/10 text-primary" progressColor="bg-primary" />
-                  <SummaryCard label="Gorduras" value={viewMealTotals.fat} unit="g" icon={Droplets} color="bg-muted text-muted-foreground" progressColor="bg-muted-foreground" />
-                </div>
-
-                {/* Water Intake & General Instructions */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:hidden">
-                  <div>
-                    <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
-                      <div className="flex items-center gap-3 text-primary mb-2">
-                        <div className="p-2 rounded-xl bg-primary/10">
-                          <Droplets className="w-5 h-5" />
+                {selectedMealPlan?.type === 'free' ? (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
+                        <div className="flex items-center gap-3 text-primary mb-2">
+                          <div className="p-2 rounded-xl bg-primary/10">
+                            <Droplets className="w-5 h-5" />
+                          </div>
+                          <h4 className="font-medium text-xs">Meta de Água</h4>
                         </div>
-                        <h4 className="font-medium text-xs">Meta de Água</h4>
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs text-muted-foreground">Quantidade Diária</p>
-                        <p className="text-lg font-bold text-foreground">{selectedMealPlan?.waterIntake || 'Não informada'}</p>
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Quantidade Diária</p>
+                          <p className="text-lg font-bold text-foreground">{selectedMealPlan?.waterIntake || 'Não informada'}</p>
+                        </div>
+                      </Card>
+                      <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
+                        <div className="flex items-center gap-3 text-primary mb-2">
+                          <div className="p-2 rounded-xl bg-primary/10">
+                            <Activity className="w-5 h-5" />
+                          </div>
+                          <h4 className="font-medium text-xs">Orientações Gerais</h4>
+                        </div>
+                        <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                          {selectedMealPlan?.generalInstructions || 'Nenhuma orientação cadastrada.'}
+                        </div>
+                      </Card>
+                    </div>
+                    <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-3">
+                      <h4 className="font-medium text-xs text-primary">Plano Alimentar</h4>
+                      <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap font-mono">
+                        {selectedMealPlan?.freeTextContent || 'Nenhum conteúdo cadastrado.'}
                       </div>
                     </Card>
                   </div>
-                  <div>
-                    <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
-                      <div className="flex items-center gap-3 text-primary mb-2">
-                        <div className="p-2 rounded-xl bg-primary/10">
-                          <Activity className="w-5 h-5" />
-                        </div>
-                        <h4 className="font-medium text-xs">Orientações Gerais</h4>
+                ) : (
+                  <>
+                    {/* Nutritional Summary */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4">
+                      <SummaryCard label="Calorias" value={viewMealTotals.kcal} unit="kcal" icon={Activity} color="bg-primary/10 text-primary" progressColor="bg-primary" />
+                      <SummaryCard label="Proteínas" value={viewMealTotals.protein} unit="g" icon={Dna} color="bg-primary/10 text-primary" progressColor="bg-primary" />
+                      <SummaryCard label="Carboidratos" value={viewMealTotals.carbs} unit="g" icon={Zap} color="bg-primary/10 text-primary" progressColor="bg-primary" />
+                      <SummaryCard label="Gorduras" value={viewMealTotals.fat} unit="g" icon={Droplets} color="bg-muted text-muted-foreground" progressColor="bg-muted-foreground" />
+                    </div>
+
+                    {/* Water Intake & General Instructions */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:hidden">
+                      <div>
+                        <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
+                          <div className="flex items-center gap-3 text-primary mb-2">
+                            <div className="p-2 rounded-xl bg-primary/10">
+                              <Droplets className="w-5 h-5" />
+                            </div>
+                            <h4 className="font-medium text-xs">Meta de Água</h4>
+                          </div>
+                          <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Quantidade Diária</p>
+                            <p className="text-lg font-bold text-foreground">{selectedMealPlan?.waterIntake || 'Não informada'}</p>
+                          </div>
+                        </Card>
                       </div>
-                      <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                        {selectedMealPlan?.generalInstructions || 'Nenhuma orientação cadastrada.'}
+                      <div>
+                        <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
+                          <div className="flex items-center gap-3 text-primary mb-2">
+                            <div className="p-2 rounded-xl bg-primary/10">
+                              <Activity className="w-5 h-5" />
+                            </div>
+                            <h4 className="font-medium text-xs">Orientações Gerais</h4>
+                          </div>
+                          <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                            {selectedMealPlan?.generalInstructions || 'Nenhuma orientação cadastrada.'}
+                          </div>
+                        </Card>
                       </div>
-                    </Card>
-                  </div>
-                </div>
+                    </div>
 
-                {/* Meal Sections */}
-                <div className="space-y-8">
-                  {(selectedMealPlan?.customMeals && selectedMealPlan.customMeals.length > 0
-                    ? selectedMealPlan.customMeals
-                    : defaultMealTypes).map((meal) => {
-                      const items = selectedMealPlanItems.filter(item => item.meal === meal.id);
-                      if (items.length === 0) return null;
-                      
-                      const mealTotals = items.reduce((acc, item) => ({
-                        kcal: acc.kcal + (Number(item.kcal) || 0),
-                        protein: acc.protein + (Number(item.protein) || 0),
-                        carbs: acc.carbs + (Number(item.carbs) || 0),
-                        fat: acc.fat + (Number(item.fat) || 0),
-                      }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
+                    {/* Meal Sections */}
+                    <div className="space-y-8">
+                      {(selectedMealPlan?.customMeals && selectedMealPlan.customMeals.length > 0
+                        ? selectedMealPlan.customMeals
+                        : defaultMealTypes).map((meal) => {
+                          const items = selectedMealPlanItems.filter(item => item.meal === meal.id);
+                          if (items.length === 0) return null;
 
-                      const getIcon = (label: string) => {
-                        const l = label.toLowerCase();
-                        if (l.includes('café') || l.includes('desjejum')) return Coffee;
-                        if (l.includes('almoço')) return Utensils;
-                        if (l.includes('jantar') || l.includes('noite')) return Moon;
-                        if (l.includes('lanche')) return Apple;
-                        if (l.includes('ceia')) return CloudMoon;
-                        if (l.includes('treino')) return Activity;
-                        if (l.includes('suco') || l.includes('vitamina') || l.includes('shake')) return Droplets;
-                        return Activity;
-                      };
+                          const mealTotals = items.reduce((acc, item) => ({
+                            kcal: acc.kcal + (Number(item.kcal) || 0),
+                            protein: acc.protein + (Number(item.protein) || 0),
+                            carbs: acc.carbs + (Number(item.carbs) || 0),
+                            fat: acc.fat + (Number(item.fat) || 0),
+                          }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
 
-                      const Icon = getIcon(meal.label);
+                          const getIcon = (label: string) => {
+                            const l = label.toLowerCase();
+                            if (l.includes('café') || l.includes('desjejum')) return Coffee;
+                            if (l.includes('almoço')) return Utensils;
+                            if (l.includes('jantar') || l.includes('noite')) return Moon;
+                            if (l.includes('lanche')) return Apple;
+                            if (l.includes('ceia')) return CloudMoon;
+                            if (l.includes('treino')) return Activity;
+                            if (l.includes('suco') || l.includes('vitamina') || l.includes('shake')) return Droplets;
+                            return Activity;
+                          };
 
-                      return (
-                        <Card key={meal.id} className="border-none shadow-sm bg-card overflow-hidden rounded-2xl print:shadow-none print:border print:border-border break-inside-avoid relative">
-                          <div className={cn("absolute top-0 left-0 w-1.5 h-full transition-colors", meal.color.split(' ')[0])} />
-                          <div className={cn("px-6 py-5 flex items-center justify-between border-b print:bg-muted/30", meal.color.split(' ')[0], "bg-opacity-5")}>
-                            <div className="flex items-center gap-4">
-                              <div className={cn("p-2.5 rounded-2xl bg-card shadow-sm ring-1 ring-black/5 print:bg-card", meal.color.split(' ')[2])}>
-                                <Icon className="w-6 h-6" />
-                              </div>
-                              <div>
-                                <div className="flex items-center gap-3">
-                                  <h4 className="font-bold text-xl leading-none">{meal.label}</h4>
-                                  {meal.time && <span className="text-xs font-medium opacity-50 bg-black/5 px-2 py-0.5 rounded-full">{meal.time}</span>}
-                                </div>
-                                <div className="flex items-center gap-2 mt-1.5">
-                                  <span className="text-[10px] font-medium opacity-50">{items.length} {items.length === 1 ? 'alimento' : 'alimentos'}</span>
-                                  <span className="w-1 h-1 rounded-full bg-black/10" />
-                                  <div className="flex items-center gap-2 text-[10px] font-bold opacity-60">
-                                    <span>{mealTotals.kcal.toFixed(0)} kcal</span>
-                                    <span>P: {mealTotals.protein.toFixed(1)}g</span>
-                                    <span>C: {mealTotals.carbs.toFixed(1)}g</span>
-                                    <span>G: {mealTotals.fat.toFixed(1)}g</span>
+                          const Icon = getIcon(meal.label);
+
+                          return (
+                            <Card key={meal.id} className="border-none shadow-sm bg-card overflow-hidden rounded-2xl print:shadow-none print:border print:border-border break-inside-avoid relative">
+                              <div className={cn("absolute top-0 left-0 w-1.5 h-full transition-colors", meal.color.split(' ')[0])} />
+                              <div className={cn("px-6 py-5 flex items-center justify-between border-b print:bg-muted/30", meal.color.split(' ')[0], "bg-opacity-5")}>
+                                <div className="flex items-center gap-4">
+                                  <div className={cn("p-2.5 rounded-2xl bg-card shadow-sm ring-1 ring-black/5 print:bg-card", meal.color.split(' ')[2])}>
+                                    <Icon className="w-6 h-6" />
+                                  </div>
+                                  <div>
+                                    <div className="flex items-center gap-3">
+                                      <h4 className="font-bold text-xl leading-none">{meal.label}</h4>
+                                      {meal.time && <span className="text-xs font-medium opacity-50 bg-black/5 px-2 py-0.5 rounded-full">{meal.time}</span>}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1.5">
+                                      <span className="text-[10px] font-medium opacity-50">{items.length} {items.length === 1 ? 'alimento' : 'alimentos'}</span>
+                                      <span className="w-1 h-1 rounded-full bg-black/10" />
+                                      <div className="flex items-center gap-2 text-[10px] font-bold opacity-60">
+                                        <span>{mealTotals.kcal.toFixed(0)} kcal</span>
+                                        <span>P: {mealTotals.protein.toFixed(1)}g</span>
+                                        <span>C: {mealTotals.carbs.toFixed(1)}g</span>
+                                        <span>G: {mealTotals.fat.toFixed(1)}g</span>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               </div>
-                            </div>
-                          </div>
 
-                          <div className="overflow-x-auto">
-                            <table className="w-full text-sm min-w-[800px]">
-                              <thead>
-                                <tr className="bg-muted/30 text-muted-foreground text-left border-b">
-                                  <th className="px-6 py-4 font-medium text-[11px] text-muted-foreground">Alimento</th>
-                                  <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">Qtd</th>
-                                  <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">Unidade</th>
-                                  <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">Kcal</th>
-                                  <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">P (g)</th>
-                                  <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">C (g)</th>
-                                  <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">G (g)</th>
-                                </tr>
-                              </thead>
-                              <tbody className="divide-y divide-border">
-                                {items.map((item, idx) => (
-                                  <tr key={idx} className="hover:bg-muted/30 transition-colors">
-                                    <td className="px-6 py-4 font-medium text-foreground">{item.food}</td>
-                                    <td className="px-4 py-4 text-muted-foreground text-center">{item.quantity}</td>
-                                    <td className="px-4 py-4 text-muted-foreground text-center">{item.unit}</td>
-                                    <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.kcal || 0}</td>
-                                    <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.protein || 0}</td>
-                                    <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.carbs || 0}</td>
-                                    <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.fat || 0}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-
-                          {/* Meal Observation in View Modal */}
-                          {selectedMealPlan?.mealObservations?.[meal.id] && (
-                            <div className="p-4 bg-accent/10 border-t border-accent-foreground/10">
-                              <div className="flex items-start gap-3">
-                                <div className="mt-0.5 p-1.5 rounded-lg bg-accent/20 text-accent-foreground shrink-0">
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                </div>
-                                <div className="flex-1">
-                                  <p className="text-[10px] font-medium text-accent-foreground/70 mb-1">Observações da Refeição</p>
-                                  <p className="text-sm text-muted-foreground leading-relaxed italic">
-                                    "{selectedMealPlan.mealObservations[meal.id]}"
-                                  </p>
-                                </div>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-sm min-w-[800px]">
+                                  <thead>
+                                    <tr className="bg-muted/30 text-muted-foreground text-left border-b">
+                                      <th className="px-6 py-4 font-medium text-[11px] text-muted-foreground">Alimento</th>
+                                      <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">Qtd</th>
+                                      <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">Unidade</th>
+                                      <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">Kcal</th>
+                                      <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">P (g)</th>
+                                      <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">C (g)</th>
+                                      <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">G (g)</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody className="divide-y divide-border">
+                                    {items.map((item, idx) => (
+                                      <tr key={idx} className="hover:bg-muted/30 transition-colors">
+                                        <td className="px-6 py-4 font-medium text-foreground">{item.food}</td>
+                                        <td className="px-4 py-4 text-muted-foreground text-center">{item.quantity}</td>
+                                        <td className="px-4 py-4 text-muted-foreground text-center">{item.unit}</td>
+                                        <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.kcal || 0}</td>
+                                        <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.protein || 0}</td>
+                                        <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.carbs || 0}</td>
+                                        <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.fat || 0}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
                               </div>
-                            </div>
-                          )}
-                        </Card>
-                      );
-                    })}
-                </div>
+
+                              {/* Meal Observation in View Modal */}
+                              {selectedMealPlan?.mealObservations?.[meal.id] && (
+                                <div className="p-4 bg-accent/10 border-t border-accent-foreground/10">
+                                  <div className="flex items-start gap-3">
+                                    <div className="mt-0.5 p-1.5 rounded-lg bg-accent/20 text-accent-foreground shrink-0">
+                                      <MessageSquare className="w-3.5 h-3.5" />
+                                    </div>
+                                    <div className="flex-1">
+                                      <p className="text-[10px] font-medium text-accent-foreground/70 mb-1">Observações da Refeição</p>
+                                      <p className="text-sm text-muted-foreground leading-relaxed italic">
+                                        "{selectedMealPlan.mealObservations[meal.id]}"
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </Card>
+                          );
+                        })}
+                    </div>
+                  </>
+                )}
 
               </div>
             </div>
@@ -3364,13 +3038,14 @@ export const PatientProfile = () => {
             setIsCopyMealPlanModalOpen(false);
             setPendingConsultationForPlan(null);
           }}
-          onCreateFromScratch={() => {
+          onCreateFromScratch={(type: 'blocks' | 'free') => {
             setIsCopyMealPlanModalOpen(false);
             const pending = pendingConsultationForPlan;
             setPendingConsultationForPlan(null);
             navigate(`/patients/${id}/meal-plan/new`, {
               state: {
                 consultationId: pending.consultationId,
+                mealPlanType: type,
                 ...(pending.calcDaConsulta ? { calculation: pending.calcDaConsulta } : {}),
               },
             });
@@ -3384,6 +3059,8 @@ export const PatientProfile = () => {
                 consultationId: pending?.consultationId,
                 ...(pending?.calcDaConsulta ? { calculation: pending.calcDaConsulta } : {}),
                 copiedMealPlan: {
+                  type: entrada.mealPlan.type,
+                  freeTextContent: entrada.mealPlan.freeTextContent ?? '',
                   generalInstructions: entrada.mealPlan.generalInstructions ?? '',
                   waterIntake: entrada.mealPlan.waterIntake ?? '',
                   mealObservations: entrada.mealPlan.mealObservations ?? {},

@@ -189,6 +189,18 @@ describe('meal-plans.service — getHistory', () => {
       expect(itemRetornado).not.toHaveProperty('weightInGrams');
       expect(itemRetornado).not.toHaveProperty('baseKcal');
     });
+
+    it('inclui type e freeTextContent do plano no resultado', async () => {
+      mealPlan.findMany.mockResolvedValue([
+        criarPlanoDb({ type: 'free', freeTextContent: 'Café: pão + ovo' }),
+      ]);
+      consultation.findMany.mockResolvedValue([criarConsultaDb()]);
+
+      const resultado = await service.getHistory('nutri-1', 'pac-1');
+
+      expect(resultado[0].mealPlan.type).toBe('free');
+      expect(resultado[0].mealPlan.freeTextContent).toBe('Café: pão + ovo');
+    });
   });
 
   describe('casos de borda', () => {

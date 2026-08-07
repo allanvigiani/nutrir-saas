@@ -44,8 +44,10 @@ export interface MealPlanHistoryEntry {
   mealPlan: {
     id: string;
     name: string;
+    type: 'blocks' | 'free';
     generalInstructions: string | null;
     waterIntake: string | null;
+    freeTextContent: string | null;
     mealObservations: Record<string, string> | null;
     customMeals: string[] | null;
     items: MealPlanItemHistory[];
@@ -60,8 +62,8 @@ interface CopyMealPlanModalProps {
   /** ID da consulta atual — exclui ela da lista */
   currentConsultationId: string;
   onClose: () => void;
-  /** Chamado quando o usuário quer criar do zero (sem dados copiados) */
-  onCreateFromScratch: () => void;
+  /** Chamado quando o usuário quer criar do zero — recebe o tipo escolhido */
+  onCreateFromScratch: (type: 'blocks' | 'free') => void;
   /** Chamado quando o usuário seleciona um plano para copiar */
   onCopyPlan: (entry: MealPlanHistoryEntry) => void;
 }
@@ -136,10 +138,12 @@ export function CopyMealPlanModal({
             </div>
             <div>
               <DialogTitle className="text-base font-semibold text-foreground leading-tight">
-                Copiar Plano Alimentar
+                {!loading && historico.length === 0 ? 'Novo Plano Alimentar' : 'Copiar Plano Alimentar'}
               </DialogTitle>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Selecione um plano de consulta anterior ou crie do zero
+                {!loading && historico.length === 0
+                  ? 'Escolha como criar o plano alimentar'
+                  : 'Selecione um plano de consulta anterior ou crie do zero'}
               </p>
             </div>
           </div>
@@ -228,7 +232,7 @@ export function CopyMealPlanModal({
             </>
           )}
 
-          {/* Sem histórico — não deveria aparecer (o modal só abre se há histórico), mas por segurança */}
+          {/* Sem histórico — primeiro plano do paciente */}
           {!loading && !error && historico.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-6">
               Nenhum plano alimentar anterior encontrado.
@@ -239,7 +243,7 @@ export function CopyMealPlanModal({
         {/* Rodapé com ações */}
         <div className="px-6 pb-6 pt-2 border-t border-border space-y-2">
           {/* Copiar selecionado */}
-          {!loading && !error && (
+          {!loading && !error && historico.length > 0 && (
             <Button
               className="w-full gap-2"
               disabled={!selecionado}
@@ -250,15 +254,25 @@ export function CopyMealPlanModal({
             </Button>
           )}
 
-          {/* Criar do zero — sempre visível */}
-          <Button
-            variant="outline"
-            className="w-full gap-2"
-            onClick={onCreateFromScratch}
-          >
-            <FilePlus className="w-4 h-4" />
-            Criar do zero
-          </Button>
+          {/* Criar do zero — sempre visíveis, dois tipos */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => onCreateFromScratch('blocks')}
+            >
+              <FilePlus className="w-4 h-4" />
+              Por Refeição
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full gap-2"
+              onClick={() => onCreateFromScratch('free')}
+            >
+              <FilePlus className="w-4 h-4" />
+              Livre
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
