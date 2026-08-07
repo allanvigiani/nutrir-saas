@@ -126,8 +126,10 @@ model MealPlan {
   calculationId       String?
   nutritionistId      String
   name                String
+  type                String   @default("blocks")
   generalInstructions String?
   waterIntake         String?
+  freeTextContent     String?
   mealObservations    Json?
   customMeals         Json?
   status              String   @default("active")
