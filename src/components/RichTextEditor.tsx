@@ -1,6 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
 import { Bold, Italic, Underline as UnderlineIcon, Heading3, List, ListOrdered } from 'lucide-react';
 import { Button } from './ui/button';
 import { cn } from '../lib/utils';
@@ -22,8 +21,8 @@ export function RichTextEditor({ value, onChange, className }: RichTextEditorPro
         codeBlock: false,
         blockquote: false,
         horizontalRule: false,
+        link: false,
       }),
-      Underline,
     ],
     content: toEditableHtml(value),
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
