@@ -22,9 +22,7 @@ import {
   Utensils,
   Moon,
   CloudMoon,
-  Dna,
   Zap,
-  Droplets,
   ChevronDown,
   ChevronUp,
   MessageSquare,
@@ -132,33 +130,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
 
-const SummaryCard = ({ label, value, total, unit, color, progressColor, icon: Icon }: any) => (
-  <Card className="border-none shadow-sm bg-card overflow-hidden rounded-2xl ring-1 ring-border hover:shadow-md transition-all duration-300">
-    <div className="p-4 flex items-center gap-4">
-      <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center shadow-inner", color)}>
-        <Icon className="w-5 h-5" />
-      </div>
-      <div className="flex-1">
-        <p className="text-xs font-medium text-muted-foreground mb-1">{label}</p>
-        <p className="text-lg font-bold text-foreground leading-none">
-          {Number(value).toFixed(1)}
-          <span className="text-xs font-medium text-muted-foreground ml-1">
-            {total ? `/ ${Number(total).toFixed(0)}` : ''} {unit}
-          </span>
-        </p>
-        {total && (
-          <div className="w-full bg-muted h-1.5 rounded-full mt-2.5 overflow-hidden">
-            <div
-              className={cn("h-full rounded-full transition-all duration-500", progressColor)}
-              style={{ width: `${Math.min((value / total) * 100, 100)}%` }}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  </Card>
-);
-
 const EvolutionTooltip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   const formattedLabel = typeof label === 'string' && label.length === 10
@@ -242,7 +213,6 @@ export const PatientProfile = () => {
       setSearchParams(newParams, { replace: true });
     }
   }, [searchParams]);
-  const [isViewMealPlanModalOpen, setIsViewMealPlanModalOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<LabExam | null>(null);
   const [selectedConsultation, setSelectedConsultation] = useState<Consultation | null>(null);
   const [examMarkers, setExamMarkers] = useState<LabExamMarker[]>([]);
@@ -483,23 +453,6 @@ export const PatientProfile = () => {
     }
   };
 
-
-  const viewMealPlan = async (plan: MealPlan) => {
-    if (!user) return;
-    setSelectedMealPlan(plan);
-    try {
-      const token = await auth.currentUser?.getIdToken();
-      const res = await fetch(`/api/meal-plans/${plan.id}/items`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const items: MealPlanItem[] = res.ok ? await res.json() : [];
-      setSelectedMealPlanItems(items);
-      setIsViewMealPlanModalOpen(true);
-    } catch (error) {
-      console.error("Error fetching meal plan items:", error);
-      toast.error("Erro ao carregar itens do plano alimentar.");
-    }
-  };
 
   const editMealPlan = (plan: MealPlan) => {
     navigate(`/patients/${id}/meal-plan/${plan.id}`);
@@ -1505,7 +1458,7 @@ export const PatientProfile = () => {
             </CardHeader>
             <CardContent>
               {mealPlans.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {(() => {
                     const consultsByDate = [...consultations].sort(
                       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
@@ -1545,7 +1498,6 @@ export const PatientProfile = () => {
                         </span>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => viewMealPlan(plan)}>Visualizar</Button>
                         <Button variant="outline" size="sm" className="flex-1" onClick={() => editMealPlan(plan)}>Editar</Button>
 
                         <Button variant="ghost" size="sm" className="px-2 text-muted-foreground hover:text-primary hover:bg-primary/10" onClick={() => sendMealPlanByEmail(plan)} title="Enviar por E-mail">
@@ -1574,391 +1526,6 @@ export const PatientProfile = () => {
             </CardContent>
           </Card>
         </TabsContent>
-
-        <Dialog open={isViewMealPlanModalOpen} onOpenChange={setIsViewMealPlanModalOpen}>
-          <DialogContent className="max-w-6xl w-[98vw] max-h-[95vh] p-0 overflow-hidden flex flex-col rounded-2xl border-none shadow-2xl print-content-wrapper">
-            <div className="flex flex-col h-full bg-muted/30 overflow-hidden">
-              {/* Header Bar */}
-              <div className="bg-card border-b px-6 py-4 flex items-center justify-between shrink-0 z-50 shadow-sm print:hidden">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <Button variant="ghost" size="icon" onClick={() => setIsViewMealPlanModalOpen(false)} className="shrink-0 hover:bg-muted rounded-full" title="Fechar visualização">
-                    <ArrowLeft className="w-5 h-5" />
-                  </Button>
-                  <div className="flex-1 flex flex-col md:flex-row md:items-center gap-3 min-w-0">
-                    <div className="flex-1 min-w-[150px] max-w-[400px]">
-                      <h2 className="text-lg font-bold text-foreground truncate">
-                        {selectedMealPlan?.name || "Plano Alimentar"}
-                      </h2>
-                    </div>
-                    <div className="flex-[2] min-w-[200px] max-w-[600px] hidden lg:block">
-                      <p className="text-sm text-muted-foreground truncate">
-                        {selectedMealPlan?.generalInstructions || "Sem instruções gerais"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0 ml-4">
-                  <Button variant="outline" size="sm" onClick={() => setIsViewMealPlanModalOpen(false)} className="rounded-xl h-8 px-4 text-sm font-bold">
-                    Fechar
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto p-6 space-y-8 print:p-0">
-                {/* Print Header (Only visible when printing) */}
-                <div className="hidden print:flex items-center justify-between px-8 py-5 -mx-6 -mt-6 mb-6" style={{ backgroundColor: 'var(--primary, #16a34a)', color: 'white' }}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xl" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>N</div>
-                    <div>
-                      <div className="font-bold text-lg leading-none">Nutrir</div>
-                      <div className="text-xs mt-0.5" style={{ opacity: 0.8 }}>Gestão Nutricional</div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="font-bold text-base">Plano Alimentar</div>
-                    <div className="text-xs mt-0.5" style={{ opacity: 0.8 }}>
-                      {selectedMealPlan && formatDateSafely(selectedMealPlan.createdAt, 'dd/MM/yyyy')}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="hidden print:grid grid-cols-2 gap-4 mb-6 p-5 border border-gray-200 rounded-xl">
-                  <div>
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">Paciente</p>
-                    <p className="font-bold text-gray-900 text-base">{patient?.name}</p>
-                    {patient?.email && <p className="text-xs text-gray-500 mt-0.5">{patient.email}</p>}
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-gray-400 mb-1">Nutricionista</p>
-                    <p className="font-bold text-gray-900 text-base">{nutritionist?.name || user?.displayName || 'Nutricionista'}</p>
-                    {nutritionist?.crn && <p className="text-xs text-gray-500 mt-0.5">CRN: {nutritionist.crn}</p>}
-                  </div>
-                </div>
-
-                {/* Print: Macro totais */}
-                <div className="hidden print:grid grid-cols-4 gap-3 mb-6">
-                  {[
-                    { label: 'Calorias', value: `${viewMealTotals.kcal}`, unit: 'kcal', accent: 'var(--primary, #16a34a)' },
-                    { label: 'Proteínas', value: viewMealTotals.protein.toFixed(1), unit: 'g', accent: '#6b7280' },
-                    { label: 'Carboidratos', value: viewMealTotals.carbs.toFixed(1), unit: 'g', accent: '#6b7280' },
-                    { label: 'Gorduras', value: viewMealTotals.fat.toFixed(1), unit: 'g', accent: '#6b7280' },
-                  ].map((macro) => (
-                    <div key={macro.label} className="rounded-xl border border-gray-200 p-3 text-center" style={{ borderTop: `3px solid ${macro.accent}` }}>
-                      <p className="text-[10px] text-gray-500 font-medium">{macro.label}</p>
-                      <p className="font-bold text-lg text-gray-900 leading-tight mt-0.5">{macro.value}</p>
-                      <p className="text-[10px] text-gray-400">{macro.unit}</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Print: Orientações gerais */}
-                {selectedMealPlan?.generalInstructions && (
-                  <div className="hidden print:block mb-6 rounded-xl p-4" style={{ borderLeft: '4px solid var(--primary, #16a34a)', backgroundColor: '#f0fdf4' }}>
-                    <p className="text-xs font-bold text-gray-700 mb-1">Orientações Gerais</p>
-                    <p className="text-sm text-gray-600 italic whitespace-pre-wrap leading-relaxed">
-                      {selectedMealPlan.generalInstructions}
-                    </p>
-                  </div>
-                )}
-
-                {/* Print: Refeições com subtotais e observações */}
-                <div className="hidden print:block space-y-5 mb-6">
-                  {(selectedMealPlan?.customMeals && selectedMealPlan.customMeals.length > 0
-                    ? selectedMealPlan.customMeals
-                    : defaultMealTypes
-                  ).map((meal: any) => {
-                    const items = selectedMealPlanItems.filter(item => item.meal === meal.id);
-                    if (items.length === 0) return null;
-                    const subtotal = items.reduce(
-                      (acc, i) => ({
-                        kcal: acc.kcal + (Number(i.kcal) || 0),
-                        protein: acc.protein + (Number(i.protein) || 0),
-                        carbs: acc.carbs + (Number(i.carbs) || 0),
-                        fat: acc.fat + (Number(i.fat) || 0),
-                      }),
-                      { kcal: 0, protein: 0, carbs: 0, fat: 0 }
-                    );
-                    const obs = (selectedMealPlan as any)?.mealObservations?.[meal.id];
-                    return (
-                      <div key={meal.id} className="rounded-xl border border-gray-200 overflow-hidden" style={{ breakInside: 'avoid' }}>
-                        <div className="flex items-center justify-between px-5 py-3" style={{ backgroundColor: '#f0fdf4', borderBottom: '1px solid #d1fae5' }}>
-                          <div className="flex items-center gap-2">
-                            <span className="font-bold text-gray-800">{meal.label}</span>
-                            {meal.time && <span className="text-xs text-gray-500 bg-black/5 px-1.5 py-0.5 rounded font-medium">{meal.time}</span>}
-                          </div>
-                          <span className="text-xs text-gray-600 font-medium">
-                            {subtotal.kcal} kcal · {subtotal.protein.toFixed(1)}g P · {subtotal.carbs.toFixed(1)}g C · {subtotal.fat.toFixed(1)}g G
-                          </span>
-                        </div>
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="bg-gray-50 border-b border-gray-100">
-                              <th className="px-5 py-2 text-left font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Alimento</th>
-                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Quantidade</th>
-                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">Kcal</th>
-                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">P (g)</th>
-                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">C (g)</th>
-                              <th className="px-3 py-2 text-center font-semibold text-gray-500 text-[10px] uppercase tracking-wide">G (g)</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {items.map((item, idx) => (
-                              <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                                <td className="px-5 py-2 font-medium text-gray-800">{item.food}</td>
-                                <td className="px-3 py-2 text-center text-gray-600">{item.quantity || '0'} {item.unit || 'g'}</td>
-                                <td className="px-3 py-2 text-center text-gray-600">{item.kcal || 0}</td>
-                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.protein || 0).toFixed(1)}</td>
-                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.carbs || 0).toFixed(1)}</td>
-                                <td className="px-3 py-2 text-center text-gray-600">{Number(item.fat || 0).toFixed(1)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                        {obs && (
-                          <div className="px-5 py-3 text-xs text-gray-600 italic border-t border-gray-100 bg-yellow-50">
-                            <span className="font-semibold not-italic text-gray-700">Obs.: </span>{obs}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Print: Tabela de Medidas Caseiras */}
-                <div className="hidden print:block mt-4 pt-4 border-t border-gray-200 mb-6">
-                  <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Tabela de Medidas Caseiras (Referência)</p>
-                  <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="px-4 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">Medida</th>
-                        <th className="px-4 py-2 text-center font-semibold text-gray-600 border-b border-gray-200">Peso aprox.</th>
-                        <th className="px-4 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">Medida</th>
-                        <th className="px-4 py-2 text-center font-semibold text-gray-600 border-b border-gray-200">Peso aprox.</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        ['Colher de chá', '~4 g', 'Copo (200ml)', '~200 ml'],
-                        ['Colher de sobremesa', '~9 g', 'Concha pequena', '~80 g'],
-                        ['Colher de sopa', '~13 g', 'Concha média', '~150 g'],
-                        ['Colher de servir', '~30 g', 'Xícara (sólidos)', '~80 g'],
-                        ['Unidade (fruta média)', '~130 g', 'Xícara (líquidos)', '~200 ml'],
-                        ['Fatia (fruta)', '~80 g', 'Lata', '~350 ml'],
-                      ].map(([m1, p1, m2, p2], i) => (
-                        <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                          <td className="px-4 py-1.5 text-gray-700">{m1}</td>
-                          <td className="px-4 py-1.5 text-center text-gray-500">{p1}</td>
-                          <td className="px-4 py-1.5 text-gray-700">{m2}</td>
-                          <td className="px-4 py-1.5 text-center text-gray-500">{p2}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <p className="text-[9px] text-gray-400 mt-1.5 italic">
-                    Valores de referência (Pinheiro et al. 2004 / TBCA). Pesos reais variam conforme o alimento e forma de preparo.
-                  </p>
-                </div>
-
-                {/* Print: Rodapé assinatura */}
-                <div className="hidden print:flex flex-col items-center mt-6 pt-4">
-                  <div style={{ height: '48px' }} />
-                  <div className="w-56 border-t border-gray-400 pt-3 text-center">
-                    <p className="font-bold text-gray-800 text-sm">{nutritionist?.name || user?.displayName || 'Nutricionista'}</p>
-                    {nutritionist?.crn && <p className="text-xs text-gray-500 mt-0.5">CRN: {nutritionist.crn}</p>}
-                  </div>
-                  <p className="text-[9px] text-gray-400 mt-4">
-                    Gerado em {formatDateSafely(new Date().toISOString(), 'dd/MM/yyyy')}
-                  </p>
-                </div>
-
-                {selectedMealPlan?.type === 'free' ? (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
-                        <div className="flex items-center gap-3 text-primary mb-2">
-                          <div className="p-2 rounded-xl bg-primary/10">
-                            <Droplets className="w-5 h-5" />
-                          </div>
-                          <h4 className="font-medium text-xs">Meta de Água</h4>
-                        </div>
-                        <div className="space-y-1">
-                          <p className="text-xs text-muted-foreground">Quantidade Diária</p>
-                          <p className="text-lg font-bold text-foreground">{selectedMealPlan?.waterIntake || 'Não informada'}</p>
-                        </div>
-                      </Card>
-                      <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
-                        <div className="flex items-center gap-3 text-primary mb-2">
-                          <div className="p-2 rounded-xl bg-primary/10">
-                            <Activity className="w-5 h-5" />
-                          </div>
-                          <h4 className="font-medium text-xs">Orientações Gerais</h4>
-                        </div>
-                        <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                          {selectedMealPlan?.generalInstructions || 'Nenhuma orientação cadastrada.'}
-                        </div>
-                      </Card>
-                    </div>
-                    <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-3">
-                      <h4 className="font-medium text-xs text-primary">Plano Alimentar</h4>
-                      <RichTextViewer
-                        html={selectedMealPlan?.freeTextContent}
-                        emptyFallback="Nenhum conteúdo cadastrado."
-                      />
-                    </Card>
-                  </div>
-                ) : (
-                  <>
-                    {/* Nutritional Summary */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4">
-                      <SummaryCard label="Calorias" value={viewMealTotals.kcal} unit="kcal" icon={Activity} color="bg-primary/10 text-primary" progressColor="bg-primary" />
-                      <SummaryCard label="Proteínas" value={viewMealTotals.protein} unit="g" icon={Dna} color="bg-primary/10 text-primary" progressColor="bg-primary" />
-                      <SummaryCard label="Carboidratos" value={viewMealTotals.carbs} unit="g" icon={Zap} color="bg-primary/10 text-primary" progressColor="bg-primary" />
-                      <SummaryCard label="Gorduras" value={viewMealTotals.fat} unit="g" icon={Droplets} color="bg-muted text-muted-foreground" progressColor="bg-muted-foreground" />
-                    </div>
-
-                    {/* Water Intake & General Instructions */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 print:hidden">
-                      <div>
-                        <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
-                          <div className="flex items-center gap-3 text-primary mb-2">
-                            <div className="p-2 rounded-xl bg-primary/10">
-                              <Droplets className="w-5 h-5" />
-                            </div>
-                            <h4 className="font-medium text-xs">Meta de Água</h4>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Quantidade Diária</p>
-                            <p className="text-lg font-bold text-foreground">{selectedMealPlan?.waterIntake || 'Não informada'}</p>
-                          </div>
-                        </Card>
-                      </div>
-                      <div>
-                        <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-4 h-full">
-                          <div className="flex items-center gap-3 text-primary mb-2">
-                            <div className="p-2 rounded-xl bg-primary/10">
-                              <Activity className="w-5 h-5" />
-                            </div>
-                            <h4 className="font-medium text-xs">Orientações Gerais</h4>
-                          </div>
-                          <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                            {selectedMealPlan?.generalInstructions || 'Nenhuma orientação cadastrada.'}
-                          </div>
-                        </Card>
-                      </div>
-                    </div>
-
-                    {/* Meal Sections */}
-                    <div className="space-y-8">
-                      {(selectedMealPlan?.customMeals && selectedMealPlan.customMeals.length > 0
-                        ? selectedMealPlan.customMeals
-                        : defaultMealTypes).map((meal) => {
-                          const items = selectedMealPlanItems.filter(item => item.meal === meal.id);
-                          if (items.length === 0) return null;
-
-                          const mealTotals = items.reduce((acc, item) => ({
-                            kcal: acc.kcal + (Number(item.kcal) || 0),
-                            protein: acc.protein + (Number(item.protein) || 0),
-                            carbs: acc.carbs + (Number(item.carbs) || 0),
-                            fat: acc.fat + (Number(item.fat) || 0),
-                          }), { kcal: 0, protein: 0, carbs: 0, fat: 0 });
-
-                          const getIcon = (label: string) => {
-                            const l = label.toLowerCase();
-                            if (l.includes('café') || l.includes('desjejum')) return Coffee;
-                            if (l.includes('almoço')) return Utensils;
-                            if (l.includes('jantar') || l.includes('noite')) return Moon;
-                            if (l.includes('lanche')) return Apple;
-                            if (l.includes('ceia')) return CloudMoon;
-                            if (l.includes('treino')) return Activity;
-                            if (l.includes('suco') || l.includes('vitamina') || l.includes('shake')) return Droplets;
-                            return Activity;
-                          };
-
-                          const Icon = getIcon(meal.label);
-
-                          return (
-                            <Card key={meal.id} className="border-none shadow-sm bg-card overflow-hidden rounded-2xl print:shadow-none print:border print:border-border break-inside-avoid relative">
-                              <div className={cn("absolute top-0 left-0 w-1.5 h-full transition-colors", meal.color.split(' ')[0])} />
-                              <div className={cn("px-6 py-5 flex items-center justify-between border-b print:bg-muted/30", meal.color.split(' ')[0], "bg-opacity-5")}>
-                                <div className="flex items-center gap-4">
-                                  <div className={cn("p-2.5 rounded-2xl bg-card shadow-sm ring-1 ring-black/5 print:bg-card", meal.color.split(' ')[2])}>
-                                    <Icon className="w-6 h-6" />
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center gap-3">
-                                      <h4 className="font-bold text-xl leading-none">{meal.label}</h4>
-                                      {meal.time && <span className="text-xs font-medium opacity-50 bg-black/5 px-2 py-0.5 rounded-full">{meal.time}</span>}
-                                    </div>
-                                    <div className="flex items-center gap-2 mt-1.5">
-                                      <span className="text-[10px] font-medium opacity-50">{items.length} {items.length === 1 ? 'alimento' : 'alimentos'}</span>
-                                      <span className="w-1 h-1 rounded-full bg-black/10" />
-                                      <div className="flex items-center gap-2 text-[10px] font-bold opacity-60">
-                                        <span>{mealTotals.kcal.toFixed(0)} kcal</span>
-                                        <span>P: {mealTotals.protein.toFixed(1)}g</span>
-                                        <span>C: {mealTotals.carbs.toFixed(1)}g</span>
-                                        <span>G: {mealTotals.fat.toFixed(1)}g</span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="overflow-x-auto">
-                                <table className="w-full text-sm min-w-[800px]">
-                                  <thead>
-                                    <tr className="bg-muted/30 text-muted-foreground text-left border-b">
-                                      <th className="px-6 py-4 font-medium text-[11px] text-muted-foreground">Alimento</th>
-                                      <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">Qtd</th>
-                                      <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">Unidade</th>
-                                      <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">Kcal</th>
-                                      <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">P (g)</th>
-                                      <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">C (g)</th>
-                                      <th className="px-4 py-4 font-medium text-[11px] text-muted-foreground text-center">G (g)</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-border">
-                                    {items.map((item, idx) => (
-                                      <tr key={idx} className="hover:bg-muted/30 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-foreground">{item.food}</td>
-                                        <td className="px-4 py-4 text-muted-foreground text-center">{item.quantity}</td>
-                                        <td className="px-4 py-4 text-muted-foreground text-center">{item.unit}</td>
-                                        <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.kcal || 0}</td>
-                                        <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.protein || 0}</td>
-                                        <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.carbs || 0}</td>
-                                        <td className="px-4 py-4 text-muted-foreground text-center font-mono">{item.fat || 0}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-
-                              {/* Meal Observation in View Modal */}
-                              {selectedMealPlan?.mealObservations?.[meal.id] && (
-                                <div className="p-4 bg-accent/10 border-t border-accent-foreground/10">
-                                  <div className="flex items-start gap-3">
-                                    <div className="mt-0.5 p-1.5 rounded-lg bg-accent/20 text-accent-foreground shrink-0">
-                                      <MessageSquare className="w-3.5 h-3.5" />
-                                    </div>
-                                    <div className="flex-1">
-                                      <p className="text-[10px] font-medium text-accent-foreground/70 mb-1">Observações da Refeição</p>
-                                      <p className="text-sm text-muted-foreground leading-relaxed italic">
-                                        "{selectedMealPlan.mealObservations[meal.id]}"
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </Card>
-                          );
-                        })}
-                    </div>
-                  </>
-                )}
-
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
 
         <Dialog open={isDeleteMealPlanConfirmOpen} onOpenChange={setIsDeleteMealPlanConfirmOpen}>
           <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
