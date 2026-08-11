@@ -840,6 +840,7 @@ export const PatientProfile = () => {
             setIsConsultationModalOpen(open);
             if (!open) {
               setSelectedConsultation(null);
+              setIsImportConfirmOpen(false);
               resetConsultation({
                 date: new Date().toISOString().split('T')[0],
                 weight: 0,
@@ -996,6 +997,21 @@ export const PatientProfile = () => {
                 </DialogFooter>
               </form>
             </DialogContent>
+
+            <Dialog open={isImportConfirmOpen} onOpenChange={setIsImportConfirmOpen}>
+              <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Importar dados da última consulta?</DialogTitle>
+                  <DialogDescription>
+                    Isso vai substituir os dados já preenchidos neste formulário.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="flex gap-2 sm:justify-end">
+                  <Button variant="outline" onClick={() => setIsImportConfirmOpen(false)}>Cancelar</Button>
+                  <Button onClick={confirmImportLastConsultation}>Importar</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </Dialog>
         </div>
       </div>
@@ -1938,21 +1954,6 @@ export const PatientProfile = () => {
 
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={isImportConfirmOpen} onOpenChange={setIsImportConfirmOpen}>
-          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
-            <DialogHeader>
-              <DialogTitle>Importar dados da última consulta?</DialogTitle>
-              <DialogDescription>
-                Isso vai substituir os dados já preenchidos neste formulário.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter className="flex gap-2 sm:justify-end">
-              <Button variant="outline" onClick={() => setIsImportConfirmOpen(false)}>Cancelar</Button>
-              <Button onClick={confirmImportLastConsultation}>Importar</Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
 
