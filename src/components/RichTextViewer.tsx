@@ -19,7 +19,7 @@ export function RichTextViewer({ html, emptyFallback = '', className }: RichText
 
   if (!isRichTextHtml(content)) {
     return (
-      <div className={cn('text-sm text-foreground leading-relaxed whitespace-pre-wrap', className)}>
+      <div className={cn('text-sm text-foreground leading-relaxed whitespace-pre-wrap font-mono', className)}>
         {content}
       </div>
     );
@@ -33,7 +33,8 @@ export function RichTextViewer({ html, emptyFallback = '', className }: RichText
         'text-sm text-foreground leading-relaxed ' +
           '[&_strong]:font-semibold [&_u]:underline ' +
           '[&_h3]:text-base [&_h3]:font-semibold [&_h3]:mt-2 ' +
-          '[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5',
+          '[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 ' +
+          '[&_p]:min-h-[1lh]',
         className
       )}
       dangerouslySetInnerHTML={{ __html: sanitized }}

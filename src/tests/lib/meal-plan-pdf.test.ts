@@ -138,4 +138,113 @@ describe('renderFreeTextToPdf', () => {
     expect(texts).toContain('Texto');
     expect(texts).toContain('sem');
   });
+
+  it('parágrafo vazio (<p></p>) entre dois parágrafos preserva a linha em branco no PDF', () => {
+    // Reproduz o Enter-duas-vezes do editor: <p>A</p><p></p><p>B</p>. Sem o fix, um <p>
+    // vazio não gera tokens e renderTokens() não avança currentY (early return), então a
+    // linha em branco que o nutricionista viu no editor some no PDF.
+    const comLinhaEmBranco = new jsPDF();
+    const yComLinhaEmBranco = renderFreeTextToPdf(comLinhaEmBranco, '<p>A</p><p></p><p>B</p>', 100, 14, 180);
+
+    const semLinhaEmBranco = new jsPDF();
+    const ySemLinhaEmBranco = renderFreeTextToPdf(semLinhaEmBranco, '<p>A</p><p>B</p>', 100, 14, 180);
+
+    // O parágrafo vazio deve contribuir com pelo menos um lineHeight (5) a mais de altura.
+    expect(yComLinhaEmBranco).toBeGreaterThanOrEqual(ySemLinhaEmBranco + 5);
+  });
+
+  it('não insere espaço espúrio entre uma tag inline e pontuação colada na origem (ex.: rótulo em negrito seguido de ":")', () => {
+    const doc = new jsPDF();
+    const calls: Array<{ text: string; x: number }> = [];
+    const originalText = doc.text.bind(doc);
+    vi.spyOn(doc, 'text').mockImplementation((text: any, x: any, y: any, opts?: any) => {
+      calls.push({ text: String(text), x: Number(x) });
+      return originalText(text, x, y, opts);
+    });
+
+    renderFreeTextToPdf(doc, '<p><strong>Café da manhã</strong>: ovos</p>', 100, 14, 180);
+
+    const manha = calls.find((c) => c.text === 'manhã');
+    const colon = calls.find((c) => c.text === ':');
+    const ovos = calls.find((c) => c.text === 'ovos');
+    expect(manha).toBeDefined();
+    expect(colon).toBeDefined();
+    expect(ovos).toBeDefined();
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    const manhaWidth = doc.getTextWidth('manhã');
+
+    // ":" deve colar imediatamente após "manhã" — sem <strong>...</strong> e ": ovos" não
+    // havia whitespace na origem entre eles, então não pode haver espaço no PDF.
+    expect(colon!.x).toBeCloseTo(manha!.x + manhaWidth, 2);
+
+    doc.setFont('helvetica', 'normal');
+    const colonWidth = doc.getTextWidth(':');
+    const spaceWidth = doc.getTextWidth(' ');
+
+    // "ovos" tem um espaço real na origem (": ovos") e deve manter esse espaço no PDF.
+    expect(ovos!.x).toBeCloseTo(colon!.x + colonWidth + spaceWidth, 2);
+  });
+
+  it('lista aninhada dentro de <li> gera linhas separadas com marcador próprio, sem concatenar na linha do item pai', () => {
+    const doc = new jsPDF();
+    const textSpy = vi.spyOn(doc, 'text');
+
+    renderFreeTextToPdf(
+      doc,
+      '<ul><li>Almoço<ul><li>Arroz</li><li>Feijão</li></ul></li><li>Jantar</li></ul>',
+      100,
+      14,
+      180
+    );
+
+    const calls = textSpy.mock.calls.map((c) => ({ text: String(c[0]), x: c[1] as number, y: c[2] as number }));
+
+    const almoco = calls.find((c) => c.text === 'Almoço');
+    const arroz = calls.find((c) => c.text === 'Arroz');
+    const feijao = calls.find((c) => c.text === 'Feijão');
+    const jantar = calls.find((c) => c.text === 'Jantar');
+    expect(almoco).toBeDefined();
+    expect(arroz).toBeDefined();
+    expect(feijao).toBeDefined();
+    expect(jantar).toBeDefined();
+
+    // 4 itens em 4 linhas (Y) distintas — "Arroz"/"Feijão" não podem ter sido
+    // concatenados na mesma linha (mesmo Y) do item pai "Almoço".
+    const ys = new Set([almoco!.y, arroz!.y, feijao!.y, jantar!.y]);
+    expect(ys.size).toBe(4);
+
+    // A sublista deve estar mais indentada que o item pai; "Jantar" (nível raiz, depois
+    // da sublista) volta à indentação original de "Almoço".
+    expect(arroz!.x).toBeGreaterThan(almoco!.x);
+    expect(feijao!.x).toBeGreaterThan(almoco!.x);
+    expect(jantar!.x).toBe(almoco!.x);
+
+    // Um marcador "•" por item (Almoço, Arroz, Feijão, Jantar) — nenhum item perde seu
+    // marcador próprio ao entrar na recursão da sublista.
+    const bulletCount = textSpy.mock.calls.filter((c) => String(c[0]) === '•').length;
+    expect(bulletCount).toBe(4);
+  });
+
+  it('palavra única maior que a largura disponível quebra em várias linhas (splitTextToSize), sem vazar da margem', () => {
+    const doc = new jsPDF();
+    const textSpy = vi.spyOn(doc, 'text');
+
+    const longWord = 'a'.repeat(150); // sem espaços, ex.: URL longa
+    const maxWidth = 20; // mm — bem menor que a largura da palavra sozinha
+
+    renderFreeTextToPdf(doc, `<p>${longWord}</p>`, 100, 14, maxWidth);
+
+    const texts = textSpy.mock.calls.map((c) => String(c[0]));
+    // A palavra não pode ter sido emitida inteira numa única chamada (vazaria a margem).
+    expect(texts).not.toContain(longWord);
+    expect(texts.length).toBeGreaterThan(1);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    texts.forEach((text) => {
+      expect(doc.getTextWidth(text)).toBeLessThanOrEqual(maxWidth + 0.01);
+    });
+  });
 });

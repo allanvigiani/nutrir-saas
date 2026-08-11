@@ -21,6 +21,18 @@ interface StyledToken {
   underline: boolean;
   /** Token sentinela: força quebra de linha (originado de <br>) sem imprimir texto. */
   isBreak?: boolean;
+  /**
+   * Se false, este token nunca deve ser separado do anterior por um espaço, mesmo que
+   * ambos estejam na mesma linha. Default (undefined) é tratado como true. Usado para
+   * reproduzir fielmente a ausência de whitespace na origem (ex.: `<strong>rótulo</strong>:`),
+   * evitando o espaço espúrio que surgiria se todo token fosse incondicionalmente separado.
+   */
+  spaceBefore?: boolean;
+}
+
+/** Rastreia, entre nós de texto irmãos, se o último caractere emitido foi whitespace. */
+interface SpaceState {
+  pending: boolean;
 }
 
 function fontStyleFor(bold: boolean, italic: boolean): 'normal' | 'bold' | 'italic' | 'bolditalic' {
@@ -35,14 +47,27 @@ function collectTokens(
   bold: boolean,
   italic: boolean,
   underline: boolean,
-  tokens: StyledToken[]
+  tokens: StyledToken[],
+  spaceState: SpaceState
 ): void {
   node.childNodes.forEach((child) => {
     if (child.nodeType === Node.TEXT_NODE) {
-      (child.textContent || '')
-        .split(/\s+/)
-        .filter(Boolean)
-        .forEach((word) => tokens.push({ text: word, bold, italic, underline }));
+      const raw = child.textContent || '';
+      if (raw.length === 0) return;
+
+      const words = raw.split(/\s+/).filter(Boolean);
+      if (words.length === 0) {
+        // Texto totalmente em branco (ex.: nó de whitespace entre duas tags): não gera
+        // token, mas o espaço "pendente" deve propagar para o próximo nó de texto.
+        spaceState.pending = true;
+        return;
+      }
+
+      const leadingSpace = spaceState.pending || /^\s/.test(raw);
+      words.forEach((word, i) => {
+        tokens.push({ text: word, bold, italic, underline, spaceBefore: i === 0 ? leadingSpace : true });
+      });
+      spaceState.pending = /\s$/.test(raw);
       return;
     }
     if (child.nodeType !== Node.ELEMENT_NODE) return;
@@ -50,21 +75,28 @@ function collectTokens(
     const el = child as HTMLElement;
     switch (el.tagName.toLowerCase()) {
       case 'strong':
-        collectTokens(el, true, italic, underline, tokens);
+        collectTokens(el, true, italic, underline, tokens, spaceState);
         break;
       case 'em':
-        collectTokens(el, bold, true, underline, tokens);
+        collectTokens(el, bold, true, underline, tokens, spaceState);
         break;
       case 'u':
-        collectTokens(el, bold, italic, true, tokens);
+        collectTokens(el, bold, italic, true, tokens, spaceState);
         break;
       case 'br':
         // <br> (hardBreak do Tiptap/starter-kit) não tem filhos com texto: precisa de um
         // token sentinela para não desaparecer silenciosamente no PDF.
         tokens.push({ text: '', bold, italic, underline, isBreak: true });
+        spaceState.pending = false;
+        break;
+      case 'ul':
+      case 'ol':
+        // Sublista aninhada dentro de um <li>: não desce aqui. Quem chama collectTokens
+        // para o conteúdo direto de um <li> (renderList, em renderFreeTextToPdf) é
+        // responsável por renderizar a sublista separadamente, em sua própria linha.
         break;
       default:
-        collectTokens(el, bold, italic, underline, tokens);
+        collectTokens(el, bold, italic, underline, tokens, spaceState);
     }
   });
 }
@@ -119,6 +151,9 @@ export function renderFreeTextToPdf(
 
     const spaceWidth = doc.getTextWidth(' ');
     let cursorX = startX;
+    // Início de linha: nenhum espaço deve ser inserido antes do primeiro token que for
+    // impresso (seja o primeiro token da chamada, seja o primeiro após um <br>).
+    let lastWasBreak = true;
     ensureSpace(lineHeight);
 
     tokens.forEach((token) => {
@@ -126,27 +161,105 @@ export function renderFreeTextToPdf(
         currentY += lineHeight;
         ensureSpace(lineHeight);
         cursorX = startX;
+        lastWasBreak = true;
         return;
       }
 
       doc.setFont('helvetica', fontStyleFor(token.bold, token.italic));
       const wordWidth = doc.getTextWidth(token.text);
 
-      if (cursorX !== startX && cursorX + wordWidth > startX + width) {
+      if (wordWidth > width) {
+        // Palavra sozinha maior que a largura disponível (ex.: URL longa sem espaços).
+        // O caminho legado (texto puro) já usa doc.splitTextToSize para forçar a quebra
+        // de palavras longas; replicamos aqui para não vazar texto além da margem.
+        if (cursorX !== startX) {
+          currentY += lineHeight;
+          ensureSpace(lineHeight);
+          cursorX = startX;
+        }
+        const pieces: string[] = doc.splitTextToSize(token.text, width);
+        pieces.forEach((piece, idx) => {
+          ensureSpace(lineHeight);
+          doc.text(piece, startX, currentY);
+          if (token.underline) {
+            const pieceWidth = doc.getTextWidth(piece);
+            doc.line(startX, currentY + 0.5, startX + pieceWidth, currentY + 0.5);
+          }
+          if (idx < pieces.length - 1) {
+            currentY += lineHeight;
+          } else {
+            cursorX = startX + doc.getTextWidth(piece);
+          }
+        });
+        lastWasBreak = false;
+        return;
+      }
+
+      const needsSpace = !lastWasBreak && cursorX !== startX && token.spaceBefore !== false;
+      const gap = needsSpace ? spaceWidth : 0;
+
+      if (cursorX !== startX && cursorX + gap + wordWidth > startX + width) {
         currentY += lineHeight;
         ensureSpace(lineHeight);
         cursorX = startX;
       }
 
-      doc.text(token.text, cursorX, currentY);
+      const printX = cursorX === startX ? cursorX : cursorX + gap;
+      doc.text(token.text, printX, currentY);
       if (token.underline) {
-        doc.line(cursorX, currentY + 0.5, cursorX + wordWidth, currentY + 0.5);
+        doc.line(printX, currentY + 0.5, printX + wordWidth, currentY + 0.5);
       }
-      cursorX += wordWidth + spaceWidth;
+      cursorX = printX + wordWidth;
+      lastWasBreak = false;
     });
 
     doc.setFont('helvetica', 'normal');
-    currentY += lineHeight;
+    if (!lastWasBreak) {
+      // Se o último token processado foi um <br>, ele já avançou currentY em um
+      // lineHeight; somar de novo aqui produziria uma linha em branco extra.
+      currentY += lineHeight;
+    }
+  };
+
+  /**
+   * Renderiza uma lista (<ul>/<ol>), incluindo sublistas aninhadas dentro de <li>
+   * (alcançáveis na UI via Tab, com o listKeymap do StarterKit do Tiptap). Cada <li> é
+   * renderizado em sua própria linha com marcador; se tiver uma sublista filha, esta é
+   * renderizada recursivamente logo em seguida, numa linha própria (nunca colada na
+   * linha do item pai) e com indentação incremental.
+   */
+  const renderList = (listEl: HTMLElement, indent: number) => {
+    let counter = 0;
+    listEl.childNodes.forEach((liNode) => {
+      if (liNode.nodeType !== Node.ELEMENT_NODE) return;
+      const li = liNode as HTMLElement;
+      if (li.tagName.toLowerCase() !== 'li') return;
+
+      counter += 1;
+      const marker = listEl.tagName.toLowerCase() === 'ol' ? `${counter}.` : '•';
+      const markerToken: StyledToken = { text: marker, bold: false, italic: false, underline: false };
+
+      // collectTokens ignora <ul>/<ol> filhas (ver case 'ul'/'ol' em collectTokens):
+      // aqui coletamos apenas o texto/formatação inline diretos do <li>.
+      const contentTokens: StyledToken[] = [];
+      collectTokens(li, false, false, false, contentTokens, { pending: false });
+      if (contentTokens.length > 0) {
+        // Força espaço entre o marcador e o conteúdo, independentemente de o <li>
+        // começar ou não com whitespace na origem (ex.: "<li>Arroz</li>" sem espaço
+        // inicial ainda deve renderizar como "• Arroz", não "•Arroz").
+        contentTokens[0].spaceBefore = true;
+      }
+      renderTokens([markerToken, ...contentTokens], x + indent, maxWidth - indent);
+
+      li.childNodes.forEach((childNode) => {
+        if (childNode.nodeType !== Node.ELEMENT_NODE) return;
+        const childEl = childNode as HTMLElement;
+        const childTag = childEl.tagName.toLowerCase();
+        if (childTag === 'ul' || childTag === 'ol') {
+          renderList(childEl, indent + 4);
+        }
+      });
+    });
   };
 
   dom.body.childNodes.forEach((node) => {
@@ -171,7 +284,7 @@ export function renderFreeTextToPdf(
     switch (el.tagName.toLowerCase()) {
       case 'h3': {
         const tokens: StyledToken[] = [];
-        collectTokens(el, true, false, false, tokens);
+        collectTokens(el, true, false, false, tokens, { pending: false });
         ensureSpace(lineHeight + 2);
         currentY += 2;
         doc.setFontSize(11);
@@ -182,25 +295,23 @@ export function renderFreeTextToPdf(
       }
       case 'p': {
         const tokens: StyledToken[] = [];
-        collectTokens(el, false, false, false, tokens);
-        renderTokens(tokens, x, maxWidth);
+        collectTokens(el, false, false, false, tokens, { pending: false });
+        if (tokens.length === 0) {
+          // Parágrafo vazio (<p></p>, produzido ao apertar Enter duas vezes no editor):
+          // sem tokens, renderTokens() não avança currentY (early return), então a linha
+          // em branco que o nutricionista viu no editor desapareceria do PDF. Avança
+          // manualmente um lineHeight para preservar essa linha em branco.
+          ensureSpace(lineHeight);
+          currentY += lineHeight;
+        } else {
+          renderTokens(tokens, x, maxWidth);
+        }
         currentY += 2;
         break;
       }
       case 'ul':
       case 'ol': {
-        let counter = 0;
-        el.childNodes.forEach((liNode) => {
-          if (liNode.nodeType !== Node.ELEMENT_NODE) return;
-          const li = liNode as HTMLElement;
-          if (li.tagName.toLowerCase() !== 'li') return;
-
-          counter += 1;
-          const marker = el.tagName.toLowerCase() === 'ol' ? `${counter}.` : '•';
-          const tokens: StyledToken[] = [{ text: marker, bold: false, italic: false, underline: false }];
-          collectTokens(li, false, false, false, tokens);
-          renderTokens(tokens, x + 4, maxWidth - 4);
-        });
+        renderList(el, 4);
         currentY += 2;
         break;
       }
