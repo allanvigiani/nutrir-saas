@@ -881,20 +881,21 @@ export const PatientProfile = () => {
             </DialogTrigger>
             <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl">
               <DialogHeader>
-                <DialogTitle>{selectedConsultation ? 'Editar Consulta' : 'Registrar Nova Consulta'}</DialogTitle>
-                <DialogDescription>Preencha os dados antropométricos e clínicos do atendimento.</DialogDescription>
-              </DialogHeader>
-              <form key={isConsultationModalOpen ? 'open' : 'closed'} onSubmit={handleConsultationSubmit(onConsultationSubmit)} className="space-y-6 py-4">
                 {!selectedConsultation && consultations.length > 0 && (
                   <Button
                     type="button"
-                    variant="outline"
                     onClick={handleImportLastConsultation}
-                    className="rounded-xl h-8 px-4 text-sm gap-2"
+                    className="absolute top-3 right-12 rounded-xl h-8 px-4 text-sm gap-2 bg-green-600 hover:bg-green-700 text-white shadow-sm"
                   >
                     <Download className="w-4 h-4" /> Importar última consulta
                   </Button>
                 )}
+                <div className={cn(!selectedConsultation && consultations.length > 0 && "pr-64")}>
+                  <DialogTitle>{selectedConsultation ? 'Editar Consulta' : 'Registrar Nova Consulta'}</DialogTitle>
+                  <DialogDescription>Preencha os dados antropométricos e clínicos do atendimento.</DialogDescription>
+                </div>
+              </DialogHeader>
+              <form key={isConsultationModalOpen ? 'open' : 'closed'} onSubmit={handleConsultationSubmit(onConsultationSubmit)} className="space-y-6 py-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="date">Data da Consulta</Label>
