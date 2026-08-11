@@ -886,7 +886,7 @@ export const PatientProfile = () => {
                   <Button
                     type="button"
                     onClick={handleImportLastConsultation}
-                    className="absolute top-3 right-12 rounded-xl h-8 px-4 text-sm gap-2 bg-green-600 hover:bg-green-700 text-white shadow-sm"
+                    className="absolute top-3 right-12 rounded-xl h-8 px-4 text-sm gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
                   >
                     <Download className="w-4 h-4" /> Importar última consulta
                   </Button>
