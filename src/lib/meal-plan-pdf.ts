@@ -1,7 +1,9 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { format } from 'date-fns';
+import DOMPurify from 'dompurify';
 import { MealPlan, MealPlanItem, Nutritionist } from '../types';
+import { isRichTextHtml } from './rich-text';
 
 type ReceitaVinculada = {
   meal: string;
@@ -11,6 +13,168 @@ type ReceitaVinculada = {
     prepMode?: string;
   };
 };
+
+interface StyledToken {
+  text: string;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+}
+
+function fontStyleFor(bold: boolean, italic: boolean): 'normal' | 'bold' | 'italic' | 'bolditalic' {
+  if (bold && italic) return 'bolditalic';
+  if (bold) return 'bold';
+  if (italic) return 'italic';
+  return 'normal';
+}
+
+function collectTokens(
+  node: Node,
+  bold: boolean,
+  italic: boolean,
+  underline: boolean,
+  tokens: StyledToken[]
+): void {
+  node.childNodes.forEach((child) => {
+    if (child.nodeType === Node.TEXT_NODE) {
+      (child.textContent || '')
+        .split(/\s+/)
+        .filter(Boolean)
+        .forEach((word) => tokens.push({ text: word, bold, italic, underline }));
+      return;
+    }
+    if (child.nodeType !== Node.ELEMENT_NODE) return;
+
+    const el = child as HTMLElement;
+    switch (el.tagName.toLowerCase()) {
+      case 'strong':
+        collectTokens(el, true, italic, underline, tokens);
+        break;
+      case 'em':
+        collectTokens(el, bold, true, underline, tokens);
+        break;
+      case 'u':
+        collectTokens(el, bold, italic, true, tokens);
+        break;
+      default:
+        collectTokens(el, bold, italic, underline, tokens);
+    }
+  });
+}
+
+/**
+ * Exportada apenas para testes (src/tests/lib/meal-plan-pdf.test.ts).
+ */
+export function renderFreeTextToPdf(
+  doc: jsPDF,
+  content: string,
+  startY: number,
+  x: number,
+  maxWidth: number
+): number {
+  let currentY = startY;
+  const lineHeight = 5;
+
+  const ensureSpace = (needed = lineHeight) => {
+    if (currentY + needed > doc.internal.pageSize.getHeight() - 20) {
+      doc.addPage();
+      currentY = 20;
+    }
+  };
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+
+  if (!isRichTextHtml(content)) {
+    const splitFreeText = doc.splitTextToSize(content || '', maxWidth);
+    for (const linha of splitFreeText) {
+      ensureSpace();
+      doc.text(linha, x, currentY);
+      currentY += lineHeight;
+    }
+    return currentY;
+  }
+
+  const sanitized = DOMPurify.sanitize(content, {
+    ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h3', 'ul', 'ol', 'li'],
+  });
+  const dom = new DOMParser().parseFromString(sanitized, 'text/html');
+
+  const renderTokens = (tokens: StyledToken[], startX: number, width: number) => {
+    if (tokens.length === 0) return;
+
+    const spaceWidth = doc.getTextWidth(' ');
+    let cursorX = startX;
+    ensureSpace(lineHeight);
+
+    tokens.forEach((token) => {
+      doc.setFont('helvetica', fontStyleFor(token.bold, token.italic));
+      const wordWidth = doc.getTextWidth(token.text);
+
+      if (cursorX !== startX && cursorX + wordWidth > startX + width) {
+        currentY += lineHeight;
+        ensureSpace(lineHeight);
+        cursorX = startX;
+      }
+
+      doc.text(token.text, cursorX, currentY);
+      if (token.underline) {
+        doc.line(cursorX, currentY + 0.5, cursorX + wordWidth, currentY + 0.5);
+      }
+      cursorX += wordWidth + spaceWidth;
+    });
+
+    doc.setFont('helvetica', 'normal');
+    currentY += lineHeight;
+  };
+
+  dom.body.childNodes.forEach((node) => {
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as HTMLElement;
+
+    switch (el.tagName.toLowerCase()) {
+      case 'h3': {
+        const tokens: StyledToken[] = [];
+        collectTokens(el, true, false, false, tokens);
+        ensureSpace(lineHeight + 2);
+        currentY += 2;
+        doc.setFontSize(11);
+        renderTokens(tokens, x, maxWidth);
+        doc.setFontSize(10);
+        currentY += 2;
+        break;
+      }
+      case 'p': {
+        const tokens: StyledToken[] = [];
+        collectTokens(el, false, false, false, tokens);
+        renderTokens(tokens, x, maxWidth);
+        currentY += 2;
+        break;
+      }
+      case 'ul':
+      case 'ol': {
+        let counter = 0;
+        el.childNodes.forEach((liNode) => {
+          if (liNode.nodeType !== Node.ELEMENT_NODE) return;
+          const li = liNode as HTMLElement;
+          if (li.tagName.toLowerCase() !== 'li') return;
+
+          counter += 1;
+          const marker = el.tagName.toLowerCase() === 'ol' ? `${counter}.` : '•';
+          const tokens: StyledToken[] = [{ text: marker, bold: false, italic: false, underline: false }];
+          collectTokens(li, false, false, false, tokens);
+          renderTokens(tokens, x + 4, maxWidth - 4);
+        });
+        currentY += 2;
+        break;
+      }
+      default:
+        break;
+    }
+  });
+
+  return currentY;
+}
 
 export function generateMealPlanPDF(
   plan: MealPlan,
@@ -88,17 +252,7 @@ export function generateMealPlanPDF(
     doc.line(14, currentY + 2, pageWidth - 14, currentY + 2);
     currentY += 10;
 
-    doc.setFontSize(10);
-    doc.setFont('helvetica', 'normal');
-    const splitFreeText = doc.splitTextToSize(plan.freeTextContent || '', pageWidth - 28);
-    for (const linha of splitFreeText) {
-      if (currentY > doc.internal.pageSize.getHeight() - 20) {
-        doc.addPage();
-        currentY = 20;
-      }
-      doc.text(linha, 14, currentY);
-      currentY += 5;
-    }
+    currentY = renderFreeTextToPdf(doc, plan.freeTextContent || '', currentY, 14, pageWidth - 28);
     currentY += 10;
   } else {
     // Group items by meal
