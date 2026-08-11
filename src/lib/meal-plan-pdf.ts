@@ -19,6 +19,8 @@ interface StyledToken {
   bold: boolean;
   italic: boolean;
   underline: boolean;
+  /** Token sentinela: força quebra de linha (originado de <br>) sem imprimir texto. */
+  isBreak?: boolean;
 }
 
 function fontStyleFor(bold: boolean, italic: boolean): 'normal' | 'bold' | 'italic' | 'bolditalic' {
@@ -56,6 +58,11 @@ function collectTokens(
       case 'u':
         collectTokens(el, bold, italic, true, tokens);
         break;
+      case 'br':
+        // <br> (hardBreak do Tiptap/starter-kit) não tem filhos com texto: precisa de um
+        // token sentinela para não desaparecer silenciosamente no PDF.
+        tokens.push({ text: '', bold, italic, underline, isBreak: true });
+        break;
       default:
         collectTokens(el, bold, italic, underline, tokens);
     }
@@ -86,9 +93,16 @@ export function renderFreeTextToPdf(
   doc.setFont('helvetica', 'normal');
 
   if (!isRichTextHtml(content)) {
+    // Caminho legado: preserva byte-a-byte a checagem de quebra de página do código
+    // anterior a esta task (currentY > pageHeight - 20), sem usar ensureSpace() —
+    // ensureSpace() teria um "needed" default que desloca o corte para pageHeight - 25
+    // e muda a paginação de planos antigos.
     const splitFreeText = doc.splitTextToSize(content || '', maxWidth);
     for (const linha of splitFreeText) {
-      ensureSpace();
+      if (currentY > doc.internal.pageSize.getHeight() - 20) {
+        doc.addPage();
+        currentY = 20;
+      }
       doc.text(linha, x, currentY);
       currentY += lineHeight;
     }
@@ -108,6 +122,13 @@ export function renderFreeTextToPdf(
     ensureSpace(lineHeight);
 
     tokens.forEach((token) => {
+      if (token.isBreak) {
+        currentY += lineHeight;
+        ensureSpace(lineHeight);
+        cursorX = startX;
+        return;
+      }
+
       doc.setFont('helvetica', fontStyleFor(token.bold, token.italic));
       const wordWidth = doc.getTextWidth(token.text);
 
@@ -129,6 +150,21 @@ export function renderFreeTextToPdf(
   };
 
   dom.body.childNodes.forEach((node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      // Texto órfão diretamente no <body> (ex.: DOMPurify remove uma tag não permitida
+      // como <div> mas preserva seu conteúdo textual, promovendo-o para o body).
+      // Sem este fallback, esse texto seria descartado silenciosamente.
+      const orphanText = node.textContent || '';
+      if (orphanText.trim().length === 0) return;
+      const tokens: StyledToken[] = orphanText
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((word) => ({ text: word, bold: false, italic: false, underline: false }));
+      renderTokens(tokens, x, maxWidth);
+      currentY += 2;
+      return;
+    }
+
     if (node.nodeType !== Node.ELEMENT_NODE) return;
     const el = node as HTMLElement;
 
