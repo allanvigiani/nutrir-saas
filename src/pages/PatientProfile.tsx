@@ -256,6 +256,7 @@ export const PatientProfile = () => {
   const [labExamToDelete, setLabExamToDelete] = useState<string | null>(null);
   const [isDeleteConsultationConfirmOpen, setIsDeleteConsultationConfirmOpen] = useState(false);
   const [consultationToDelete, setConsultationToDelete] = useState<string | null>(null);
+  const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
   const [selectedMealPlan, setSelectedMealPlan] = useState<MealPlan | null>(null);
   const [selectedMealPlanItems, setSelectedMealPlanItems] = useState<MealPlanItem[]>([]);
@@ -387,9 +388,26 @@ export const PatientProfile = () => {
     toast.success(`Dados importados da consulta de ${formatDateSafely(last.date, 'dd/MM/yyyy')}`);
   };
 
+  const isConsultationFormFilled = () => {
+    const values = getValuesConsultation();
+    return IMPORTABLE_CONSULTATION_FIELDS.some((field) => {
+      const value = values[field];
+      return value !== undefined && value !== null && value !== '' && value !== 0;
+    });
+  };
+
   const handleImportLastConsultation = () => {
     if (consultations.length === 0) return;
+    if (isConsultationFormFilled()) {
+      setIsImportConfirmOpen(true);
+      return;
+    }
     applyLastConsultationValues();
+  };
+
+  const confirmImportLastConsultation = () => {
+    applyLastConsultationValues();
+    setIsImportConfirmOpen(false);
   };
 
   const onConsultationSubmit = async (data: any) => {
@@ -1920,6 +1938,21 @@ export const PatientProfile = () => {
 
               </div>
             </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isImportConfirmOpen} onOpenChange={setIsImportConfirmOpen}>
+          <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Importar dados da última consulta?</DialogTitle>
+              <DialogDescription>
+                Isso vai substituir os dados já preenchidos neste formulário.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex gap-2 sm:justify-end">
+              <Button variant="outline" onClick={() => setIsImportConfirmOpen(false)}>Cancelar</Button>
+              <Button onClick={confirmImportLastConsultation}>Importar</Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
