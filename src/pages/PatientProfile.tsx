@@ -29,7 +29,8 @@ import {
   ChevronUp,
   MessageSquare,
   Calculator,
-  X
+  X,
+  Download
 } from 'lucide-react';
 import {
   Tabs,
@@ -192,6 +193,20 @@ const consultationSchema = z.object({
 
 type ConsultationFormValues = z.infer<typeof consultationSchema>;
 
+const IMPORTABLE_CONSULTATION_FIELDS = [
+  'weight',
+  'height',
+  'fatPercentage',
+  'waist',
+  'hip',
+  'abdomen',
+  'arm',
+  'anamnesis',
+  'complaints',
+  'objectives',
+  'observations',
+] as const satisfies readonly (keyof ConsultationFormValues)[];
+
 export const PatientProfile = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -241,6 +256,7 @@ export const PatientProfile = () => {
   const [labExamToDelete, setLabExamToDelete] = useState<string | null>(null);
   const [isDeleteConsultationConfirmOpen, setIsDeleteConsultationConfirmOpen] = useState(false);
   const [consultationToDelete, setConsultationToDelete] = useState<string | null>(null);
+  const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('personal');
   const [selectedMealPlan, setSelectedMealPlan] = useState<MealPlan | null>(null);
   const [selectedMealPlanItems, setSelectedMealPlanItems] = useState<MealPlanItem[]>([]);
@@ -343,7 +359,7 @@ export const PatientProfile = () => {
   };
 
 
-  const { register: regConsultation, handleSubmit: handleConsultationSubmit, reset: resetConsultation, formState: { isSubmitting: isConsultationSubmitting } } = useForm<any>({
+  const { register: regConsultation, handleSubmit: handleConsultationSubmit, reset: resetConsultation, getValues: getValuesConsultation, setValue: setValueConsultation, formState: { isSubmitting: isConsultationSubmitting } } = useForm<any>({
     resolver: zodResolver(consultationSchema),
     defaultValues: {
       date: new Date().toISOString().split('T')[0],
@@ -361,6 +377,37 @@ export const PatientProfile = () => {
     } catch (e) {
       return dateStr;
     }
+  };
+
+  const applyLastConsultationValues = () => {
+    const last = consultations[0];
+    if (!last) return;
+    IMPORTABLE_CONSULTATION_FIELDS.forEach((field) => {
+      setValueConsultation(field, (last as any)[field] ?? undefined);
+    });
+    toast.success(`Dados importados da consulta de ${formatDateSafely(last.date, 'dd/MM/yyyy')}`);
+  };
+
+  const isConsultationFormFilled = () => {
+    const values = getValuesConsultation();
+    return IMPORTABLE_CONSULTATION_FIELDS.some((field) => {
+      const value = values[field];
+      return value !== undefined && value !== null && value !== '' && value !== 0;
+    });
+  };
+
+  const handleImportLastConsultation = () => {
+    if (consultations.length === 0) return;
+    if (isConsultationFormFilled()) {
+      setIsImportConfirmOpen(true);
+      return;
+    }
+    applyLastConsultationValues();
+  };
+
+  const confirmImportLastConsultation = () => {
+    applyLastConsultationValues();
+    setIsImportConfirmOpen(false);
   };
 
   const onConsultationSubmit = async (data: any) => {
@@ -793,6 +840,7 @@ export const PatientProfile = () => {
             setIsConsultationModalOpen(open);
             if (!open) {
               setSelectedConsultation(null);
+              setIsImportConfirmOpen(false);
               resetConsultation({
                 date: new Date().toISOString().split('T')[0],
                 weight: 0,
@@ -837,6 +885,16 @@ export const PatientProfile = () => {
                 <DialogDescription>Preencha os dados antropométricos e clínicos do atendimento.</DialogDescription>
               </DialogHeader>
               <form key={isConsultationModalOpen ? 'open' : 'closed'} onSubmit={handleConsultationSubmit(onConsultationSubmit)} className="space-y-6 py-4">
+                {!selectedConsultation && consultations.length > 0 && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleImportLastConsultation}
+                    className="rounded-xl h-8 px-4 text-sm gap-2"
+                  >
+                    <Download className="w-4 h-4" /> Importar última consulta
+                  </Button>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-1.5">
                     <Label htmlFor="date">Data da Consulta</Label>
@@ -939,6 +997,21 @@ export const PatientProfile = () => {
                 </DialogFooter>
               </form>
             </DialogContent>
+
+            <Dialog open={isImportConfirmOpen} onOpenChange={setIsImportConfirmOpen}>
+              <DialogContent className="w-[calc(100vw-2rem)] sm:max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Importar dados da última consulta?</DialogTitle>
+                  <DialogDescription>
+                    Isso vai substituir os dados já preenchidos neste formulário.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter className="flex gap-2 sm:justify-end">
+                  <Button variant="outline" onClick={() => setIsImportConfirmOpen(false)}>Cancelar</Button>
+                  <Button onClick={confirmImportLastConsultation}>Importar</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </Dialog>
         </div>
       </div>
