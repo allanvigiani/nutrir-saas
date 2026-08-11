@@ -55,6 +55,7 @@ import { Patient, Consultation, MealPlan, MealPlanItem, LabExam, LabExamMarker, 
 import { format, differenceInYears, parseISO, subMonths, isAfter } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PremiumFeature } from '../components/PremiumFeature';
+import { RichTextViewer } from '../components/RichTextViewer';
 import { PremiumBanner } from '../components/PremiumBanner';
 import { UpgradeModal } from '../components/UpgradeModal';
 import { useFreeplanLimits } from '../hooks/useFreeplanLimits';
@@ -1799,9 +1800,10 @@ export const PatientProfile = () => {
                     </div>
                     <Card className="border-none shadow-sm bg-card overflow-hidden p-6 space-y-3">
                       <h4 className="font-medium text-xs text-primary">Plano Alimentar</h4>
-                      <div className="text-sm text-foreground leading-relaxed whitespace-pre-wrap font-mono">
-                        {selectedMealPlan?.freeTextContent || 'Nenhum conteúdo cadastrado.'}
-                      </div>
+                      <RichTextViewer
+                        html={selectedMealPlan?.freeTextContent}
+                        emptyFallback="Nenhum conteúdo cadastrado."
+                      />
                     </Card>
                   </div>
                 ) : (
