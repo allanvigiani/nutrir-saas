@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
+import { RichTextEditor } from './RichTextEditor';
 import {
   Dialog,
   DialogContent,
@@ -187,12 +188,7 @@ export function FreeTextMealPlanEditor({
 
           <div className="bg-card rounded-xl p-4 border border-border space-y-2">
             <Label className="text-xs font-medium text-muted-foreground ml-1">Plano Alimentar (cole aqui)</Label>
-            <Textarea
-              placeholder="Cole aqui o plano alimentar completo..."
-              className="min-h-[420px] rounded-lg border border-border bg-card resize-y text-sm leading-relaxed p-3 font-mono"
-              value={freeTextContent}
-              onChange={(e) => setFreeTextContent(e.target.value)}
-            />
+            <RichTextEditor value={freeTextContent} onChange={setFreeTextContent} />
           </div>
         </div>
       </div>
