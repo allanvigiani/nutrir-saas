@@ -61,6 +61,46 @@ describe('patients.service — soft delete', () => {
   });
 });
 
+describe('patients.service — proteção contra mass assignment', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('create() ignora accessToken/id/nutritionistId/deletedAt vindos do body', async () => {
+    mockCount.mockResolvedValue(0);
+    mockCreate.mockResolvedValue({});
+    await service.create('nutri-1', {
+      name: 'Paciente X',
+      accessToken: 'token-escolhido-pelo-cliente',
+      id: 'id-forjado',
+      nutritionistId: 'outro-nutricionista',
+      deletedAt: null,
+    }, true);
+
+    const dataEnviada = mockCreate.mock.calls[0][0].data;
+    expect(dataEnviada.accessToken).toBeUndefined();
+    expect(dataEnviada.id).toBeUndefined();
+    expect(dataEnviada.nutritionistId).toBe('nutri-1'); // sempre o autenticado, nunca o do body
+    expect(dataEnviada.deletedAt).toBeUndefined();
+    expect(dataEnviada.name).toBe('Paciente X');
+  });
+
+  it('update() ignora accessToken/id/nutritionistId vindos do body (não deixa reatribuir o paciente)', async () => {
+    mockFindFirst.mockResolvedValue({ id: 'p-1', nutritionistId: 'nutri-1', deletedAt: null });
+    mockUpdate.mockResolvedValue({});
+    await service.update('nutri-1', 'p-1', {
+      name: 'Nome Atualizado',
+      accessToken: 'token-escolhido-pelo-cliente',
+      nutritionistId: 'outro-nutricionista',
+      id: 'outro-id',
+    }, false);
+
+    const dataEnviada = mockUpdate.mock.calls[0][0].data;
+    expect(dataEnviada.accessToken).toBeUndefined();
+    expect(dataEnviada.nutritionistId).toBeUndefined();
+    expect(dataEnviada.id).toBeUndefined();
+    expect(dataEnviada.name).toBe('Nome Atualizado');
+  });
+});
+
 describe('PatientsService — grace period e isReadOnly', () => {
   beforeEach(() => vi.clearAllMocks());
 

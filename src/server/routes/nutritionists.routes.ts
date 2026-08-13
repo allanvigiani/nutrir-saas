@@ -54,9 +54,12 @@ export function registerNutritionistsRoutes(deps: BaseRouteDeps) {
     }
   });
 
-  // Endpoint público para verificar duplicidade durante cadastro (sem autenticação)
+  // Endpoint público para verificar duplicidade durante cadastro (sem autenticação).
+  // Sem excludeUid de propósito: essa rota só serve pra quem AINDA não tem conta (cadastro
+  // novo). Editar dados de uma conta existente passa por /api/me/check-unique, que já exclui
+  // o próprio usuário via req.user.uid — nunca de um ID arbitrário vindo do client.
   deps.app.get('/api/check-unique', async (req: any, res: any) => {
-    const { field, value, excludeUid } = req.query as { field: string; value: string; excludeUid?: string };
+    const { field, value } = req.query as { field: string; value: string };
     if (!field || !value) return res.status(400).json({ error: 'Parâmetros obrigatórios: field, value' });
     const allowed = ['crn', 'cpf', 'cnpj'];
     if (!allowed.includes(field)) return res.status(400).json({ error: 'Campo inválido' });
@@ -71,7 +74,6 @@ export function registerNutritionistsRoutes(deps: BaseRouteDeps) {
       } else {
         where = { [field]: value };
       }
-      if (excludeUid) where.NOT = { id: excludeUid };
       // Rota pública (cadastro) — precisa enxergar todos os tenants pra checar unicidade global.
       const existing = await withAdminRLS(() => getDb().nutritionist.findFirst({ where, select: { id: true } }));
       return res.json({ isDuplicate: !!existing });
