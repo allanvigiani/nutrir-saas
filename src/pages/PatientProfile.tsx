@@ -299,9 +299,7 @@ export const PatientProfile = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          patientEmail: patient.email,
-          patientName: patient.name,
-          nutritionistName: nutritionist?.name || user.displayName || 'Seu Nutricionista',
+          mealPlanId: plan.id,
           pdfBase64,
           fileName
         })
