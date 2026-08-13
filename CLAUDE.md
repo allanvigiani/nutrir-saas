@@ -95,7 +95,11 @@ O deploy na Vercel usa uma arquitetura de **pré-compilação com esbuild** — 
 
 `DATABASE_URL` na Vercel deve usar a role `app_runtime` (sem `BYPASSRLS`), nunca `neondb_owner` — ver seção RLS abaixo. `vercel-build` só roda `prisma generate` (não conecta no banco), então `DIRECT_DATABASE_URL` não é necessária na Vercel.
 
-## RLS (Row Level Security)
+## Security
+
+> Baseado na auditoria de segurança de 2026-08-13 (RLS, IDOR, permissões duplicadas no backend, secrets, XSS/inputs). As correções já aplicadas viraram convenção — leia antes de tocar em rotas, auth ou dados de pacientes.
+
+### RLS (Row Level Security)
 
 O banco (Neon Postgres, `prisma/migrations/20260516_add_rls/`) tem RLS habilitado e forçado nas tabelas sensíveis (`patients`, `consultations`, `meal_plans`, `meal_plan_items`, `lab_exams`, `appointments`, `payments`, `subscriptions`, `nutritionists`, `custom_foods`, `nutrition_calculations`), com políticas baseadas em `current_setting('app.current_nutritionist_id'/'app.current_patient_id')`.
 
@@ -104,6 +108,17 @@ O banco (Neon Postgres, `prisma/migrations/20260516_add_rls/`) tem RLS habilitad
 - `neondb_owner` (`DIRECT_DATABASE_URL`) — dona das tabelas, com privilégios de DDL. Usada **só** por `prisma migrate`/`db push` (via `prisma.config.ts`). Nunca deve ser usada em runtime — isso reintroduziria o bypass de RLS.
 
 **Regra de código:** nunca importar `prisma` de `src/server/lib/prisma.ts` diretamente em rotas/services fora de `src/server/lib/rls-context.ts`. Sempre usar `getDb()` (pega o client da transação RLS corrente) dentro de `withNutritionistRLS`/`withPatientRLS`/`withAdminRLS`/`withPortalAuth`. Uma query que precisa enxergar múltiplos tenants (ex.: checagem de CPF/CNPJ único no cadastro) deve rodar dentro de `withAdminRLS`, não com o client bruto — ver `auth.routes.ts` e `nutritionists.routes.ts` como referência do padrão correto.
+
+### IDOR / posse de dados
+
+Nunca confiar em dado de identidade vindo do `req.body`/`query` para decidir **quem** uma ação afeta (e-mail de destino, nome exibido, ID de outro registro) — isso é IDOR. O padrão correto: o cliente manda só o **ID do recurso** (`patientId`, `mealPlanId`); o backend resolve nome/e-mail/dono via `service.getOne(nutritionistId, id)` (que já valida posse) ou RLS, nunca aceita esses campos como texto livre do body.
+
+Exemplo de referência: `src/server/controllers/email.controller.ts` — `sendMealPlan`/`sendWelcomeEmail` recebem `mealPlanId`/`patientId`, resolvem `patientEmail`/`patientName`/dados do nutricionista via `patientsService`/`mealPlansService`/`getDb()`. Antes da correção (2026-08-13), esses endpoints aceitavam `patientEmail`/`nutritionistName` direto do body — qualquer nutricionista autenticado podia usar o SMTP do app para mandar e-mail a qualquer endereço.
+
+### Gaps conhecidos (não resolvidos ainda)
+
+- **Sem validação de schema no backend.** Nenhum controller usa Zod (ou equivalente) para validar `req.body`/`query`/`params` — só o frontend valida com React Hook Form + Zod. Ao criar ou alterar uma rota, não presuma que existe uma camada de validação por trás do controller; adicione `.parse()`/`.safeParse()` com `.max()` em campos de texto livre quando fizer sentido, especialmente em `meal-plans`, `patients`, `consultations`, `custom-foods`.
+- **`freeTextContent` (editor rico do plano alimentar) não é sanitizado no servidor.** É gravado cru em `meal_plans`; a única sanitização (DOMPurify) acontece no frontend, em `src/lib/meal-plan-pdf.ts` e no componente `RichTextViewer.tsx` (hoje sem uso ativo no app). Qualquer view nova que renderize esse campo com `dangerouslySetInnerHTML` **sem** passar por sanitização (própria ou via `RichTextViewer`) reintroduz XSS armazenado — sanitizar na escrita, não só na leitura, é a correção pendente.
 
 ## Testing
 
