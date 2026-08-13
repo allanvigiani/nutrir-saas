@@ -1,24 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// vi.hoisted garante que as variáveis existam antes do hoisting do vi.mock
-const { mockPrismaTransaction, mockPrismaDeleteMany, mockPrismaCreate } = vi.hoisted(() => ({
-  mockPrismaTransaction: vi.fn(),
-  mockPrismaDeleteMany: vi.fn(),
-  mockPrismaCreate: vi.fn(),
-}));
-
 const mealPlan = { findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn(), count: vi.fn() };
-const mealPlanItem = { findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() };
+const mealPlanItem = { findMany: vi.fn(), findFirst: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn(), deleteMany: vi.fn() };
 
 vi.mock('../../server/lib/rls-context.ts', () => ({
   getDb: () => ({ mealPlan, mealPlanItem }),
-}));
-
-vi.mock('../../server/lib/prisma.ts', () => ({
-  prisma: {
-    $transaction: mockPrismaTransaction,
-    mealPlanItem: { deleteMany: mockPrismaDeleteMany, create: mockPrismaCreate },
-  },
 }));
 
 vi.mock('../../lib/planLimits.ts', () => ({
@@ -128,9 +114,8 @@ describe('meal-plans.service — soft delete', () => {
 describe('meal-plans.service — position / reordenação', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPrismaTransaction.mockImplementation(async (ops: unknown[]) => Promise.all(ops));
-    mockPrismaDeleteMany.mockResolvedValue({});
-    mockPrismaCreate.mockResolvedValue({});
+    mealPlanItem.deleteMany.mockResolvedValue({});
+    mealPlanItem.create.mockResolvedValue({});
   });
 
   describe('getOne', () => {
@@ -222,8 +207,8 @@ describe('meal-plans.service — position / reordenação', () => {
 
       await service.replaceItems('nutri-1', 'mp-1', itens);
 
-      expect(mockPrismaCreate).toHaveBeenCalledTimes(3);
-      const positionsCriadas = mockPrismaCreate.mock.calls.map(
+      expect(mealPlanItem.create).toHaveBeenCalledTimes(3);
+      const positionsCriadas = mealPlanItem.create.mock.calls.map(
         (c: unknown[]) => (c[0] as { data: { position: number } }).data.position,
       );
       expect(positionsCriadas).toEqual([0, 1, 0]);
@@ -237,7 +222,7 @@ describe('meal-plans.service — position / reordenação', () => {
 
       await service.replaceItems('nutri-1', 'mp-1', [itemSemPosition]);
 
-      expect(mockPrismaCreate).toHaveBeenCalledWith(
+      expect(mealPlanItem.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ position: 0 }) }),
       );
     });
@@ -247,8 +232,8 @@ describe('meal-plans.service — position / reordenação', () => {
 
       await service.replaceItems('nutri-1', 'mp-1', [criarItemBase()]);
 
-      expect(mockPrismaDeleteMany).toHaveBeenCalledWith({ where: { mealPlanId: 'mp-1' } });
-      expect(mockPrismaTransaction).toHaveBeenCalled();
+      expect(mealPlanItem.deleteMany).toHaveBeenCalledWith({ where: { mealPlanId: 'mp-1' } });
+      expect(mealPlanItem.create).toHaveBeenCalled();
     });
 
     it('lança erro quando plano não existe ou não autorizado', async () => {
@@ -261,8 +246,8 @@ describe('meal-plans.service — position / reordenação', () => {
 
       await service.replaceItems('nutri-1', 'mp-1', []);
 
-      expect(mockPrismaDeleteMany).toHaveBeenCalledWith({ where: { mealPlanId: 'mp-1' } });
-      expect(mockPrismaCreate).not.toHaveBeenCalled();
+      expect(mealPlanItem.deleteMany).toHaveBeenCalledWith({ where: { mealPlanId: 'mp-1' } });
+      expect(mealPlanItem.create).not.toHaveBeenCalled();
     });
 
     it('position 1 no payload resulta em position 1 persistido (service é correto, bug está no frontend)', async () => {
@@ -273,7 +258,7 @@ describe('meal-plans.service — position / reordenação', () => {
 
       await service.replaceItems('nutri-1', 'mp-1', [criarItemBase({ position: 1 })]);
 
-      expect(mockPrismaCreate).toHaveBeenCalledWith(
+      expect(mealPlanItem.create).toHaveBeenCalledWith(
         expect.objectContaining({ data: expect.objectContaining({ position: 1 }) }),
       );
     });
