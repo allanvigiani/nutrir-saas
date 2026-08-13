@@ -81,9 +81,18 @@ function ChartContainer({
   )
 }
 
+// `key` vira o nome de uma CSS custom property e `color` vira o valor dela, injetados
+// direto num <style> via dangerouslySetInnerHTML — se algum dia vierem de dado não
+// confiável (ex.: config montado a partir de nome de paciente/alimento), um valor com
+// `;`, `<`, `}` etc. escaparia da declaração CSS. As duas allowlists abaixo garantem que
+// só chega ao HTML o que é sintaticamente um nome de propriedade ou uma cor CSS válida.
+const CSS_PROPERTY_KEY_PATTERN = /^[a-zA-Z0-9_-]+$/
+const CSS_COLOR_VALUE_PATTERN = /^[a-zA-Z0-9#%.,\s()-]+$/
+
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const colorConfig = Object.entries(config).filter(
-    ([, config]) => config.theme ?? config.color
+    ([key, config]) =>
+      (config.theme ?? config.color) && CSS_PROPERTY_KEY_PATTERN.test(key)
   )
 
   if (!colorConfig.length) {
@@ -102,7 +111,8 @@ ${colorConfig
     const color =
       itemConfig.theme?.[theme as keyof typeof itemConfig.theme] ??
       itemConfig.color
-    return color ? `  --color-${key}: ${color};` : null
+    if (!color || !CSS_COLOR_VALUE_PATTERN.test(color)) return null
+    return `  --color-${key}: ${color};`
   })
   .join("\n")}
 }

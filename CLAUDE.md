@@ -115,10 +115,15 @@ Nunca confiar em dado de identidade vindo do `req.body`/`query` para decidir **q
 
 Exemplo de referência: `src/server/controllers/email.controller.ts` — `sendMealPlan`/`sendWelcomeEmail` recebem `mealPlanId`/`patientId`, resolvem `patientEmail`/`patientName`/dados do nutricionista via `patientsService`/`mealPlansService`/`getDb()`. Antes da correção (2026-08-13), esses endpoints aceitavam `patientEmail`/`nutritionistName` direto do body — qualquer nutricionista autenticado podia usar o SMTP do app para mandar e-mail a qualquer endereço.
 
-### Gaps conhecidos (não resolvidos ainda)
+### Validação de input (Zod no backend)
 
-- **Sem validação de schema no backend.** Nenhum controller usa Zod (ou equivalente) para validar `req.body`/`query`/`params` — só o frontend valida com React Hook Form + Zod. Ao criar ou alterar uma rota, não presuma que existe uma camada de validação por trás do controller; adicione `.parse()`/`.safeParse()` com `.max()` em campos de texto livre quando fizer sentido, especialmente em `meal-plans`, `patients`, `consultations`, `custom-foods`.
-- **`freeTextContent` (editor rico do plano alimentar) não é sanitizado no servidor.** É gravado cru em `meal_plans`; a única sanitização (DOMPurify) acontece no frontend, em `src/lib/meal-plan-pdf.ts` e no componente `RichTextViewer.tsx` (hoje sem uso ativo no app). Qualquer view nova que renderize esse campo com `dangerouslySetInnerHTML` **sem** passar por sanitização (própria ou via `RichTextViewer`) reintroduz XSS armazenado — sanitizar na escrita, não só na leitura, é a correção pendente.
+Rotas que recebem texto livre de usuário devem validar `req.body` com Zod antes de chamar o service — use o helper `validateBody(schema, req, res)` de `src/server/lib/validate.ts` (retorna `undefined` e já escreve a resposta 400 se inválido; o caller só faz `if (!body) return;`). Como um `z.object()` descarta por padrão qualquer chave não declarada no schema, isso também é a defesa contra mass assignment (`id`/`nutritionistId`/`patientId`/`accessToken` nunca devem aparecer no schema — ver `patients.routes.ts`, `meal-plans.routes.ts`, `consultations.routes.ts`, `custom-foods.routes.ts` como referência).
+
+**Já validado** (2026-08-13): `patients`, `meal-plans` (+ items), `consultations`, `custom-foods`. **Ainda sem validação** — mesmo padrão de risco, ainda não corrigido: `appointments`, `lab-exams`, `nutrition-calculations`, `recipes`, `account`, `settings`. Não presuma que uma rota nova nessas áreas já tem essa camada.
+
+Ao adicionar `.max()` num campo de texto livre, confira o tamanho real já armazenado antes de fixar o limite (`SELECT max(length(campo)) FROM tabela`) — um limite baseado só em "parece razoável" pode cortar dado legítimo em produção.
+
+`freeTextContent`/`generalInstructions` (plano alimentar "modo Livre") são **texto puro**, não HTML — editados via `<Textarea>` (`FreeTextMealPlanEditor.tsx`) e renderizados só via interpolação JSX (`{...}`, auto-escapada pelo React) ou `doc.splitTextToSize()` no PDF. Não existe `dangerouslySetInnerHTML` para esses campos em lugar nenhum do app hoje — não reintroduza um sem sanitização se algum dia isso mudar.
 
 ## Testing
 
