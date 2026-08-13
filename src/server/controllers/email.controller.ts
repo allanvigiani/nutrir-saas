@@ -1,4 +1,7 @@
 import { logger } from "../logger.ts";
+import { getDb, withNutritionistRLS } from "../lib/rls-context.ts";
+import type { createPatientsService } from "../services/patients.service.ts";
+import type { createMealPlansService } from "../services/meal-plans.service.ts";
 
 type EmailControllerDeps = {
   emailService: {
@@ -18,55 +21,86 @@ type EmailControllerDeps = {
       fileName?: string;
     }) => Promise<void>;
   };
+  patientsService: ReturnType<typeof createPatientsService>;
+  mealPlansService: ReturnType<typeof createMealPlansService>;
 };
 
-export function createEmailController({ emailService }: EmailControllerDeps) {
+export function createEmailController({ emailService, patientsService, mealPlansService }: EmailControllerDeps) {
+  // Envia sempre para o e-mail do próprio usuário autenticado (verificado pelo Firebase) —
+  // nunca para um endereço arbitrário do body, senão vira relay de spam usando o SMTP do app.
   async function testEmail(req: any, res: any) {
-    const { to } = req.body;
-    if (!to) return res.status(400).json({ error: "Destinatário é obrigatório." });
+    if (!req.user?.email) return res.status(400).json({ error: "Usuário sem e-mail cadastrado." });
     try {
-      await emailService.sendTestEmail(to);
+      await emailService.sendTestEmail(req.user.email);
       return res.json({ success: true, message: "E-mail de teste enviado com sucesso!" });
     } catch (error: any) {
       return res.status(500).json({ error: error.message });
     }
   }
 
+  // patientEmail/patientName/dados do nutricionista vêm sempre do banco, nunca do body —
+  // o body só informa QUAL paciente (patientId), a posse é verificada via withNutritionistRLS.
   async function sendWelcomeEmail(req: any, res: any) {
-    const { patientEmail, patientName, nutritionistName, nutritionistEmail, nutritionistPhone } = req.body;
-    if (!patientEmail || !patientName) return res.status(400).json({ error: "Dados do paciente incompletos." });
+    const { patientId } = req.body;
+    if (!patientId) return res.status(400).json({ error: "patientId é obrigatório." });
     try {
-      await emailService.sendWelcomeEmail({
-        patientEmail,
-        patientName,
-        nutritionistName,
-        nutritionistEmail,
-        nutritionistPhone,
+      await withNutritionistRLS(req.user.uid, async () => {
+        const patient = await patientsService.getOne(req.user.uid, patientId);
+        if (!patient.email) {
+          res.status(400).json({ error: "Paciente não possui e-mail cadastrado." });
+          return;
+        }
+        const nutritionist = await getDb().nutritionist.findUnique({ where: { id: req.user.uid } });
+        if (!nutritionist) {
+          res.status(404).json({ error: "Nutricionista não encontrado." });
+          return;
+        }
+        await emailService.sendWelcomeEmail({
+          patientEmail: patient.email,
+          patientName: patient.name,
+          nutritionistName: nutritionist.name,
+          nutritionistEmail: nutritionist.email,
+          nutritionistPhone: nutritionist.phone ?? undefined,
+        });
+        res.json({ success: true, message: "E-mail de boas-vindas enviado!" });
       });
-      return res.json({ success: true, message: "E-mail de boas-vindas enviado!" });
     } catch (error: any) {
       logger.error("[Email] Erro no endpoint de boas-vindas", error);
-      return res.status(500).json({ error: error.message });
+      return res.status(error.message === "Paciente não encontrado" ? 404 : 500).json({ error: error.message });
     }
   }
 
   async function sendMealPlan(req: any, res: any) {
-    const { patientEmail, patientName, nutritionistName, pdfBase64, fileName } = req.body;
-    if (!patientEmail || !pdfBase64) {
+    const { mealPlanId, pdfBase64, fileName } = req.body;
+    if (!mealPlanId || !pdfBase64) {
       return res.status(400).json({ error: "Dados incompletos para envio do plano." });
     }
     try {
-      await emailService.sendMealPlanEmail({
-        patientEmail,
-        patientName,
-        nutritionistName,
-        pdfBase64,
-        fileName,
+      await withNutritionistRLS(req.user.uid, async () => {
+        const plan = await mealPlansService.getOne(req.user.uid, mealPlanId);
+        const patient = await patientsService.getOne(req.user.uid, plan.patient_id);
+        if (!patient.email) {
+          res.status(400).json({ error: "Paciente não possui e-mail cadastrado." });
+          return;
+        }
+        const nutritionist = await getDb().nutritionist.findUnique({ where: { id: req.user.uid } });
+        if (!nutritionist) {
+          res.status(404).json({ error: "Nutricionista não encontrado." });
+          return;
+        }
+        await emailService.sendMealPlanEmail({
+          patientEmail: patient.email,
+          patientName: patient.name,
+          nutritionistName: nutritionist.name,
+          pdfBase64,
+          fileName,
+        });
+        res.json({ success: true, message: "Plano alimentar enviado com sucesso!" });
       });
-      return res.json({ success: true, message: "Plano alimentar enviado com sucesso!" });
     } catch (error: any) {
       logger.error("[Email] Erro ao enviar plano alimentar", error);
-      return res.status(500).json({ error: error.message });
+      const notFound = error.message === "Paciente não encontrado" || error.message === "Plano não encontrado";
+      return res.status(notFound ? 404 : 500).json({ error: error.message });
     }
   }
 

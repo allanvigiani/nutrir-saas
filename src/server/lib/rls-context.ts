@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'async_hooks';
+import { timingSafeEqual } from 'node:crypto';
 import { PrismaClient } from '@prisma/client';
 import { prisma } from './prisma.ts';
 
@@ -52,16 +53,30 @@ export async function withAdminRLS<T>(fn: () => Promise<T>): Promise<T> {
   });
 }
 
+// Compara em tempo constante — evita vazar, pelo tempo de resposta, quantos
+// caracteres do token estão corretos. Tokens de tamanho diferente nunca batem.
+function tokensMatch(provided: string, stored: string): boolean {
+  const providedBuf = Buffer.from(provided);
+  const storedBuf = Buffer.from(stored);
+  if (providedBuf.length !== storedBuf.length) return false;
+  return timingSafeEqual(providedBuf, storedBuf);
+}
+
 export async function withPortalAuth<T>(
   patientId: string,
   accessToken: string,
   fn: (patient: any) => Promise<T>
 ): Promise<T> {
-  const patient = await withAdminRLS(() =>
-    (getDb() as any).patient.findFirst({
-      where: { id: patientId, accessToken },
-    })
+  const denied = () => Object.assign(new Error('Acesso negado'), { status: 401 });
+  if (!accessToken) throw denied();
+
+  // Busca só por id (nunca por accessToken na query) — a comparação do token
+  // acontece em código, em tempo constante, nunca delegada ao operador `=` do SQL.
+  const patient: any = await withAdminRLS(() =>
+    (getDb() as any).patient.findFirst({ where: { id: patientId } })
   );
-  if (!patient) throw Object.assign(new Error('Acesso negado'), { status: 401 });
+  if (!patient || !patient.accessToken || !tokensMatch(accessToken, patient.accessToken)) {
+    throw denied();
+  }
   return withPatientRLS((patient as any).id, () => fn(patient));
 }

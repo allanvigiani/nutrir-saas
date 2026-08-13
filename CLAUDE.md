@@ -95,7 +95,11 @@ O deploy na Vercel usa uma arquitetura de **pré-compilação com esbuild** — 
 
 `DATABASE_URL` na Vercel deve usar a role `app_runtime` (sem `BYPASSRLS`), nunca `neondb_owner` — ver seção RLS abaixo. `vercel-build` só roda `prisma generate` (não conecta no banco), então `DIRECT_DATABASE_URL` não é necessária na Vercel.
 
-## RLS (Row Level Security)
+## Security
+
+> Baseado na auditoria de segurança de 2026-08-13 (RLS, IDOR, permissões duplicadas no backend, secrets, XSS/inputs). As correções já aplicadas viraram convenção — leia antes de tocar em rotas, auth ou dados de pacientes.
+
+### RLS (Row Level Security)
 
 O banco (Neon Postgres, `prisma/migrations/20260516_add_rls/`) tem RLS habilitado e forçado nas tabelas sensíveis (`patients`, `consultations`, `meal_plans`, `meal_plan_items`, `lab_exams`, `appointments`, `payments`, `subscriptions`, `nutritionists`, `custom_foods`, `nutrition_calculations`), com políticas baseadas em `current_setting('app.current_nutritionist_id'/'app.current_patient_id')`.
 
@@ -104,6 +108,22 @@ O banco (Neon Postgres, `prisma/migrations/20260516_add_rls/`) tem RLS habilitad
 - `neondb_owner` (`DIRECT_DATABASE_URL`) — dona das tabelas, com privilégios de DDL. Usada **só** por `prisma migrate`/`db push` (via `prisma.config.ts`). Nunca deve ser usada em runtime — isso reintroduziria o bypass de RLS.
 
 **Regra de código:** nunca importar `prisma` de `src/server/lib/prisma.ts` diretamente em rotas/services fora de `src/server/lib/rls-context.ts`. Sempre usar `getDb()` (pega o client da transação RLS corrente) dentro de `withNutritionistRLS`/`withPatientRLS`/`withAdminRLS`/`withPortalAuth`. Uma query que precisa enxergar múltiplos tenants (ex.: checagem de CPF/CNPJ único no cadastro) deve rodar dentro de `withAdminRLS`, não com o client bruto — ver `auth.routes.ts` e `nutritionists.routes.ts` como referência do padrão correto.
+
+### IDOR / posse de dados
+
+Nunca confiar em dado de identidade vindo do `req.body`/`query` para decidir **quem** uma ação afeta (e-mail de destino, nome exibido, ID de outro registro) — isso é IDOR. O padrão correto: o cliente manda só o **ID do recurso** (`patientId`, `mealPlanId`); o backend resolve nome/e-mail/dono via `service.getOne(nutritionistId, id)` (que já valida posse) ou RLS, nunca aceita esses campos como texto livre do body.
+
+Exemplo de referência: `src/server/controllers/email.controller.ts` — `sendMealPlan`/`sendWelcomeEmail` recebem `mealPlanId`/`patientId`, resolvem `patientEmail`/`patientName`/dados do nutricionista via `patientsService`/`mealPlansService`/`getDb()`. Antes da correção (2026-08-13), esses endpoints aceitavam `patientEmail`/`nutritionistName` direto do body — qualquer nutricionista autenticado podia usar o SMTP do app para mandar e-mail a qualquer endereço.
+
+### Validação de input (Zod no backend)
+
+Rotas que recebem texto livre de usuário devem validar `req.body` com Zod antes de chamar o service — use o helper `validateBody(schema, req, res)` de `src/server/lib/validate.ts` (retorna `undefined` e já escreve a resposta 400 se inválido; o caller só faz `if (!body) return;`). Como um `z.object()` descarta por padrão qualquer chave não declarada no schema, isso também é a defesa contra mass assignment (`id`/`nutritionistId`/`patientId`/`accessToken` nunca devem aparecer no schema — ver `patients.routes.ts`, `meal-plans.routes.ts`, `consultations.routes.ts`, `custom-foods.routes.ts` como referência).
+
+**Já validado** (2026-08-13): `patients`, `meal-plans` (+ items), `consultations`, `custom-foods`. **Ainda sem validação** — mesmo padrão de risco, ainda não corrigido: `appointments`, `lab-exams`, `nutrition-calculations`, `recipes`, `account`, `settings`. Não presuma que uma rota nova nessas áreas já tem essa camada.
+
+Ao adicionar `.max()` num campo de texto livre, confira o tamanho real já armazenado antes de fixar o limite (`SELECT max(length(campo)) FROM tabela`) — um limite baseado só em "parece razoável" pode cortar dado legítimo em produção.
+
+`freeTextContent`/`generalInstructions` (plano alimentar "modo Livre") são **texto puro**, não HTML — editados via `<Textarea>` (`FreeTextMealPlanEditor.tsx`) e renderizados só via interpolação JSX (`{...}`, auto-escapada pelo React) ou `doc.splitTextToSize()` no PDF. Não existe `dangerouslySetInnerHTML` para esses campos em lugar nenhum do app hoje — não reintroduza um sem sanitização se algum dia isso mudar.
 
 ## Testing
 

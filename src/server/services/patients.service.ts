@@ -1,6 +1,17 @@
 import { getDb } from '../lib/rls-context.ts';
 import { FREE_PLAN_LIMITS } from '../../lib/planLimits.ts';
 
+// Campos que nunca podem vir do body do cliente: accessToken é a credencial que autoriza o
+// portal do paciente (deve ser sempre gerada no servidor, nunca escolhida pelo cliente);
+// id/nutritionistId/deletedAt/createdAt/updatedAt controlam identidade e posse do registro.
+const PROTECTED_PATIENT_FIELDS = ['id', 'nutritionistId', 'accessToken', 'deletedAt', 'createdAt', 'updatedAt'] as const;
+
+function stripProtectedFields(data: Record<string, unknown>): Record<string, unknown> {
+  const clean = { ...data };
+  for (const field of PROTECTED_PATIENT_FIELDS) delete clean[field];
+  return clean;
+}
+
 export function createPatientsService() {
   async function list(nutritionistId: string, gracePeriodOver: boolean) {
     const patients = await getDb().patient.findMany({
@@ -42,13 +53,13 @@ export function createPatientsService() {
         throw new Error(`Limite de ${FREE_PLAN_LIMITS.maxPatients} pacientes atingido no plano gratuito.`);
       }
     }
-    return getDb().patient.create({ data: { ...(data as any), nutritionistId } });
+    return getDb().patient.create({ data: { ...stripProtectedFields(data), nutritionistId } as any });
   }
 
   async function update(nutritionistId: string, id: string, data: Record<string, unknown>, _isPremium: boolean) {
     const existing = await getDb().patient.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
-    return getDb().patient.update({ where: { id }, data: data as any });
+    return getDb().patient.update({ where: { id }, data: stripProtectedFields(data) as any });
   }
 
   async function remove(nutritionistId: string, id: string) {
