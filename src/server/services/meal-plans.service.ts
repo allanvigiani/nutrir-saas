@@ -1,5 +1,4 @@
 import { getDb } from '../lib/rls-context.ts';
-import { prisma } from '../lib/prisma.ts';
 import { FREE_PLAN_LIMITS } from '../../lib/planLimits.ts';
 
 interface MealPlanItemPayload {
@@ -189,18 +188,20 @@ export function createMealPlansService() {
     };
   }
 
-  // Substituição atômica de itens (operação interna — meal_plan_items usa hard delete intencional)
+  // Substituição atômica de itens (operação interna — meal_plan_items usa hard delete intencional).
+  // Roda dentro da transação RLS aberta pela rota (withNutritionistRLS) via getDb() — nunca usar o
+  // client Prisma bruto aqui, senão as operações saem do contexto de RLS já validado.
   async function replaceItems(nutritionistId: string, id: string, items: Record<string, unknown>[]) {
     const existing = await getDb().mealPlan.findFirst({ where: { id, nutritionistId, deletedAt: null } });
     if (!existing) throw new Error('Não autorizado');
-    return prisma.$transaction([
-      prisma.mealPlanItem.deleteMany({ where: { mealPlanId: id } }),
-      ...items.map(item =>
-        prisma.mealPlanItem.create({
+    await getDb().mealPlanItem.deleteMany({ where: { mealPlanId: id } });
+    return Promise.all(
+      items.map(item =>
+        getDb().mealPlanItem.create({
           data: mapItem(item as unknown as MealPlanItemRow, id, nutritionistId),
         })
-      ),
-    ]);
+      )
+    );
   }
 
   async function remove(nutritionistId: string, id: string) {

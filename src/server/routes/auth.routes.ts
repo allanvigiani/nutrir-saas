@@ -1,7 +1,6 @@
 import type { BaseRouteDeps } from "../types.ts";
-import { prisma } from "../lib/prisma.ts";
 import { hashField } from "../lib/crypto.ts";
-import { withNutritionistRLS } from "../lib/rls-context.ts";
+import { getDb, withNutritionistRLS, withAdminRLS } from "../lib/rls-context.ts";
 
 export function registerAuthRoutes(deps: BaseRouteDeps) {
   deps.app.post("/api/auth/register-profile", deps.authenticate, async (req: any, res: any) => {
@@ -16,11 +15,13 @@ export function registerAuthRoutes(deps: BaseRouteDeps) {
     try {
       await withNutritionistRLS(uid, async () => {
         // Checar unicidade de CPF (excluindo o próprio nutricionista)
+        // Precisa enxergar outros tenants — withAdminRLS é o escape hatch previsto para isso,
+        // só devolve um findFirst usado internamente como booleano, nunca expõe dado de terceiros.
         if (cpf) {
           const cpfHash = hashField(cpf);
-          const duplicate = await prisma.nutritionist.findFirst({
-            where: { cpfHash, NOT: { id: uid } },
-          });
+          const duplicate = await withAdminRLS(() =>
+            getDb().nutritionist.findFirst({ where: { cpfHash, NOT: { id: uid } } })
+          );
           if (duplicate) {
             res.status(409).json({ error: "CPF já cadastrado para outro nutricionista." });
             return;
@@ -30,16 +31,16 @@ export function registerAuthRoutes(deps: BaseRouteDeps) {
         // Checar unicidade de CNPJ
         if (cnpj) {
           const cnpjHash = hashField(cnpj);
-          const duplicate = await prisma.nutritionist.findFirst({
-            where: { cnpjHash, NOT: { id: uid } },
-          });
+          const duplicate = await withAdminRLS(() =>
+            getDb().nutritionist.findFirst({ where: { cnpjHash, NOT: { id: uid } } })
+          );
           if (duplicate) {
             res.status(409).json({ error: "CNPJ já cadastrado para outro nutricionista." });
             return;
           }
         }
 
-        await prisma.nutritionist.upsert({
+        await getDb().nutritionist.upsert({
           where: { id: uid },
           update: {
             name,

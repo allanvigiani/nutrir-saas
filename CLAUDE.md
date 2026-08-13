@@ -93,6 +93,18 @@ O deploy na Vercel usa uma arquitetura de **pré-compilação com esbuild** — 
 ### Env vars obrigatórias na Vercel
 `FIREBASE_SERVICE_ACCOUNT` (JSON minificado via `cat sa.json | jq -c .`), `FIREBASE_PROJECT_ID`, `DATABASE_URL`, `ENCRYPTION_KEY`.
 
+`DATABASE_URL` na Vercel deve usar a role `app_runtime` (sem `BYPASSRLS`), nunca `neondb_owner` — ver seção RLS abaixo. `vercel-build` só roda `prisma generate` (não conecta no banco), então `DIRECT_DATABASE_URL` não é necessária na Vercel.
+
+## RLS (Row Level Security)
+
+O banco (Neon Postgres, `prisma/migrations/20260516_add_rls/`) tem RLS habilitado e forçado nas tabelas sensíveis (`patients`, `consultations`, `meal_plans`, `meal_plan_items`, `lab_exams`, `appointments`, `payments`, `subscriptions`, `nutritionists`, `custom_foods`, `nutrition_calculations`), com políticas baseadas em `current_setting('app.current_nutritionist_id'/'app.current_patient_id')`.
+
+**Duas roles Postgres, dois propósitos:**
+- `app_runtime` (`DATABASE_URL`) — role de runtime, **sem `BYPASSRLS`**. É quem a aplicação usa para todas as queries. RLS só protege de verdade porque essa role não ignora as políticas.
+- `neondb_owner` (`DIRECT_DATABASE_URL`) — dona das tabelas, com privilégios de DDL. Usada **só** por `prisma migrate`/`db push` (via `prisma.config.ts`). Nunca deve ser usada em runtime — isso reintroduziria o bypass de RLS.
+
+**Regra de código:** nunca importar `prisma` de `src/server/lib/prisma.ts` diretamente em rotas/services fora de `src/server/lib/rls-context.ts`. Sempre usar `getDb()` (pega o client da transação RLS corrente) dentro de `withNutritionistRLS`/`withPatientRLS`/`withAdminRLS`/`withPortalAuth`. Uma query que precisa enxergar múltiplos tenants (ex.: checagem de CPF/CNPJ único no cadastro) deve rodar dentro de `withAdminRLS`, não com o client bruto — ver `auth.routes.ts` e `nutritionists.routes.ts` como referência do padrão correto.
+
 ## Testing
 
 Tests live in `src/tests/`. Coverage targets `src/server/**/*.ts` (business logic services/controllers). The `src/tests/setup.ts` file configures the test environment. Write tests with `describe` + `it`; use helper functions to generate base input fixtures.

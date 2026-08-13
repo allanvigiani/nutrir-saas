@@ -9,6 +9,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // Migrations/introspecção precisam de privilégios de DDL — usar a role dona das tabelas
+    // (DIRECT_DATABASE_URL). DATABASE_URL em runtime aponta para a role restrita (sem BYPASSRLS).
+    url: process.env["DIRECT_DATABASE_URL"] ?? process.env["DATABASE_URL"],
   },
 });
