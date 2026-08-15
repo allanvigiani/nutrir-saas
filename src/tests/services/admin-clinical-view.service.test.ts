@@ -3,7 +3,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const mockDb = {
   patient: { findMany: vi.fn(), count: vi.fn(), findFirst: vi.fn() },
   consultation: { findMany: vi.fn() },
-  mealPlan: { findMany: vi.fn() },
+  mealPlan: { findMany: vi.fn(), findFirst: vi.fn() },
+  mealPlanItem: { findMany: vi.fn() },
 };
 
 vi.mock('../../server/lib/rls-context.ts', () => ({
@@ -148,5 +149,48 @@ describe('AdminClinicalViewService.getPatientMealPlans', () => {
       orderBy: { createdAt: 'desc' },
     });
     expect(result).toEqual([{ id: 'mp1' }]);
+  });
+});
+
+describe('AdminClinicalViewService.mealPlanExists', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('retorna true e usa select leve (só id)', async () => {
+    mockDb.mealPlan.findFirst.mockResolvedValue({ id: 'mp1' });
+
+    const service = createAdminClinicalViewService();
+    const result = await service.mealPlanExists('mp1');
+
+    expect(mockDb.mealPlan.findFirst).toHaveBeenCalledWith({
+      where: { id: 'mp1', deletedAt: null },
+      select: { id: true },
+    });
+    expect(result).toBe(true);
+  });
+
+  it('retorna false quando o plano não existe ou está soft-deleted', async () => {
+    mockDb.mealPlan.findFirst.mockResolvedValue(null);
+
+    const service = createAdminClinicalViewService();
+    const result = await service.mealPlanExists('id-inexistente');
+
+    expect(result).toBe(false);
+  });
+});
+
+describe('AdminClinicalViewService.getMealPlanItems', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('busca por mealPlanId e ordena por position/id', async () => {
+    mockDb.mealPlanItem.findMany.mockResolvedValue([{ id: 'i1' }]);
+
+    const service = createAdminClinicalViewService();
+    const result = await service.getMealPlanItems('mp1');
+
+    expect(mockDb.mealPlanItem.findMany).toHaveBeenCalledWith({
+      where: { mealPlanId: 'mp1' },
+      orderBy: [{ position: 'asc' }, { id: 'asc' }],
+    });
+    expect(result).toEqual([{ id: 'i1' }]);
   });
 });

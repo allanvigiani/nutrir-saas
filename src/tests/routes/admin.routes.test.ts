@@ -58,6 +58,8 @@ vi.mock('../../server/services/admin-clinical-view.service.ts', () => ({
     patientExists: vi.fn().mockResolvedValue(true),
     getPatientConsultations: vi.fn().mockResolvedValue([]),
     getPatientMealPlans: vi.fn().mockResolvedValue([]),
+    mealPlanExists: vi.fn().mockResolvedValue(true),
+    getMealPlanItems: vi.fn().mockResolvedValue([]),
   })),
 }));
 
@@ -553,6 +555,42 @@ describe('Admin routes — navegação cross-tenant somente leitura', () => {
     });
   });
 
+  describe('GET /api/admin/meal-plans/:id/items', () => {
+    it('retorna 403 para não-admin', async () => {
+      const res = await request(buildApp(false)).get('/api/admin/meal-plans/mp1/items');
+      expect(res.status).toBe(403);
+    });
+
+    it('retorna a lista de itens para admin', async () => {
+      const app = buildApp(true);
+      const clinicalServiceInstance = lastServiceInstance(createAdminClinicalViewService);
+      clinicalServiceInstance.getMealPlanItems.mockResolvedValueOnce([{ id: 'i1', meal: 'Café da manhã' }]);
+
+      const res = await request(app).get('/api/admin/meal-plans/mp1/items');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual([{ id: 'i1', meal: 'Café da manhã' }]);
+    });
+
+    it('retorna 404 quando o plano alimentar não existe, sem chamar getMealPlanItems', async () => {
+      const app = buildApp(true);
+      const clinicalServiceInstance = lastServiceInstance(createAdminClinicalViewService);
+      clinicalServiceInstance.mealPlanExists.mockResolvedValueOnce(false);
+
+      const res = await request(app).get('/api/admin/meal-plans/mp-inexistente/items');
+
+      expect(res.status).toBe(404);
+      expect(clinicalServiceInstance.getMealPlanItems).not.toHaveBeenCalled();
+    });
+
+    it('não expõe verbos de escrita', async () => {
+      const app = buildApp(true);
+      expect((await request(app).post('/api/admin/meal-plans/mp1/items')).status).toBe(404);
+      expect((await request(app).patch('/api/admin/meal-plans/mp1/items')).status).toBe(404);
+      expect((await request(app).delete('/api/admin/meal-plans/mp1/items')).status).toBe(404);
+    });
+  });
+
   it('nenhuma leitura cross-tenant gera audit log', async () => {
     const app = buildApp(true);
     const clinicalServiceInstance = lastServiceInstance(createAdminClinicalViewService);
@@ -566,6 +604,7 @@ describe('Admin routes — navegação cross-tenant somente leitura', () => {
     await request(app).get('/api/admin/patients/p1');
     await request(app).get('/api/admin/patients/p1/consultations');
     await request(app).get('/api/admin/patients/p1/meal-plans');
+    await request(app).get('/api/admin/meal-plans/mp1/items');
 
     expect(adminServiceInstance.logAudit).not.toHaveBeenCalled();
   });

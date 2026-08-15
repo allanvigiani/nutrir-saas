@@ -399,4 +399,22 @@ export function registerAdminRoutes(deps: BaseRouteDeps) {
       return res.status(500).json({ error: err.message });
     }
   });
+
+  // Itens (alimentos) de um plano alimentar tipo "blocks" — planos "free" já trazem
+  // todo o conteúdo em freeTextContent na resposta de /meal-plans, sem precisar disso.
+  deps.app.get('/api/admin/meal-plans/:id/items', deps.authenticate, async (req: any, res: any) => {
+    if (!assertAdmin(req, res)) return;
+    const { id } = req.params;
+    try {
+      await withAdminRLS(async () => {
+        const exists = await adminClinicalViewService.mealPlanExists(id);
+        if (!exists) {
+          return res.status(404).json({ error: 'Plano alimentar não encontrado.' });
+        }
+        res.json(await adminClinicalViewService.getMealPlanItems(id));
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
 }

@@ -59,11 +59,28 @@ export function createAdminClinicalViewService() {
     });
   }
 
+  async function mealPlanExists(mealPlanId: string): Promise<boolean> {
+    const found = await getDb().mealPlan.findFirst({
+      where: { id: mealPlanId, deletedAt: null },
+      select: { id: true },
+    });
+    return !!found;
+  }
+
+  async function getMealPlanItems(mealPlanId: string) {
+    return getDb().mealPlanItem.findMany({
+      where: { mealPlanId },
+      orderBy: [{ position: 'asc' }, { id: 'asc' }],
+    });
+  }
+
   return {
     getNutritionistPatients,
     getPatientDetail,
     patientExists,
     getPatientConsultations,
     getPatientMealPlans,
+    mealPlanExists,
+    getMealPlanItems,
   };
 }
