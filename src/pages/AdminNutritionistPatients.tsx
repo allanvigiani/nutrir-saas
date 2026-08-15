@@ -73,11 +73,14 @@ export const AdminNutritionistPatients = () => {
     return <Navigate to="/admin" replace />;
   }
 
-  const filteredPatients = patients.filter(
-    (p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.email || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPatients = patients.filter((p) => {
+    const term = searchTerm.toLowerCase();
+    return (
+      p.name.toLowerCase().includes(term) ||
+      (p.email || '').toLowerCase().includes(term) ||
+      p.id.toLowerCase().includes(term)
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -98,7 +101,7 @@ export const AdminNutritionistPatients = () => {
           <div className="relative w-full md:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar por nome ou e-mail..."
+              placeholder="Buscar por nome, e-mail ou ID..."
               className="pl-10 bg-muted/30 border-none rounded-xl h-8 text-sm"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -111,6 +114,7 @@ export const AdminNutritionistPatients = () => {
               <thead>
                 <tr className="bg-muted/30 text-muted-foreground text-xs uppercase tracking-wider border-b border-border">
                   <th className="px-6 py-4 font-bold">Paciente</th>
+                  <th className="hidden lg:table-cell px-6 py-4 font-bold">ID</th>
                   <th className="hidden md:table-cell px-6 py-4 font-bold">Telefone</th>
                   <th className="px-6 py-4 font-bold">Status</th>
                   <th className="hidden md:table-cell px-6 py-4 font-bold">Cadastro</th>
@@ -119,19 +123,19 @@ export const AdminNutritionistPatients = () => {
               <tbody className="divide-y divide-border">
                 {loading ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center">
+                    <td colSpan={5} className="px-6 py-12 text-center">
                       <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
                     </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
+                    <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
                       {error}
                     </td>
                   </tr>
                 ) : filteredPatients.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center text-muted-foreground">
+                    <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
                       Nenhum paciente encontrado.
                     </td>
                   </tr>
@@ -148,6 +152,9 @@ export const AdminNutritionistPatients = () => {
                             <p className="text-xs text-muted-foreground">{p.email}</p>
                           </div>
                         </Link>
+                      </td>
+                      <td className="hidden lg:table-cell px-6 py-4">
+                        <span className="font-mono text-xs text-muted-foreground">{p.id}</span>
                       </td>
                       <td className="hidden md:table-cell px-6 py-4 text-muted-foreground">{p.phone || '—'}</td>
                       <td className="px-6 py-4">
