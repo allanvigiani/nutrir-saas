@@ -4,7 +4,6 @@ import { PieChart as PieChartIcon, RefreshCw } from 'lucide-react';
 import { apiRequest } from '../../hooks/useApi';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
-import { Skeleton } from '../ui/skeleton';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent, type ChartConfig } from '../ui/chart';
 
 interface PlanDistributionResponse {
@@ -67,7 +66,9 @@ export function PlanDistributionChart() {
       </CardHeader>
       <CardContent className="pt-4">
         {loading ? (
-          <Skeleton className="h-[220px] w-full rounded-xl" />
+          <div className="h-[220px] flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
         ) : error ? (
           <div className="h-[220px] flex flex-col items-center justify-center gap-3 text-center">
             <p className="text-sm text-muted-foreground">{error}</p>
