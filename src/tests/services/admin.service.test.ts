@@ -4,6 +4,8 @@ const mockDb = {
   nutritionist: {
     count: vi.fn(),
     findMany: vi.fn(),
+    findUnique: vi.fn(),
+    update: vi.fn(),
   },
   patient: {
     count: vi.fn(),
@@ -265,5 +267,172 @@ describe('AdminService.logAudit + getAuditLogs', () => {
     expect((mockDb as any).adminAuditLog.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ orderBy: { createdAt: 'desc' }, take: 50 })
     );
+  });
+});
+
+describe('AdminService.getNutritionistById', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('busca por id com o mesmo include (_count.patients, subscription) de listNutritionists', async () => {
+    mockDb.nutritionist.findUnique.mockResolvedValue({ id: 'n1', name: 'Nutri', plan: 'premium' });
+
+    const service = createAdminService();
+    const result = await service.getNutritionistById('n1');
+
+    expect(mockDb.nutritionist.findUnique).toHaveBeenCalledWith({
+      where: { id: 'n1' },
+      include: {
+        _count: { select: { patients: true } },
+        subscription: { select: { cancelAtPeriodEnd: true, asaasStatus: true, currentPeriodEnd: true } },
+      },
+    });
+    expect(result).toEqual({ id: 'n1', name: 'Nutri', plan: 'premium' });
+  });
+
+  it('retorna null quando o id não existe', async () => {
+    mockDb.nutritionist.findUnique.mockResolvedValue(null);
+
+    const service = createAdminService();
+    const result = await service.getNutritionistById('inexistente');
+
+    expect(result).toBeNull();
+  });
+});
+
+describe('AdminService.updateNutritionistProfile', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('retorna null quando o id não existe', async () => {
+    mockDb.nutritionist.findUnique.mockResolvedValue(null);
+
+    const service = createAdminService();
+    const result = await service.updateNutritionistProfile('id-inexistente', { name: 'Novo Nome' });
+
+    expect(result).toBeNull();
+    expect(mockDb.nutritionist.update).not.toHaveBeenCalled();
+  });
+
+  it('atualiza só os campos que de fato mudaram e retorna o diff', async () => {
+    mockDb.nutritionist.findUnique.mockResolvedValue({
+      email: 'nutri@test.com',
+      name: 'Nome Antigo',
+      crn: 'CRN123',
+      phone: '11999999999',
+      plan: 'free',
+    });
+    mockDb.nutritionist.update.mockResolvedValue({ id: 'n1', name: 'Nome Novo' });
+
+    const service = createAdminService();
+    const result = await service.updateNutritionistProfile('n1', {
+      name: 'Nome Novo',
+      crn: 'CRN123', // igual ao atual — não deve gerar diff
+    });
+
+    expect(mockDb.nutritionist.update).toHaveBeenCalledWith({
+      where: { id: 'n1' },
+      data: { name: 'Nome Novo' },
+    });
+    expect(result?.changes).toEqual([
+      { field: 'name', previousValue: 'Nome Antigo', newValue: 'Nome Novo' },
+    ]);
+    expect(result?.email).toBe('nutri@test.com');
+  });
+
+  it('não chama update() quando nenhum campo enviado difere do valor atual', async () => {
+    mockDb.nutritionist.findUnique.mockResolvedValue({
+      email: 'nutri@test.com',
+      name: 'Mesmo Nome',
+      crn: null,
+      phone: null,
+      plan: 'free',
+    });
+
+    const service = createAdminService();
+    const result = await service.updateNutritionistProfile('n1', { name: 'Mesmo Nome' });
+
+    expect(mockDb.nutritionist.update).not.toHaveBeenCalled();
+    expect(result?.changes).toEqual([]);
+  });
+
+  it('marca planOverridedByAdmin=true quando o plano muda', async () => {
+    mockDb.nutritionist.findUnique.mockResolvedValue({
+      email: 'nutri@test.com',
+      name: 'Nutri',
+      crn: null,
+      phone: null,
+      plan: 'free',
+    });
+    mockDb.nutritionist.update.mockResolvedValue({ id: 'n1', plan: 'premium' });
+
+    const service = createAdminService();
+    const result = await service.updateNutritionistProfile('n1', { plan: 'premium' });
+
+    expect(mockDb.nutritionist.update).toHaveBeenCalledWith({
+      where: { id: 'n1' },
+      data: { plan: 'premium', planOverridedByAdmin: true },
+    });
+    expect(result?.changes).toEqual([
+      { field: 'plan', previousValue: 'free', newValue: 'premium' },
+    ]);
+  });
+
+  it('não marca planOverridedByAdmin quando plan é enviado mas igual ao atual', async () => {
+    mockDb.nutritionist.findUnique.mockResolvedValue({
+      email: 'nutri@test.com',
+      name: 'Nutri',
+      crn: null,
+      phone: null,
+      plan: 'premium',
+    });
+
+    const service = createAdminService();
+    await service.updateNutritionistProfile('n1', { plan: 'premium' });
+
+    expect(mockDb.nutritionist.update).not.toHaveBeenCalled();
+  });
+
+  it('gera diff para múltiplos campos alterados na mesma chamada', async () => {
+    mockDb.nutritionist.findUnique.mockResolvedValue({
+      email: 'nutri@test.com',
+      name: 'Nome Antigo',
+      crn: 'CRN1',
+      phone: '111',
+      plan: 'free',
+    });
+    mockDb.nutritionist.update.mockResolvedValue({ id: 'n1' });
+
+    const service = createAdminService();
+    const result = await service.updateNutritionistProfile('n1', {
+      name: 'Nome Novo',
+      phone: '222',
+      plan: 'premium',
+    });
+
+    expect(result?.changes).toHaveLength(3);
+    expect(result?.changes.map((c) => c.field).sort()).toEqual(['name', 'phone', 'plan']);
+  });
+
+  it('nunca aplica campos fora da allowlist (email/id/role/cpf/cnpj), mesmo que presentes no objeto de input', async () => {
+    mockDb.nutritionist.findUnique.mockResolvedValue({
+      email: 'nutri@test.com',
+      name: 'Nome',
+      crn: null,
+      phone: null,
+      plan: 'free',
+    });
+    mockDb.nutritionist.update.mockResolvedValue({ id: 'n1' });
+
+    const service = createAdminService();
+    // Simula um input que, por bug do caller, ainda contivesse campos fora da allowlist —
+    // a service só lê os campos declarados em EDITABLE_PROFILE_FIELDS.
+    await service.updateNutritionistProfile('n1', {
+      name: 'Novo Nome',
+      ...( { email: 'hacker@test.com', role: 'admin', id: 'outro-id' } as any),
+    });
+
+    const dataEnviada = mockDb.nutritionist.update.mock.calls[0][0].data;
+    expect(dataEnviada.email).toBeUndefined();
+    expect(dataEnviada.role).toBeUndefined();
+    expect(dataEnviada.id).toBeUndefined();
   });
 });

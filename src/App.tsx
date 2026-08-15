@@ -31,6 +31,9 @@ const Schedule = lazy(() => import('./pages/Schedule').then(m => ({ default: m.S
 const Financial = lazy(() => import('./pages/Financial').then(m => ({ default: m.Financial })));
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const AdminNutritionistDetail = lazy(() => import('./pages/AdminNutritionistDetail').then(m => ({ default: m.AdminNutritionistDetail })));
+const AdminNutritionistPatients = lazy(() => import('./pages/AdminNutritionistPatients').then(m => ({ default: m.AdminNutritionistPatients })));
+const AdminPatientDetail = lazy(() => import('./pages/AdminPatientDetail').then(m => ({ default: m.AdminPatientDetail })));
 const Recipes = lazy(() => import('./pages/Recipes').then(m => ({ default: m.Recipes })));
 
 export default function App() {
@@ -65,6 +68,9 @@ export default function App() {
                   <Route path="/financial" element={<Financial />} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/admin" element={<AdminDashboard />} />
+                  <Route path="/admin/nutritionists/:id" element={<AdminNutritionistDetail />} />
+                  <Route path="/admin/nutritionists/:id/patients" element={<AdminNutritionistPatients />} />
+                  <Route path="/admin/patients/:id" element={<AdminPatientDetail />} />
                   <Route path="/recipes" element={<Recipes />} />
                 </Route>
 

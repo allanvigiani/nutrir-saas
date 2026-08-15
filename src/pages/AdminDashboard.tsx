@@ -18,15 +18,22 @@ import {
   ClipboardList,
   UtensilsCrossed,
   ScrollText,
-  Wrench
+  Wrench,
+  BarChart3,
+  UserPlus,
+  Pencil,
+  Eye
 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { FREE_PLAN_LIMITS } from '../lib/planLimits';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { cn } from '../lib/utils';
 import { Label } from '../components/ui/label';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
+import { MonthlyStatChart } from '../components/admin/MonthlyStatChart';
+import { PlanDistributionChart } from '../components/admin/PlanDistributionChart';
 
 import { 
   Select, 
@@ -209,11 +216,17 @@ export const AdminDashboard = () => {
           >
             <LayoutDashboard className="w-4 h-4" /> Visão Geral
           </TabsTrigger>
-          <TabsTrigger 
-            value="nutritionists" 
+          <TabsTrigger
+            value="nutritionists"
             className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
             <Users className="w-4 h-4" /> Nutricionistas
+          </TabsTrigger>
+          <TabsTrigger
+            value="charts"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
+          >
+            <BarChart3 className="w-4 h-4" /> Gráficos
           </TabsTrigger>
           <TabsTrigger
             value="settings"
@@ -365,6 +378,43 @@ export const AdminDashboard = () => {
 
         </TabsContent>
 
+        <TabsContent value="charts" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <MonthlyStatChart
+              title="Receita Mensal"
+              description="Pagamentos confirmados (status pago)"
+              icon={Activity}
+              endpoint="/api/admin/stats/revenue"
+              valueFormatter={(v) => `R$ ${v.toFixed(2).replace('.', ',')}`}
+            />
+            <MonthlyStatChart
+              title="Pacientes Cadastrados"
+              description="Novos pacientes por mês"
+              icon={Users}
+              endpoint="/api/admin/stats/patients-growth"
+            />
+            <MonthlyStatChart
+              title="Novos Assinantes"
+              description="Início de assinatura premium por mês"
+              icon={UserPlus}
+              endpoint="/api/admin/stats/new-subscribers"
+            />
+            <MonthlyStatChart
+              title="Consultas"
+              description="Consultas registradas por mês"
+              icon={ClipboardList}
+              endpoint="/api/admin/stats/consultations"
+            />
+            <MonthlyStatChart
+              title="Planos Alimentares Criados"
+              description="Novos planos alimentares por mês"
+              icon={UtensilsCrossed}
+              endpoint="/api/admin/stats/meal-plans"
+            />
+            <PlanDistributionChart />
+          </div>
+        </TabsContent>
+
         <TabsContent value="nutritionists">
           <Card className="border-none shadow-sm bg-card">
             <CardHeader className="flex flex-col md:flex-row md:items-center justify-between border-b border-border pb-6 gap-4">
@@ -503,15 +553,39 @@ export const AdminDashboard = () => {
                             )}
                           </td>
                           <td className="px-6 py-4">
-                            <div className="flex items-center gap-2">
-                              <Button 
-                                variant="outline" 
-                                size="sm" 
+                            <div className="flex items-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 className="h-8 rounded-lg text-xs"
                                 onClick={() => handleTogglePlan(n.id, n.plan || 'free')}
                               >
                                 Mudar Plano
                               </Button>
+                              <Tooltip>
+                                <TooltipTrigger render={<span />}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    render={<Link to={`/admin/nutritionists/${n.id}`} state={{ nutritionist: n }} aria-label={`Editar ${n.name}`} />}
+                                  >
+                                    <Pencil className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Editar cadastro</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger render={<span />}>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    render={<Link to={`/admin/nutritionists/${n.id}/patients`} state={{ nutritionist: n }} aria-label={`Ver dados de ${n.name}`} />}
+                                  >
+                                    <Eye className="w-3.5 h-3.5" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Ver pacientes (somente leitura)</TooltipContent>
+                              </Tooltip>
                             </div>
                           </td>
                         </tr>

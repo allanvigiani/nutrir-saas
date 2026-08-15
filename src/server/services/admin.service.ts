@@ -13,6 +13,24 @@ interface AuditEntry {
   newValue?: string;
 }
 
+// Campos editáveis pela tela admin de detalhe do nutricionista. Allowlist espelhada
+// no schema Zod da rota (email/id/role/cpf/cnpj nunca entram aqui).
+const EDITABLE_PROFILE_FIELDS = ['name', 'crn', 'phone', 'plan'] as const;
+type EditableProfileField = (typeof EDITABLE_PROFILE_FIELDS)[number];
+
+interface NutritionistProfileUpdateInput {
+  name?: string;
+  crn?: string | null;
+  phone?: string | null;
+  plan?: string;
+}
+
+interface ProfileFieldChange {
+  field: EditableProfileField;
+  previousValue: string;
+  newValue: string;
+}
+
 export function createAdminService() {
   async function getStats() {
     const now = new Date();
@@ -120,6 +138,60 @@ export function createAdminService() {
     return { data, total, page, totalPages: Math.ceil(total / limit) };
   }
 
+  // Busca um nutricionista específico por id — usado pela tela de detalhe admin em
+  // acesso direto por URL/refresh (sem depender de location.state ou de paginar a
+  // lista inteira no cliente). Mesmo shape de include de listNutritionists, pra a
+  // tela de detalhe reaproveitar o mesmo tipo de resposta. Retorna null se não existir.
+  async function getNutritionistById(id: string) {
+    return getDb().nutritionist.findUnique({
+      where: { id },
+      include: {
+        _count: { select: { patients: true } },
+        subscription: {
+          select: { cancelAtPeriodEnd: true, asaasStatus: true, currentPeriodEnd: true },
+        },
+      },
+    });
+  }
+
+  // Atualiza nome/CRN/telefone/plano de um nutricionista e retorna o diff (campo,
+  // valor anterior, valor novo) só dos campos que de fato mudaram — usado pelo route
+  // handler para gerar as entradas de audit log. Retorna null se o id não existir.
+  async function updateNutritionistProfile(
+    id: string,
+    data: NutritionistProfileUpdateInput
+  ): Promise<{ nutritionist: any; email: string; changes: ProfileFieldChange[] } | null> {
+    const existing = await getDb().nutritionist.findUnique({
+      where: { id },
+      select: { email: true, name: true, crn: true, phone: true, plan: true },
+    });
+    if (!existing) return null;
+
+    const changes: ProfileFieldChange[] = [];
+    const updateData: Record<string, unknown> = {};
+
+    for (const field of EDITABLE_PROFILE_FIELDS) {
+      if (data[field] === undefined) continue;
+      const previousValue = (existing as any)[field] ?? '';
+      const newValue = data[field] ?? '';
+      if (previousValue === newValue) continue;
+      updateData[field] = data[field];
+      changes.push({ field, previousValue: String(previousValue), newValue: String(newValue) });
+    }
+
+    // Mesmo comportamento do endpoint anterior: mudança manual de plano marca o override.
+    if (updateData.plan !== undefined) {
+      updateData.planOverridedByAdmin = true;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return { nutritionist: existing, email: existing.email, changes: [] };
+    }
+
+    const nutritionist = await getDb().nutritionist.update({ where: { id }, data: updateData });
+    return { nutritionist, email: existing.email, changes };
+  }
+
   async function logAudit(entry: AuditEntry) {
     await getDb().adminAuditLog.create({ data: entry });
   }
@@ -149,5 +221,14 @@ export function createAdminService() {
     return { noCpfCnpjCount, noPatientsCount, manualPlanOverrides };
   }
 
-  return { getStats, getExpandedStats, listNutritionists, logAudit, getAuditLogs, getOperationalData };
+  return {
+    getStats,
+    getExpandedStats,
+    listNutritionists,
+    getNutritionistById,
+    updateNutritionistProfile,
+    logAudit,
+    getAuditLogs,
+    getOperationalData,
+  };
 }
