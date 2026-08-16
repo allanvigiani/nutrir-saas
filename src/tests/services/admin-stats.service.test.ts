@@ -7,6 +7,7 @@ const mockDb = {
   consultation: { findMany: vi.fn() },
   mealPlan: { findMany: vi.fn() },
   labExam: { findMany: vi.fn() },
+  appointment: { findMany: vi.fn() },
   nutritionist: { count: vi.fn(), findMany: vi.fn() },
 };
 
@@ -518,5 +519,60 @@ describe('AdminStatsService.getRetentionCohorts', () => {
         ],
       },
     ]);
+  });
+});
+
+describe('AdminStatsService.getActivityHeatmap', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(d(2026, 9, 15));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('retorna grid completo de 168 células (7x24) com contagem de consultas e agendamentos na mesma célula', async () => {
+    mockDb.consultation.findMany.mockResolvedValue([
+      { date: '2026-09-14T10:30:00.000Z' },
+    ]);
+    mockDb.appointment.findMany.mockResolvedValue([
+      { date: new Date('2026-09-14T10:15:00.000Z') },
+    ]);
+
+    const service = createAdminStatsService();
+    const result = await service.getActivityHeatmap();
+
+    expect(result).toHaveLength(168);
+    const expectedDay = new Date('2026-09-14T10:30:00.000Z').getUTCDay();
+    const cell = result.find((p) => p.day === expectedDay && p.hour === 10);
+    expect(cell?.count).toBe(2);
+  });
+
+  it('filtra deletedAt e usa uma janela de 90 dias terminando em "agora"', async () => {
+    mockDb.consultation.findMany.mockResolvedValue([]);
+    mockDb.appointment.findMany.mockResolvedValue([]);
+
+    const service = createAdminStatsService();
+    const result = await service.getActivityHeatmap();
+
+    expect(mockDb.consultation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) })
+    );
+    expect(mockDb.appointment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) })
+    );
+    expect(result.every((p) => p.count === 0)).toBe(true);
+  });
+
+  it('ignora registros de consulta com date inválida', async () => {
+    mockDb.consultation.findMany.mockResolvedValue([{ date: 'data-invalida' }]);
+    mockDb.appointment.findMany.mockResolvedValue([]);
+
+    const service = createAdminStatsService();
+    const result = await service.getActivityHeatmap();
+
+    expect(result.every((p) => p.count === 0)).toBe(true);
   });
 });

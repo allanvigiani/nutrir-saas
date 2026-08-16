@@ -386,6 +386,18 @@ export function registerAdminRoutes(deps: BaseRouteDeps) {
     }
   });
 
+  deps.app.get('/api/admin/stats/activity-heatmap', deps.authenticate, async (req: any, res: any) => {
+    if (!assertAdmin(req, res)) return;
+    try {
+      await withAdminRLS(async () => {
+        const data = await adminStatsService.getActivityHeatmap();
+        res.json({ data });
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // Sem período — foto do momento (não é série temporal).
   deps.app.get('/api/admin/stats/plan-distribution', deps.authenticate, async (req: any, res: any) => {
     if (!assertAdmin(req, res)) return;

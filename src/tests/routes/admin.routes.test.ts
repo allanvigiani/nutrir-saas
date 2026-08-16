@@ -48,6 +48,7 @@ vi.mock('../../server/services/admin-stats.service.ts', () => ({
     getConsultationsByMonth: vi.fn().mockResolvedValue([]),
     getMealPlansByMonth: vi.fn().mockResolvedValue([]),
     getLabExamAdherenceByMonth: vi.fn().mockResolvedValue([]),
+    getActivityHeatmap: vi.fn().mockResolvedValue([]),
     getPaymentMethodBreakdown: vi.fn().mockResolvedValue([]),
     getConversionFunnel: vi.fn().mockResolvedValue({ signedUp: 0, activated: 0, premium: 0 }),
     getChurnRateByMonth: vi.fn().mockResolvedValue([]),
@@ -379,6 +380,24 @@ describe('Admin routes — gráficos de negócio (/api/admin/stats/*)', () => {
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ free: 3, premium: 2, admin: 1, total: 6 });
+    });
+  });
+
+  describe('GET /api/admin/stats/activity-heatmap', () => {
+    it('retorna 403 para não-admin', async () => {
+      const res = await request(buildApp(false)).get('/api/admin/stats/activity-heatmap');
+      expect(res.status).toBe(403);
+    });
+
+    it('retorna 200 com { data } para admin, sem exigir from/to', async () => {
+      const app = buildApp(true);
+      const statsServiceInstance = lastServiceInstance(createAdminStatsService);
+      (statsServiceInstance.getActivityHeatmap as any).mockResolvedValueOnce([{ day: 1, hour: 10, count: 2 }]);
+
+      const res = await request(app).get('/api/admin/stats/activity-heatmap');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ data: [{ day: 1, hour: 10, count: 2 }] });
     });
   });
 });
