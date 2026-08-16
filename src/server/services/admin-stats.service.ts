@@ -179,6 +179,11 @@ export function createAdminStatsService() {
   }
 
   async function getChurnRateByMonth(from: Date, to: Date): Promise<MonthlyPoint[]> {
+    // O numerador (cancelamentos) é filtrado por mês do período queried, mas o denominador
+    // (currentPremiumCount) é um snapshot *atual* do total de nutricionistas premium — não
+    // histórico per-mês, porque não há armazenamento de premium-count-over-time no schema.
+    // Logo, a churn rate retornada é uma aproximação (não coorte exato por mês). Chamadores
+    // devem rotular o gráfico como "aproximado" na UI.
     const [cancellations, currentPremiumCount] = await Promise.all([
       getDb().subscription.findMany({
         where: { cancelAtPeriodEnd: true, currentPeriodEnd: { gte: from, lt: endOfRangeExclusive(to) } },
