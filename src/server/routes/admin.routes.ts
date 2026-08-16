@@ -358,6 +358,20 @@ export function registerAdminRoutes(deps: BaseRouteDeps) {
     }
   });
 
+  deps.app.get('/api/admin/stats/retention-cohort', deps.authenticate, async (req: any, res: any) => {
+    if (!assertAdmin(req, res)) return;
+    const query = validateQuery(statsDateRangeSchema, req, res);
+    if (!query) return;
+    try {
+      await withAdminRLS(async () => {
+        const data = await adminStatsService.getRetentionCohorts(new Date(query.from), new Date(query.to));
+        res.json({ data });
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // Sem período — foto do momento (não é série temporal).
   deps.app.get('/api/admin/stats/plan-distribution', deps.authenticate, async (req: any, res: any) => {
     if (!assertAdmin(req, res)) return;

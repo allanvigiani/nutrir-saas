@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mockDb = {
   payment: { findMany: vi.fn() },
@@ -6,7 +6,7 @@ const mockDb = {
   subscription: { findMany: vi.fn() },
   consultation: { findMany: vi.fn() },
   mealPlan: { findMany: vi.fn() },
-  nutritionist: { count: vi.fn() },
+  nutritionist: { count: vi.fn(), findMany: vi.fn() },
 };
 
 vi.mock('../../server/lib/rls-context.ts', () => ({
@@ -365,5 +365,69 @@ describe('AdminStatsService.getChurnRateByMonth', () => {
     const result = await service.getChurnRateByMonth(d(2026, 6, 1), d(2026, 6, 30));
 
     expect(result).toEqual([{ month: '2026-06', value: 0 }]);
+  });
+});
+
+describe('AdminStatsService.getRetentionCohorts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    vi.setSystemTime(d(2026, 9, 15));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('agrupa por mês de cadastro e marca retido se houve consulta/plano naquele mês civil', async () => {
+    mockDb.nutritionist.findMany.mockResolvedValue([
+      { id: 'n1', createdAt: d(2026, 6, 5) },
+      { id: 'n2', createdAt: d(2026, 6, 20) },
+    ]);
+    mockDb.consultation.findMany.mockResolvedValue([
+      { nutritionistId: 'n1', date: d(2026, 6, 6).toISOString() }, // offset 0
+      { nutritionistId: 'n1', date: d(2026, 7, 1).toISOString() }, // offset 1
+    ]);
+    mockDb.mealPlan.findMany.mockResolvedValue([
+      { nutritionistId: 'n2', createdAt: d(2026, 6, 21) }, // offset 0
+    ]);
+
+    const service = createAdminStatsService();
+    const result = await service.getRetentionCohorts(d(2026, 6, 1), d(2026, 6, 30));
+
+    expect(result).toEqual([
+      {
+        cohortMonth: '2026-06',
+        cohortSize: 2,
+        retention: [
+          { offset: 0, pct: 100 },  // n1 e n2 ativos em junho
+          { offset: 1, pct: 50 },   // só n1 ativo em julho
+          { offset: 2, pct: 0 },    // ninguém ativo em agosto
+          { offset: 3, pct: 0 },    // ninguém ativo em setembro
+        ],
+      },
+    ]);
+  });
+
+  it('não inclui offsets cujo mês ainda não chegou (sistema em 2026-09-15, cohort de agosto)', async () => {
+    mockDb.nutritionist.findMany.mockResolvedValue([{ id: 'n1', createdAt: d(2026, 8, 1) }]);
+    mockDb.consultation.findMany.mockResolvedValue([]);
+    mockDb.mealPlan.findMany.mockResolvedValue([]);
+
+    const service = createAdminStatsService();
+    const result = await service.getRetentionCohorts(d(2026, 8, 1), d(2026, 8, 31));
+
+    // offset 0 = agosto (passado), offset 1 = setembro (mês corrente, já conta),
+    // offset 2 = outubro (futuro, não incluído)
+    expect(result[0].retention.map((r) => r.offset)).toEqual([0, 1]);
+  });
+
+  it('cohort sem nenhum nutricionista cadastrado retorna cohortSize 0 e retention vazio', async () => {
+    mockDb.nutritionist.findMany.mockResolvedValue([]);
+
+    const service = createAdminStatsService();
+    const result = await service.getRetentionCohorts(d(2026, 6, 1), d(2026, 6, 30));
+
+    expect(result).toEqual([{ cohortMonth: '2026-06', cohortSize: 0, retention: [] }]);
   });
 });

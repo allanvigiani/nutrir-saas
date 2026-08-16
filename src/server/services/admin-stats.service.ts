@@ -23,6 +23,14 @@ export interface ConversionFunnel {
   premium: number;
 }
 
+export interface CohortRetention {
+  cohortMonth: string;
+  cohortSize: number;
+  retention: { offset: number; pct: number }[];
+}
+
+const MAX_COHORT_OFFSET = 3;
+
 // `from`/`to` chegam do route handler como `new Date('yyyy-MM-dd')`, que o runtime
 // interpreta como meia-noite **UTC** daquele dia — não hora local do processo. Todo
 // agrupamento por mês abaixo precisa usar os getters UTC (getUTCFullYear/getUTCMonth),
@@ -206,6 +214,72 @@ export function createAdminStatsService() {
     });
   }
 
+  async function getRetentionCohorts(from: Date, to: Date): Promise<CohortRetention[]> {
+    const cohortMonths = buildMonthRange(from, to);
+
+    const nutritionists = await getDb().nutritionist.findMany({
+      where: { createdAt: { gte: from, lt: endOfRangeExclusive(to) } },
+      select: { id: true, createdAt: true },
+    });
+
+    if (nutritionists.length === 0) {
+      return cohortMonths.map((cohortMonth) => ({ cohortMonth, cohortSize: 0, retention: [] }));
+    }
+
+    const cohortsByMonth = new Map<string, string[]>();
+    for (const n of nutritionists) {
+      const key = monthKey(n.createdAt);
+      const ids = cohortsByMonth.get(key) ?? [];
+      ids.push(n.id);
+      cohortsByMonth.set(key, ids);
+    }
+
+    const allIds = nutritionists.map((n) => n.id);
+    const [consultations, mealPlans] = await Promise.all([
+      getDb().consultation.findMany({
+        where: { nutritionistId: { in: allIds } },
+        select: { nutritionistId: true, date: true },
+      }),
+      getDb().mealPlan.findMany({
+        where: { nutritionistId: { in: allIds } },
+        select: { nutritionistId: true, createdAt: true },
+      }),
+    ]);
+
+    const activeMonthsByNutritionist = new Map<string, Set<string>>();
+    const markActive = (nutritionistId: string, date: Date) => {
+      if (Number.isNaN(date.getTime())) return;
+      const set = activeMonthsByNutritionist.get(nutritionistId) ?? new Set<string>();
+      set.add(monthKey(date));
+      activeMonthsByNutritionist.set(nutritionistId, set);
+    };
+    for (const c of consultations) {
+      markActive(c.nutritionistId, new Date(c.date));
+    }
+    for (const m of mealPlans) {
+      markActive(m.nutritionistId, m.createdAt);
+    }
+
+    const now = new Date();
+
+    return cohortMonths.map((cohortMonth) => {
+      const ids = cohortsByMonth.get(cohortMonth) ?? [];
+      const [cohortYear, cohortMonthNum] = cohortMonth.split('-').map(Number);
+      const retention: { offset: number; pct: number }[] = [];
+
+      for (let offset = 0; offset <= MAX_COHORT_OFFSET; offset++) {
+        const offsetDate = new Date(Date.UTC(cohortYear, cohortMonthNum - 1 + offset, 1));
+        if (offsetDate > now) break;
+        const offsetKey = monthKey(offsetDate);
+        const retained = ids.filter((id) => activeMonthsByNutritionist.get(id)?.has(offsetKey)).length;
+        const pct = ids.length > 0 ? Math.round((retained / ids.length) * 1000) / 10 : 0;
+        retention.push({ offset, pct });
+      }
+
+      return { cohortMonth, cohortSize: ids.length, retention };
+    });
+  }
+
   async function getPlanDistribution() {
     // Mesma lógica de admin.service.ts#getStats (freeCount = total - premium - admin),
     // pra não divergir do que os cards existentes já mostram.
@@ -230,6 +304,7 @@ export function createAdminStatsService() {
     getConsultationsByMonth,
     getMealPlansByMonth,
     getChurnRateByMonth,
+    getRetentionCohorts,
     getPaymentMethodBreakdown,
     getConversionFunnel,
     getPlanDistribution,
