@@ -240,6 +240,38 @@ describe('AdminStatsService — regressão de timezone (QA ALTO 1 e ALTO 2)', ()
   });
 });
 
+describe('AdminStatsService.getPaymentMethodBreakdown', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('agrupa total/quantidade/ticket médio por método, só status "paid"', async () => {
+    mockDb.payment.findMany.mockResolvedValue([
+      { method: 'pix', amount: 100 },
+      { method: 'pix', amount: 50 },
+      { method: 'credit_card', amount: 200 },
+    ]);
+
+    const service = createAdminStatsService();
+    const result = await service.getPaymentMethodBreakdown(d(2026, 6, 1), d(2026, 6, 30));
+
+    expect(mockDb.payment.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ status: 'paid', deletedAt: null }) })
+    );
+    expect(result).toEqual([
+      { method: 'credit_card', total: 200, count: 1, average: 200 },
+      { method: 'pix', total: 150, count: 2, average: 75 },
+    ]);
+  });
+
+  it('retorna array vazio quando não há pagamentos no período', async () => {
+    mockDb.payment.findMany.mockResolvedValue([]);
+
+    const service = createAdminStatsService();
+    const result = await service.getPaymentMethodBreakdown(d(2026, 6, 1), d(2026, 6, 30));
+
+    expect(result).toEqual([]);
+  });
+});
+
 describe('AdminStatsService.getPlanDistribution', () => {
   beforeEach(() => vi.clearAllMocks());
 

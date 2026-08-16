@@ -10,6 +10,13 @@ export interface MonthlyPoint {
   value: number;
 }
 
+export interface PaymentMethodBreakdown {
+  method: string;
+  total: number;
+  count: number;
+  average: number;
+}
+
 // `from`/`to` chegam do route handler como `new Date('yyyy-MM-dd')`, que o runtime
 // interpreta como meia-noite **UTC** daquele dia — não hora local do processo. Todo
 // agrupamento por mês abaixo precisa usar os getters UTC (getUTCFullYear/getUTCMonth),
@@ -59,6 +66,30 @@ export function createAdminStatsService() {
       month,
       value: parseFloat((totals.get(month) ?? 0).toFixed(2)),
     }));
+  }
+
+  async function getPaymentMethodBreakdown(from: Date, to: Date): Promise<PaymentMethodBreakdown[]> {
+    const payments = await getDb().payment.findMany({
+      where: { status: CONFIRMED_PAYMENT_STATUS, deletedAt: null, date: { gte: from, lt: endOfRangeExclusive(to) } },
+      select: { method: true, amount: true },
+    });
+
+    const totals = new Map<string, { total: number; count: number }>();
+    for (const payment of payments) {
+      const entry = totals.get(payment.method) ?? { total: 0, count: 0 };
+      entry.total += payment.amount;
+      entry.count += 1;
+      totals.set(payment.method, entry);
+    }
+
+    return Array.from(totals.entries())
+      .map(([method, { total, count }]) => ({
+        method,
+        total: parseFloat(total.toFixed(2)),
+        count,
+        average: parseFloat((total / count).toFixed(2)),
+      }))
+      .sort((a, b) => b.total - a.total);
   }
 
   async function getPatientsGrowthByMonth(from: Date, to: Date): Promise<MonthlyPoint[]> {
@@ -150,6 +181,7 @@ export function createAdminStatsService() {
     getNewSubscribersByMonth,
     getConsultationsByMonth,
     getMealPlansByMonth,
+    getPaymentMethodBreakdown,
     getPlanDistribution,
   };
 }
