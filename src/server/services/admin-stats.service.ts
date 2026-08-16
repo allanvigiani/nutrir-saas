@@ -82,6 +82,10 @@ export function createAdminStatsService() {
     }));
   }
 
+  // `Payment` aqui é o faturamento paciente→nutricionista via a feature "Financeiro"
+  // (cobranças que o nutricionista registra pros próprios pacientes) — NÃO é receita de
+  // assinatura do Nutrir (essa vem de `Subscription`/Asaas, ver payingPremiumRevenue em
+  // admin.service.ts#getStats). Não confundir os dois nos cards/gráficos do admin.
   async function getPaymentMethodBreakdown(from: Date, to: Date): Promise<PaymentMethodBreakdown[]> {
     const payments = await getDb().payment.findMany({
       where: { status: CONFIRMED_PAYMENT_STATUS, deletedAt: null, date: { gte: from, lt: endOfRangeExclusive(to) } },
@@ -111,9 +115,18 @@ export function createAdminStatsService() {
 
     const [signedUp, activated, premium] = await Promise.all([
       getDb().nutritionist.count({ where: { createdAt: createdRange } }),
+      // "Ativado" = já teve QUALQUER paciente ativo em algum momento, sem limite de tempo
+      // desde o cadastro (ex.: cadastrou em janeiro, só teve o 1º paciente em dezembro
+      // ainda conta). É "ativou alguma vez", não "ativou em até N dias do cadastro" — se
+      // um funil com janela temporal for necessário no futuro, isso precisa mudar.
       getDb().nutritionist.count({
         where: { createdAt: createdRange, patients: { some: { status: 'active', deletedAt: null } } },
       }),
+      // `plan: 'premium'` aqui mede "já converteu pra premium alguma vez" (semântica de
+      // funil de conversão) — de propósito diferente de payingPremiumRevenue em
+      // admin.service.ts#getStats, que filtra por `Subscription.asaasStatus` pra saber
+      // quem está pagando *agora*. Não "corrigir" isto pra bater com getStats: são
+      // métricas distintas por design (funil vs. receita atual).
       getDb().nutritionist.count({ where: { createdAt: createdRange, plan: 'premium' } }),
     ]);
 
@@ -192,6 +205,19 @@ export function createAdminStatsService() {
     // histórico per-mês, porque não há armazenamento de premium-count-over-time no schema.
     // Logo, a churn rate retornada é uma aproximação (não coorte exato por mês). Chamadores
     // devem rotular o gráfico como "aproximado" na UI.
+    //
+    // O numerador também não é um registro histórico estável: `cancelAtPeriodEnd` é uma
+    // flag de "cancelamento agendado/pendente", não um fato histórico imutável. Ela volta
+    // pra `false` por outros pontos do código quando o ciclo de cancelamento se completa
+    // (`src/server/middlewares/subscription-expiry.ts`) ou quando o pagamento é reembolsado
+    // (`verifySubscription` em `src/server/services/asaas.service.ts`, que também zera
+    // `currentPeriodEnd` inteiramente nesse caso). Ou seja: rodar esta mesma query pro mesmo
+    // range de datas passadas novamente daqui a uma semana vai retornar números MENORES do
+    // que hoje pros mesmos meses passados, porque assinaturas que já churnaram/foram
+    // reembolsadas nesse meio tempo somem da contagem. Isto é mais próximo de
+    // "cancelamentos agendados/pendentes por mês" (um snapshot do momento da consulta) do
+    // que uma série de "churn histórico" estável — chamadores não devem apresentar isso
+    // como se fosse a segunda coisa.
     const [cancellations, currentPremiumCount] = await Promise.all([
       getDb().subscription.findMany({
         where: { cancelAtPeriodEnd: true, currentPeriodEnd: { gte: from, lt: endOfRangeExclusive(to) } },
@@ -222,10 +248,6 @@ export function createAdminStatsService() {
       select: { id: true, createdAt: true },
     });
 
-    if (nutritionists.length === 0) {
-      return cohortMonths.map((cohortMonth) => ({ cohortMonth, cohortSize: 0, retention: [] }));
-    }
-
     const cohortsByMonth = new Map<string, string[]>();
     for (const n of nutritionists) {
       const key = monthKey(n.createdAt);
@@ -235,16 +257,37 @@ export function createAdminStatsService() {
     }
 
     const allIds = nutritionists.map((n) => n.id);
-    const [consultations, mealPlans] = await Promise.all([
-      getDb().consultation.findMany({
-        where: { nutritionistId: { in: allIds } },
-        select: { nutritionistId: true, date: true },
-      }),
-      getDb().mealPlan.findMany({
-        where: { nutritionistId: { in: allIds } },
-        select: { nutritionistId: true, createdAt: true },
-      }),
-    ]);
+
+    // Janela de atividade relevante para o range de cohorts pedido: só interessa atividade
+    // entre o início do range (`from`) e o mês do cohort mais tardio (`to`) + MAX_COHORT_OFFSET
+    // — nenhum offset além disso é alcançável por nenhum cohort deste range, e
+    // activeMonthsByNutritionist descartaria silenciosamente qualquer atividade fora dessa
+    // janela de qualquer forma. Sem esse limite, num range de 24 meses a query buscaria o
+    // histórico completo de cada nutricionista até hoje, bem além do que é usado.
+    const activityWindowEnd = new Date(Date.UTC(to.getUTCFullYear(), to.getUTCMonth() + 1 + MAX_COHORT_OFFSET, 1));
+
+    const [consultations, mealPlans] = allIds.length > 0
+      ? await Promise.all([
+          // Consultation.date é armazenado como string ISO (não DateTime) — comparação
+          // lexicográfica, mesmo padrão de getConsultationsByMonth nesta service.
+          getDb().consultation.findMany({
+            where: {
+              nutritionistId: { in: allIds },
+              deletedAt: null,
+              date: { gte: from.toISOString(), lt: activityWindowEnd.toISOString() },
+            },
+            select: { nutritionistId: true, date: true },
+          }),
+          getDb().mealPlan.findMany({
+            where: {
+              nutritionistId: { in: allIds },
+              deletedAt: null,
+              createdAt: { gte: from, lt: activityWindowEnd },
+            },
+            select: { nutritionistId: true, createdAt: true },
+          }),
+        ])
+      : [[] as { nutritionistId: string; date: string }[], [] as { nutritionistId: string; createdAt: Date }[]];
 
     const activeMonthsByNutritionist = new Map<string, Set<string>>();
     const markActive = (nutritionistId: string, date: Date) => {
@@ -264,6 +307,15 @@ export function createAdminStatsService() {
 
     return cohortMonths.map((cohortMonth) => {
       const ids = cohortsByMonth.get(cohortMonth) ?? [];
+
+      // Cohort sem nenhum cadastro no mês: sempre `retention: []`, tanto quando é o único
+      // cohort do range (dataset inteiro vazio) quanto quando é só um mês vazio no meio de
+      // um range com outros meses com cadastro — mesmo shape nos dois casos, pra não obrigar
+      // quem consome isso a tratar duas formas diferentes de "sem cohort".
+      if (ids.length === 0) {
+        return { cohortMonth, cohortSize: 0, retention: [] };
+      }
+
       const [cohortYear, cohortMonthNum] = cohortMonth.split('-').map(Number);
       const retention: { offset: number; pct: number }[] = [];
 

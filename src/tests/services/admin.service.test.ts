@@ -133,12 +133,17 @@ describe('AdminService.getExpandedStats', () => {
   beforeEach(() => vi.clearAllMocks());
 
   it('retorna métricas expandidas com novos assinantes e consultas do mês', async () => {
+    // getExpandedStats chama getStats() internamente, que faz 6 chamadas sequenciais a
+    // nutritionist.count: total, premium, payingPremium, admin, activeLast30, newLast7 —
+    // ver admin.service.ts#getStats. Faltando uma dessas 6 aqui, todo valor a partir da
+    // 3ª chamada desliza uma posição (ex.: newLast7Days silenciosamente virava undefined).
     mockDb.nutritionist.count
-      .mockResolvedValueOnce(20)
-      .mockResolvedValueOnce(5)
-      .mockResolvedValueOnce(1)
-      .mockResolvedValueOnce(12)
-      .mockResolvedValueOnce(3);
+      .mockResolvedValueOnce(20)  // total
+      .mockResolvedValueOnce(5)   // premium
+      .mockResolvedValueOnce(4)   // payingPremium
+      .mockResolvedValueOnce(1)   // admin
+      .mockResolvedValueOnce(12)  // activeLast30
+      .mockResolvedValueOnce(3);  // newLast7
     mockDb.patient.count.mockResolvedValue(80);
     (mockDb as any).subscription = {
       count: vi.fn()
@@ -154,6 +159,7 @@ describe('AdminService.getExpandedStats', () => {
 
     expect(stats.totalNutritionists).toBe(20);
     expect(stats.premiumCount).toBe(5);
+    expect(stats.newLast7Days).toBe(3); // pega a 6ª chamada de nutritionist.count — regressão do slot faltando
     expect(stats.newSubscribersThisMonth).toBe(2);
     expect(stats.newSubscribersPrevMonth).toBe(1);
     expect(stats.pendingChurn).toBe(1);

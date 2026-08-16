@@ -48,7 +48,7 @@ vi.mock('../../server/services/admin-stats.service.ts', () => ({
     getConsultationsByMonth: vi.fn().mockResolvedValue([]),
     getMealPlansByMonth: vi.fn().mockResolvedValue([]),
     getPaymentMethodBreakdown: vi.fn().mockResolvedValue([]),
-    getConversionFunnel: vi.fn().mockResolvedValue({}),
+    getConversionFunnel: vi.fn().mockResolvedValue({ signedUp: 0, activated: 0, premium: 0 }),
     getChurnRateByMonth: vi.fn().mockResolvedValue([]),
     getRetentionCohorts: vi.fn().mockResolvedValue([]),
     getPlanDistribution: vi.fn().mockResolvedValue({ free: 0, premium: 0, admin: 0, total: 0 }),

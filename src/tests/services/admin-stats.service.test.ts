@@ -431,6 +431,28 @@ describe('AdminStatsService.getRetentionCohorts', () => {
     expect(result).toEqual([{ cohortMonth: '2026-06', cohortSize: 0, retention: [] }]);
   });
 
+  it('range misto: um mês com cadastro tem retention normal, outro mês do mesmo range sem cadastro também retorna retention vazio', async () => {
+    // Antes da correção, um cohort-mês vazio DENTRO de um range com outros meses com
+    // cadastro caía no loop geral e emitia {offset, pct: 0} pra cada offset (shape
+    // diferente do early-return de dataset inteiro vazio). Agora os dois casos devem
+    // produzir o mesmo shape: retention: [].
+    mockDb.nutritionist.findMany.mockResolvedValue([{ id: 'n1', createdAt: d(2026, 6, 10) }]);
+    mockDb.consultation.findMany.mockResolvedValue([
+      { nutritionistId: 'n1', date: d(2026, 6, 12).toISOString() },
+    ]);
+    mockDb.mealPlan.findMany.mockResolvedValue([]);
+
+    const service = createAdminStatsService();
+    const result = await service.getRetentionCohorts(d(2026, 6, 1), d(2026, 7, 31));
+
+    const juneCohort = result.find((r) => r.cohortMonth === '2026-06');
+    const julyCohort = result.find((r) => r.cohortMonth === '2026-07');
+
+    expect(juneCohort?.cohortSize).toBe(1);
+    expect(juneCohort?.retention[0]).toEqual({ offset: 0, pct: 100 });
+    expect(julyCohort).toEqual({ cohortMonth: '2026-07', cohortSize: 0, retention: [] });
+  });
+
   it('cohort perto de virada de ano: offset 2 (novembro 2026 + 2 = janeiro 2027) marca retido com atividade em jan/2027', async () => {
     // Sistema fixado em 2027-02-15 — offsets 0-3 já estão no passado
     vi.setSystemTime(d(2027, 2, 15));
