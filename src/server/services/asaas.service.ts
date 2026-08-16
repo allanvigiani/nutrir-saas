@@ -119,11 +119,24 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
         const sub = event.subscription;
         if (sub) {
           const isSubActive = sub.status === "ACTIVE";
-          await updateUserData({
+          const updateData: any = {
             plan: isSubActive ? "premium" : "free",
             asaasStatus: sub.status,
-            currentPeriodEnd: sub.nextDueDate || null,
-          });
+          };
+          // sub.nextDueDate só reflete o fim do período pago depois que o Asaas avança
+          // o ciclo após confirmar o pagamento — como a ordem de entrega dos webhooks
+          // não é garantida, nunca regride currentPeriodEnd para uma data anterior.
+          if (sub.nextDueDate) {
+            const existing = await getDb().subscription.findUnique({
+              where: { nutritionistId: userId },
+              select: { currentPeriodEnd: true },
+            });
+            const candidate = new Date(sub.nextDueDate);
+            if (!existing?.currentPeriodEnd || candidate > existing.currentPeriodEnd) {
+              updateData.currentPeriodEnd = sub.nextDueDate;
+            }
+          }
+          await updateUserData(updateData);
         }
         break;
       }
@@ -248,13 +261,31 @@ export function createAsaasService({ asaasClient }: AsaasServiceInput) {
       }
     }
 
+    // sub.nextDueDate só reflete o fim do período pago depois que o Asaas avança o
+    // ciclo — enquanto isso não acontece, calcula a partir do último pagamento pago
+    // (dueDate + 1 mês, igual ao handler de PAYMENT_CONFIRMED) e usa o mais distante
+    // entre os dois, nunca reportando uma data de expiração anterior à real.
+    const paidDueDates: string[] = [...(confirmedPayments.data ?? []), ...(receivedPayments.data ?? [])]
+      .map((p: any) => p.dueDate)
+      .filter((dueDate: unknown): dueDate is string => typeof dueDate === "string" && !isNaN(new Date(dueDate).getTime()));
+    let currentPeriodEnd: string | null = sub.nextDueDate ?? null;
+    if (paidDueDates.length > 0) {
+      const latestDueDate = paidDueDates.reduce((latest, dueDate) => (dueDate > latest ? dueDate : latest));
+      const d = new Date(latestDueDate);
+      d.setMonth(d.getMonth() + 1);
+      const paymentBasedEnd = d.toISOString().split("T")[0];
+      if (!currentPeriodEnd || paymentBasedEnd > currentPeriodEnd) {
+        currentPeriodEnd = paymentBasedEnd;
+      }
+    }
+
     return {
       status: sub.status,
       plan,
       subscriptionId: sub.id,
       subscriptionStatus: sub.status,
       cancelAtPeriodEnd: sub.status === "DELETED" || sub.deleted,
-      currentPeriodEnd: sub.nextDueDate,
+      currentPeriodEnd,
       subscriptionCreatedAt: sub.dateCreated,
       message: plan === "premium" ? "Assinatura válida encontrada." : "Assinatura encontrada, mas aguardando confirmação de pagamento.",
     };

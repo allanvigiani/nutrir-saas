@@ -59,7 +59,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { PremiumFeature } from '../components/PremiumFeature';
-import { UpgradeModal } from '../components/UpgradeModal';
+import { UpgradeModal, type BenefitKey } from '../components/UpgradeModal';
 import { PageHeader } from '../components/PageHeader';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -605,6 +605,7 @@ export const Recipes = () => {
   const [isModalFormOpen, setIsModalFormOpen] = useState(false);
   const [isModalVerOpen, setIsModalVerOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeTrigger, setUpgradeTrigger] = useState<BenefitKey | undefined>(undefined);
   const [receitaEditando, setReceitaEditando] = useState<Receita | null>(null);
   const [receitaVisualizando, setReceitaVisualizando] = useState<Receita | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -647,6 +648,7 @@ export const Recipes = () => {
 
   const handleNova = () => {
     if (atinuiuLimiteGratuito) {
+      setUpgradeTrigger('recipes');
       setIsUpgradeModalOpen(true);
       return;
     }
@@ -687,6 +689,7 @@ export const Recipes = () => {
 
   const handleClonar = async (receita: Receita) => {
     if (!isPremium) {
+      setUpgradeTrigger('recipeLibrary');
       setIsUpgradeModalOpen(true);
       return;
     }
@@ -734,7 +737,7 @@ export const Recipes = () => {
             <p className="text-sm text-foreground font-medium">
               Você atingiu o limite de {FREE_MAX_RECEITAS} receitas do plano gratuito.{' '}
               <button
-                onClick={() => setIsUpgradeModalOpen(true)}
+                onClick={() => { setUpgradeTrigger('recipes'); setIsUpgradeModalOpen(true); }}
                 className="underline underline-offset-2 hover:no-underline font-semibold"
               >
                 Faça upgrade para criar mais.
@@ -834,7 +837,7 @@ export const Recipes = () => {
               <p className="text-muted-foreground text-sm max-w-xs mb-6">
                 Acesse receitas criadas pela equipe Nutrir e clone-as para seus pacientes.
               </p>
-              <Button variant="outline" onClick={() => setIsUpgradeModalOpen(true)}>
+              <Button variant="outline" onClick={() => { setUpgradeTrigger('recipeLibrary'); setIsUpgradeModalOpen(true); }}>
                 <Sparkles className="w-4 h-4 mr-2 text-accent-foreground" />
                 Ver planos Premium
               </Button>
@@ -883,6 +886,7 @@ export const Recipes = () => {
       <UpgradeModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
+        trigger={upgradeTrigger}
       />
     </div>
   );

@@ -6,7 +6,7 @@ import {
   TooltipContent, 
   TooltipTrigger 
 } from "./ui/tooltip";
-import { UpgradeModal } from './UpgradeModal';
+import { UpgradeModal, type BenefitKey } from './UpgradeModal';
 import { cn } from '../lib/utils';
 import { isAdminOrPremium } from '../lib/planLimits';
 
@@ -14,9 +14,13 @@ interface PremiumFeatureProps {
   children: React.ReactNode;
   className?: string;
   active?: boolean;
+  /** Gatilho repassado ao UpgradeModal para destacar o benefício correspondente. */
+  trigger?: BenefitKey;
+  /** 'lock' (padrão) esconde o conteúdo com opacidade; 'blur' borra mantendo o conteúdo real visível como prévia. */
+  variant?: 'lock' | 'blur';
 }
 
-export const PremiumFeature = ({ children, className, active = true }: PremiumFeatureProps) => {
+export const PremiumFeature = ({ children, className, active = true, trigger, variant = 'lock' }: PremiumFeatureProps) => {
   const { nutritionist } = useAuth();
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
@@ -36,8 +40,8 @@ export const PremiumFeature = ({ children, className, active = true }: PremiumFe
     <>
       <Tooltip>
         <TooltipTrigger render={
-          <div 
-            className={cn("relative inline-block cursor-not-allowed opacity-60", className)}
+          <div
+            className={cn("relative inline-block cursor-not-allowed", variant === 'blur' ? 'blur-sm' : 'opacity-60', className)}
             onClick={handleClick}
           />
         }>
@@ -53,9 +57,10 @@ export const PremiumFeature = ({ children, className, active = true }: PremiumFe
         </TooltipContent>
       </Tooltip>
 
-      <UpgradeModal 
-        isOpen={isUpgradeModalOpen} 
-        onClose={() => setIsUpgradeModalOpen(false)} 
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        trigger={trigger}
       />
     </>
   );

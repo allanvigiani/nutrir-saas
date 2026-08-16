@@ -1,12 +1,23 @@
 import { getDb } from '../lib/rls-context.ts';
 import { FREE_PLAN_LIMITS } from '../../lib/planLimits.ts';
+import { subMonths } from 'date-fns';
 
 export function createConsultationsService() {
-  async function list(nutritionistId: string, patientId: string) {
-    return getDb().consultation.findMany({
-      where: { patientId, nutritionistId, deletedAt: null },
-      orderBy: { date: 'desc' },
-    });
+  async function list(nutritionistId: string, patientId: string, isPremium: boolean) {
+    const baseWhere = { patientId, nutritionistId, deletedAt: null };
+    if (isPremium) {
+      const items = await getDb().consultation.findMany({ where: baseWhere, orderBy: { date: 'desc' } });
+      return { items, hasHiddenHistory: false };
+    }
+
+    // Plano gratuito só vê os últimos FREE_PLAN_LIMITS.historyMonths meses —
+    // filtro precisa ser no backend, não só na UI, senão dá pra ver tudo via API direta.
+    const historyLimitDate = subMonths(new Date(), FREE_PLAN_LIMITS.historyMonths).toISOString().split('T')[0];
+    const [items, totalCount] = await Promise.all([
+      getDb().consultation.findMany({ where: { ...baseWhere, date: { gt: historyLimitDate } }, orderBy: { date: 'desc' } }),
+      getDb().consultation.count({ where: baseWhere }),
+    ]);
+    return { items, hasHiddenHistory: totalCount > items.length };
   }
 
   async function create(nutritionistId: string, patientId: string, data: Record<string, unknown>, isPremium: boolean) {

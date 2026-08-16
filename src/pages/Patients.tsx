@@ -317,7 +317,7 @@ export const Patients = () => {
             setIsModalOpen(open);
             if (!open) setEditingPatient(null);
           }}>
-            <PremiumFeature active={isLimitReached}>
+            <PremiumFeature active={isLimitReached} trigger="patients">
               <DialogTrigger
                 render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-9 px-4 gap-2 font-medium text-sm transition-all active:scale-95" onClick={openNewModal} />}
                 nativeButton={true}

@@ -15,7 +15,9 @@ export function registerLabExamsRoutes(deps: BaseRouteDeps) {
   deps.app.get('/api/patients/:patientId/lab-exams', deps.authenticate, async (req: any, res: any) => {
     try {
       await withNutritionistRLS(req.user.uid, async () => {
-        res.json(await service.list(req.user.uid, req.params.patientId));
+        const { items, hasHiddenHistory } = await service.list(req.user.uid, req.params.patientId, req.user.isPremium);
+        res.set('X-Has-Hidden-History', hasHiddenHistory ? '1' : '0');
+        res.json(items);
       });
     } catch (err: any) {
       return res.status(500).json({ error: err.message });

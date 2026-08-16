@@ -50,12 +50,12 @@ import { FREE_PLAN_LIMITS, isAdminOrPremium } from '../lib/planLimits';
 import { auth } from '../lib/firebase';
 import { apiRequest } from '../hooks/useApi';
 import { Patient, Consultation, MealPlan, MealPlanItem, LabExam, LabExamMarker, CustomFood, NutritionCalculation } from '../types';
-import { format, differenceInYears, parseISO, subMonths, isAfter } from 'date-fns';
+import { format, differenceInYears, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PremiumFeature } from '../components/PremiumFeature';
 import { RichTextViewer } from '../components/RichTextViewer';
 import { PremiumBanner } from '../components/PremiumBanner';
-import { UpgradeModal } from '../components/UpgradeModal';
+import { UpgradeModal, type BenefitKey } from '../components/UpgradeModal';
 import { useFreeplanLimits } from '../hooks/useFreeplanLimits';
 import { maskCPF, maskPhone } from '../lib/masks';
 import { cn } from '../lib/utils';
@@ -191,6 +191,7 @@ export const PatientProfile = () => {
   const [calculations, setCalculations] = useState<NutritionCalculation[]>([]);
   const [hasHiddenHistory, setHasHiddenHistory] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeTrigger, setUpgradeTrigger] = useState<BenefitKey | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [isConsultationModalOpen, setIsConsultationModalOpen] = useState(false);
   const [isCalculatorModalOpen, setIsCalculatorModalOpen] = useState(false);
@@ -655,6 +656,10 @@ export const PatientProfile = () => {
       if (mealPlansRes.ok) setMealPlans((await mealPlansRes.json()).sort((a: MealPlan, b: MealPlan) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
       if (examsRes.ok) setExams(await examsRes.json());
       if (calculationsRes.ok) setCalculations(await calculationsRes.json());
+      setHasHiddenHistory(
+        consultationsRes.headers.get('X-Has-Hidden-History') === '1' ||
+        examsRes.headers.get('X-Has-Hidden-History') === '1'
+      );
     } catch (err) {
       console.error('Error refetching patient data:', err);
     }
@@ -687,8 +692,8 @@ export const PatientProfile = () => {
         setPatient(patientData);
         setGender(patientData.gender);
 
-        let fetchedConsultations: Consultation[] = consultationsRes.ok ? await consultationsRes.json() : [];
-        let fetchedExams: LabExam[] = examsRes.ok ? await examsRes.json() : [];
+        const fetchedConsultations: Consultation[] = consultationsRes.ok ? await consultationsRes.json() : [];
+        const fetchedExams: LabExam[] = examsRes.ok ? await examsRes.json() : [];
         const fetchedPlans: MealPlan[] = mealPlansRes.ok ? await mealPlansRes.json() : [];
         const fetchedCalculations: NutritionCalculation[] = calculationsRes.ok ? await calculationsRes.json() : [];
 
@@ -699,21 +704,12 @@ export const PatientProfile = () => {
           return dateB - dateA;
         }));
 
-        // Apply premium restrictions: history limit for free plan
-        if (nutritionist?.plan === 'free') {
-          const historyMonths = FREE_PLAN_LIMITS.historyMonths;
-          const historyLimitDate = subMonths(new Date(), historyMonths);
-
-          const originalConsultationsCount = fetchedConsultations.length;
-          const originalExamsCount = fetchedExams.length;
-
-          fetchedConsultations = fetchedConsultations.filter(c => isAfter(new Date(c.date), historyLimitDate));
-          fetchedExams = fetchedExams.filter(e => isAfter(new Date(e.date), historyLimitDate));
-
-          if (fetchedConsultations.length < originalConsultationsCount || fetchedExams.length < originalExamsCount) {
-            setHasHiddenHistory(true);
-          }
-        }
+        // Limite de histórico do plano gratuito já vem aplicado pelo backend;
+        // o header só sinaliza pra UI se algo ficou de fora.
+        setHasHiddenHistory(
+          consultationsRes.headers.get('X-Has-Hidden-History') === '1' ||
+          examsRes.headers.get('X-Has-Hidden-History') === '1'
+        );
 
         setConsultations(fetchedConsultations.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
         setExams(fetchedExams.sort((a, b) => parseISO(b.date).getTime() - parseISO(a.date).getTime()));
@@ -1435,7 +1431,7 @@ export const PatientProfile = () => {
                     </div>
                   </div>
                   <Button
-                    onClick={() => setIsUpgradeModalOpen(true)}
+                    onClick={() => { setUpgradeTrigger('history'); setIsUpgradeModalOpen(true); }}
                     className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl h-8 px-4 text-xs gap-2 shrink-0"
                   >
                     Ver Tudo com Premium
@@ -1779,7 +1775,7 @@ export const PatientProfile = () => {
 
                 }
               }}>
-                <PremiumFeature active={isLabExamLimitReached || isPatientReadOnly}>
+                <PremiumFeature active={isLabExamLimitReached || isPatientReadOnly} trigger="labExams">
                   <DialogTrigger
                     render={<Button className="bg-primary hover:bg-primary/90 text-white rounded-xl h-8 px-4 gap-2 font-bold text-sm transition-all shadow-sm active:scale-95 disabled:opacity-50" size="sm" disabled={isPatientReadOnly} />}
                     nativeButton={true}
@@ -2076,7 +2072,7 @@ export const PatientProfile = () => {
                     </div>
                   </div>
                   <Button
-                    onClick={() => setIsUpgradeModalOpen(true)}
+                    onClick={() => { setUpgradeTrigger('history'); setIsUpgradeModalOpen(true); }}
                     className="bg-primary hover:bg-primary/90 text-white font-bold rounded-xl h-8 px-4 text-xs gap-2 shrink-0"
                   >
                     Ver Tudo com Premium
@@ -2088,7 +2084,7 @@ export const PatientProfile = () => {
         </TabsContent>
 
         <TabsContent value="evolution" className="mt-0">
-          <PremiumFeature>
+          <PremiumFeature trigger="evolution" variant="blur">
             <div className="grid grid-cols-1 gap-4">
 
               {/* Resumo Geral do Acompanhamento */}
@@ -2667,6 +2663,7 @@ export const PatientProfile = () => {
       <UpgradeModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
+        trigger={upgradeTrigger}
       />
 
       {/* Modal de cópia de plano alimentar */}

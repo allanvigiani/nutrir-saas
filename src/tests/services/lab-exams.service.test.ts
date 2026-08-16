@@ -23,7 +23,7 @@ vi.mock('../../server/lib/rls-context.ts', () => ({
 }));
 
 vi.mock('../../lib/planLimits.ts', () => ({
-  FREE_PLAN_LIMITS: { maxExams: 2 },
+  FREE_PLAN_LIMITS: { maxExams: 2, historyMonths: 3 },
 }));
 
 import { createLabExamsService } from '../../server/services/lab-exams.service.ts';
@@ -35,10 +35,30 @@ describe('lab-exams.service — soft delete', () => {
 
   it('list() filtra exames com deletedAt preenchido', async () => {
     mockFindMany.mockResolvedValue([]);
-    await service.list('nutri-1', 'pac-1');
+    await service.list('nutri-1', 'pac-1', true);
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) }),
     );
+  });
+
+  it('list() de plano premium não aplica corte de histórico', async () => {
+    mockFindMany.mockResolvedValue([{ id: 'e-1' }]);
+    const result = await service.list('nutri-1', 'pac-1', true);
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.not.objectContaining({ date: expect.anything() }) }),
+    );
+    expect(mockCount).not.toHaveBeenCalled();
+    expect(result).toEqual({ items: [{ id: 'e-1' }], hasHiddenHistory: false });
+  });
+
+  it('list() de plano free aplica corte de historyMonths e sinaliza histórico oculto', async () => {
+    mockFindMany.mockResolvedValue([{ id: 'e-recente' }]);
+    mockCount.mockResolvedValue(3);
+    const result = await service.list('nutri-1', 'pac-1', false);
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ date: { gt: expect.any(String) } }) }),
+    );
+    expect(result).toEqual({ items: [{ id: 'e-recente' }], hasHiddenHistory: true });
   });
 
   it('remove() faz soft delete em vez de deletar', async () => {
