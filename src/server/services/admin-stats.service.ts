@@ -17,6 +17,12 @@ export interface PaymentMethodBreakdown {
   average: number;
 }
 
+export interface ConversionFunnel {
+  signedUp: number;
+  activated: number;
+  premium: number;
+}
+
 // `from`/`to` chegam do route handler como `new Date('yyyy-MM-dd')`, que o runtime
 // interpreta como meia-noite **UTC** daquele dia — não hora local do processo. Todo
 // agrupamento por mês abaixo precisa usar os getters UTC (getUTCFullYear/getUTCMonth),
@@ -90,6 +96,20 @@ export function createAdminStatsService() {
         average: parseFloat((total / count).toFixed(2)),
       }))
       .sort((a, b) => b.total - a.total);
+  }
+
+  async function getConversionFunnel(from: Date, to: Date): Promise<ConversionFunnel> {
+    const createdRange = { gte: from, lt: endOfRangeExclusive(to) };
+
+    const [signedUp, activated, premium] = await Promise.all([
+      getDb().nutritionist.count({ where: { createdAt: createdRange } }),
+      getDb().nutritionist.count({
+        where: { createdAt: createdRange, patients: { some: { status: 'active', deletedAt: null } } },
+      }),
+      getDb().nutritionist.count({ where: { createdAt: createdRange, plan: 'premium' } }),
+    ]);
+
+    return { signedUp, activated, premium };
   }
 
   async function getPatientsGrowthByMonth(from: Date, to: Date): Promise<MonthlyPoint[]> {
@@ -182,6 +202,7 @@ export function createAdminStatsService() {
     getConsultationsByMonth,
     getMealPlansByMonth,
     getPaymentMethodBreakdown,
+    getConversionFunnel,
     getPlanDistribution,
   };
 }

@@ -296,3 +296,28 @@ describe('AdminStatsService.getPlanDistribution', () => {
     expect(result).toEqual({ free: 0, premium: 0, admin: 0, total: 0 });
   });
 });
+
+describe('AdminStatsService.getConversionFunnel', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('conta cadastrados, ativados (com paciente ativo) e premium no período', async () => {
+    mockDb.nutritionist.count
+      .mockResolvedValueOnce(20) // signedUp
+      .mockResolvedValueOnce(12) // activated
+      .mockResolvedValueOnce(5); // premium
+
+    const service = createAdminStatsService();
+    const result = await service.getConversionFunnel(d(2026, 6, 1), d(2026, 6, 30));
+
+    expect(result).toEqual({ signedUp: 20, activated: 12, premium: 5 });
+    expect(mockDb.nutritionist.count).toHaveBeenNthCalledWith(2, {
+      where: {
+        createdAt: expect.any(Object),
+        patients: { some: { status: 'active', deletedAt: null } },
+      },
+    });
+    expect(mockDb.nutritionist.count).toHaveBeenNthCalledWith(3, {
+      where: { createdAt: expect.any(Object), plan: 'premium' },
+    });
+  });
+});
