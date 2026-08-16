@@ -14,6 +14,7 @@ import {
   Settings as SettingsIcon,
   LayoutDashboard,
   TrendingUp,
+  TrendingDown,
   AlertTriangle,
   ClipboardList,
   UtensilsCrossed,
@@ -22,7 +23,8 @@ import {
   BarChart3,
   UserPlus,
   Pencil,
-  Eye
+  Eye,
+  FlaskConical
 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
@@ -34,6 +36,9 @@ import { Label } from '../components/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../components/ui/tooltip';
 import { MonthlyStatChart } from '../components/admin/MonthlyStatChart';
 import { PlanDistributionChart } from '../components/admin/PlanDistributionChart';
+import { AdminFunnelChart } from '../components/admin/AdminFunnelChart';
+import { AdminCohortGrid } from '../components/admin/AdminCohortGrid';
+import { AdminHeatmapGrid } from '../components/admin/AdminHeatmapGrid';
 
 import { 
   Select, 
@@ -412,6 +417,24 @@ export const AdminDashboard = () => {
               endpoint="/api/admin/stats/meal-plans"
             />
             <PlanDistributionChart />
+            <MonthlyStatChart
+              title="Churn Rate Mensal (aproximado)"
+              description="Cancelamentos agendados/pendentes por mês, sobre o total premium atual"
+              icon={TrendingDown}
+              endpoint="/api/admin/stats/churn-rate"
+              valueFormatter={(v) => `${v}%`}
+            />
+            <MonthlyStatChart
+              title="Adesão a Exames Laboratoriais"
+              description="Exames registrados por mês"
+              icon={FlaskConical}
+              endpoint="/api/admin/stats/lab-exam-adherence"
+            />
+            <AdminFunnelChart />
+            <AdminCohortGrid />
+            <div className="lg:col-span-2">
+              <AdminHeatmapGrid />
+            </div>
           </div>
         </TabsContent>
 
