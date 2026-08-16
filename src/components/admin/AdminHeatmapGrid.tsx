@@ -46,8 +46,8 @@ export function AdminHeatmapGrid() {
       <CardHeader className="flex flex-row items-start gap-3 border-b border-border pb-4">
         <Activity className="w-5 h-5 text-primary mt-0.5 shrink-0" />
         <div>
-          <CardTitle className="text-base font-bold">Atividade por Dia e Horário</CardTitle>
-          <p className="text-xs text-muted-foreground mt-0.5">Consultas e agendamentos nos últimos 90 dias</p>
+          <CardTitle className="text-base font-bold">Agendamentos por Dia e Horário</CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">Agendamentos nos últimos 90 dias (horário de Brasília)</p>
         </div>
       </CardHeader>
       <CardContent className="pt-4">

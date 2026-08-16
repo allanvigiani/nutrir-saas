@@ -30,13 +30,22 @@ export interface CohortRetention {
 }
 
 export interface ActivityHeatmapPoint {
-  day: number; // 0 (domingo) a 6 (sábado), UTC
-  hour: number; // 0-23, UTC
+  day: number; // 0 (domingo) a 6 (sábado), horário local America/Sao_Paulo
+  hour: number; // 0-23, horário local America/Sao_Paulo
   count: number;
 }
 
 const MAX_COHORT_OFFSET = 3;
 const ACTIVITY_HEATMAP_WINDOW_DAYS = 90;
+
+// Brasil não observa horário de verão desde 2019 — offset fixo, sem necessidade de
+// biblioteca de timezone. O público do heatmap é local ao fuso do nutricionista.
+const SAO_PAULO_UTC_OFFSET_HOURS = 3;
+
+function toSaoPauloDayAndHour(date: Date): { day: number; hour: number } {
+  const shifted = new Date(date.getTime() - SAO_PAULO_UTC_OFFSET_HOURS * 60 * 60 * 1000);
+  return { day: shifted.getUTCDay(), hour: shifted.getUTCHours() };
+}
 
 // `from`/`to` chegam do route handler como `new Date('yyyy-MM-dd')`, que o runtime
 // interpreta como meia-noite **UTC** daquele dia — não hora local do processo. Todo
@@ -361,26 +370,21 @@ export function createAdminStatsService() {
   async function getActivityHeatmap(): Promise<ActivityHeatmapPoint[]> {
     const windowStart = new Date(Date.now() - ACTIVITY_HEATMAP_WINDOW_DAYS * 24 * 60 * 60 * 1000);
 
-    const [consultations, appointments] = await Promise.all([
-      // Consultation.date é string ISO — comparação lexicográfica, mesmo padrão do resto
-      // do arquivo.
-      getDb().consultation.findMany({
-        where: { deletedAt: null, date: { gte: windowStart.toISOString() } },
-        select: { date: true },
-      }),
-      getDb().appointment.findMany({
-        where: { deletedAt: null, date: { gte: windowStart } },
-        select: { date: true },
-      }),
-    ]);
+    // Só `Appointment` — `Consultation.date` é um campo date-only (sem hora, vem de um
+    // <input type="date">, ver PatientProfile.tsx), então bucketar por hora a partir dele
+    // sempre cairia em `hour: 0` e poluiria o heatmap com um dado que não existe de verdade.
+    const appointments = await getDb().appointment.findMany({
+      where: { deletedAt: null, date: { gte: windowStart } },
+      select: { date: true },
+    });
 
     const counts = new Map<string, number>();
     const mark = (date: Date) => {
       if (Number.isNaN(date.getTime())) return;
-      const key = `${date.getUTCDay()}-${date.getUTCHours()}`;
+      const { day, hour } = toSaoPauloDayAndHour(date);
+      const key = `${day}-${hour}`;
       counts.set(key, (counts.get(key) ?? 0) + 1);
     };
-    for (const c of consultations) mark(new Date(c.date));
     for (const a of appointments) mark(a.date);
 
     const points: ActivityHeatmapPoint[] = [];

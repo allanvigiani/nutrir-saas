@@ -15,7 +15,9 @@ interface ConversionFunnel {
 }
 
 const chartConfig: ChartConfig = {
-  value: { label: 'Nutricionistas', color: 'var(--chart-1)' },
+  signedUp: { label: 'Cadastrados', color: 'var(--chart-1)' },
+  activated: { label: 'Ativados', color: 'var(--chart-2)' },
+  premium: { label: 'Premium', color: 'var(--chart-3)' },
 };
 
 function defaultRange(): DateRangeValue {
@@ -60,9 +62,9 @@ export function AdminFunnelChart() {
 
   const data = funnel
     ? [
-        { key: 'signedUp', name: 'Cadastrados', value: funnel.signedUp, fill: 'var(--chart-1)' },
-        { key: 'activated', name: 'Ativados', value: funnel.activated, fill: 'var(--chart-2)' },
-        { key: 'premium', name: 'Premium', value: funnel.premium, fill: 'var(--chart-3)' },
+        { key: 'signedUp', name: 'Cadastrados', value: funnel.signedUp, fill: 'var(--color-signedUp)' },
+        { key: 'activated', name: 'Ativados', value: funnel.activated, fill: 'var(--color-activated)' },
+        { key: 'premium', name: 'Premium', value: funnel.premium, fill: 'var(--color-premium)' },
       ]
     : [];
 
@@ -102,7 +104,7 @@ export function AdminFunnelChart() {
           </div>
         ) : (
           <ChartContainer config={chartConfig} className="h-[220px] w-full">
-            <FunnelChart>
+            <FunnelChart margin={{ right: 90 }}>
               <ChartTooltip content={<ChartTooltipContent hideLabel nameKey="key" />} />
               <Funnel dataKey="value" data={data} nameKey="key">
                 <LabelList position="right" dataKey="name" fill="var(--foreground)" stroke="none" fontSize={12} />

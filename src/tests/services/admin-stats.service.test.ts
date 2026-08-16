@@ -533,42 +533,55 @@ describe('AdminStatsService.getActivityHeatmap', () => {
     vi.useRealTimers();
   });
 
-  it('retorna grid completo de 168 células (7x24) com contagem de consultas e agendamentos na mesma célula', async () => {
-    mockDb.consultation.findMany.mockResolvedValue([
-      { date: '2026-09-14T10:30:00.000Z' },
-    ]);
+  it('retorna grid completo de 168 células (7x24) e agrega dois agendamentos na mesma célula shiftada pra horário de Brasília', async () => {
+    // 13:15 e 13:45 UTC caem ambos em 10h no fuso de São Paulo (UTC-3), mesma célula.
     mockDb.appointment.findMany.mockResolvedValue([
-      { date: new Date('2026-09-14T10:15:00.000Z') },
+      { date: new Date('2026-09-14T13:15:00.000Z') },
+      { date: new Date('2026-09-14T13:45:00.000Z') },
     ]);
 
     const service = createAdminStatsService();
     const result = await service.getActivityHeatmap();
 
     expect(result).toHaveLength(168);
-    const expectedDay = new Date('2026-09-14T10:30:00.000Z').getUTCDay();
-    const cell = result.find((p) => p.day === expectedDay && p.hour === 10);
+    const shifted = new Date(new Date('2026-09-14T13:15:00.000Z').getTime() - 3 * 60 * 60 * 1000);
+    const cell = result.find((p) => p.day === shifted.getUTCDay() && p.hour === shifted.getUTCHours());
     expect(cell?.count).toBe(2);
   });
 
-  it('filtra deletedAt e usa uma janela de 90 dias terminando em "agora"', async () => {
-    mockDb.consultation.findMany.mockResolvedValue([]);
+  it('desloca o dia pro anterior quando o shift de -3h cruza a meia-noite UTC', async () => {
+    // 01:00 UTC de uma segunda-feira - 3h = 22:00 UTC de domingo (dia anterior, horário
+    // de Brasília) — o shift precisa mover a Date inteira, não hora e dia separadamente.
+    mockDb.appointment.findMany.mockResolvedValue([{ date: new Date('2026-09-14T01:00:00.000Z') }]);
+
+    const service = createAdminStatsService();
+    const result = await service.getActivityHeatmap();
+
+    const expectedShifted = new Date('2026-09-13T22:00:00.000Z');
+    const cell = result.find((p) => p.day === expectedShifted.getUTCDay() && p.hour === 22);
+    expect(cell?.count).toBe(1);
+
+    // Não deve ter caído na célula do dia/hora UTC original (01h UTC, dia 14).
+    const utcDate = new Date('2026-09-14T01:00:00.000Z');
+    const utcCell = result.find((p) => p.day === utcDate.getUTCDay() && p.hour === 1);
+    expect(utcCell?.count).toBe(0);
+  });
+
+  it('filtra deletedAt e usa uma janela de 90 dias terminando em "agora", sem consultar Consultation', async () => {
     mockDb.appointment.findMany.mockResolvedValue([]);
 
     const service = createAdminStatsService();
     const result = await service.getActivityHeatmap();
 
-    expect(mockDb.consultation.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) })
-    );
     expect(mockDb.appointment.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) })
     );
+    expect(mockDb.consultation.findMany).not.toHaveBeenCalled();
     expect(result.every((p) => p.count === 0)).toBe(true);
   });
 
-  it('ignora registros de consulta com date inválida', async () => {
-    mockDb.consultation.findMany.mockResolvedValue([{ date: 'data-invalida' }]);
-    mockDb.appointment.findMany.mockResolvedValue([]);
+  it('ignora agendamentos com date inválida', async () => {
+    mockDb.appointment.findMany.mockResolvedValue([{ date: new Date('data-invalida') }]);
 
     const service = createAdminStatsService();
     const result = await service.getActivityHeatmap();
