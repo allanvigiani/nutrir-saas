@@ -178,6 +178,29 @@ export function createAdminStatsService() {
     return fillMonths(buildMonthRange(from, to), counts);
   }
 
+  async function getChurnRateByMonth(from: Date, to: Date): Promise<MonthlyPoint[]> {
+    const [cancellations, currentPremiumCount] = await Promise.all([
+      getDb().subscription.findMany({
+        where: { cancelAtPeriodEnd: true, currentPeriodEnd: { gte: from, lt: endOfRangeExclusive(to) } },
+        select: { currentPeriodEnd: true },
+      }),
+      getDb().nutritionist.count({ where: { plan: 'premium' } }),
+    ]);
+
+    const counts = new Map<string, number>();
+    for (const sub of cancellations) {
+      if (!sub.currentPeriodEnd) continue;
+      const key = monthKey(sub.currentPeriodEnd);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+
+    return buildMonthRange(from, to).map((month) => {
+      const cancelled = counts.get(month) ?? 0;
+      const value = currentPremiumCount > 0 ? Math.round((cancelled / currentPremiumCount) * 1000) / 10 : 0;
+      return { month, value };
+    });
+  }
+
   async function getPlanDistribution() {
     // Mesma lógica de admin.service.ts#getStats (freeCount = total - premium - admin),
     // pra não divergir do que os cards existentes já mostram.
@@ -201,6 +224,7 @@ export function createAdminStatsService() {
     getNewSubscribersByMonth,
     getConsultationsByMonth,
     getMealPlansByMonth,
+    getChurnRateByMonth,
     getPaymentMethodBreakdown,
     getConversionFunnel,
     getPlanDistribution,

@@ -321,3 +321,49 @@ describe('AdminStatsService.getConversionFunnel', () => {
     });
   });
 });
+
+describe('AdminStatsService.getChurnRateByMonth', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('calcula % de cancelamentos (currentPeriodEnd no mês, cancelAtPeriodEnd true) sobre o total premium atual', async () => {
+    mockDb.subscription.findMany.mockResolvedValue([
+      { currentPeriodEnd: d(2026, 6, 10) },
+      { currentPeriodEnd: d(2026, 6, 20) },
+      { currentPeriodEnd: d(2026, 7, 5) },
+    ]);
+    mockDb.nutritionist.count.mockResolvedValue(20); // premium atual
+
+    const service = createAdminStatsService();
+    const result = await service.getChurnRateByMonth(d(2026, 6, 1), d(2026, 7, 31));
+
+    expect(mockDb.subscription.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ cancelAtPeriodEnd: true }),
+      })
+    );
+    expect(result).toEqual([
+      { month: '2026-06', value: 10 }, // 2/20 * 100
+      { month: '2026-07', value: 5 },  // 1/20 * 100
+    ]);
+  });
+
+  it('retorna 0 em todos os meses quando não há assinantes premium', async () => {
+    mockDb.subscription.findMany.mockResolvedValue([]);
+    mockDb.nutritionist.count.mockResolvedValue(0);
+
+    const service = createAdminStatsService();
+    const result = await service.getChurnRateByMonth(d(2026, 6, 1), d(2026, 6, 30));
+
+    expect(result).toEqual([{ month: '2026-06', value: 0 }]);
+  });
+
+  it('ignora assinaturas com currentPeriodEnd nulo', async () => {
+    mockDb.subscription.findMany.mockResolvedValue([{ currentPeriodEnd: null }]);
+    mockDb.nutritionist.count.mockResolvedValue(10);
+
+    const service = createAdminStatsService();
+    const result = await service.getChurnRateByMonth(d(2026, 6, 1), d(2026, 6, 30));
+
+    expect(result).toEqual([{ month: '2026-06', value: 0 }]);
+  });
+});

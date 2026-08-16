@@ -49,6 +49,7 @@ vi.mock('../../server/services/admin-stats.service.ts', () => ({
     getMealPlansByMonth: vi.fn().mockResolvedValue([]),
     getPaymentMethodBreakdown: vi.fn().mockResolvedValue([]),
     getConversionFunnel: vi.fn().mockResolvedValue({}),
+    getChurnRateByMonth: vi.fn().mockResolvedValue([]),
     getPlanDistribution: vi.fn().mockResolvedValue({ free: 0, premium: 0, admin: 0, total: 0 }),
   })),
 }));
@@ -309,6 +310,7 @@ describe('Admin routes — gráficos de negócio (/api/admin/stats/*)', () => {
     { path: '/api/admin/stats/meal-plans', fn: 'getMealPlansByMonth' },
     { path: '/api/admin/stats/payment-methods', fn: 'getPaymentMethodBreakdown' },
     { path: '/api/admin/stats/conversion-funnel', fn: 'getConversionFunnel' },
+    { path: '/api/admin/stats/churn-rate', fn: 'getChurnRateByMonth' },
   ] as const;
 
   for (const { path, fn } of seriesCases) {
