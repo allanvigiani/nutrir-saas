@@ -430,4 +430,35 @@ describe('AdminStatsService.getRetentionCohorts', () => {
 
     expect(result).toEqual([{ cohortMonth: '2026-06', cohortSize: 0, retention: [] }]);
   });
+
+  it('cohort perto de virada de ano: offset 2 (novembro 2026 + 2 = janeiro 2027) marca retido com atividade em jan/2027', async () => {
+    // Sistema fixado em 2027-02-15 — offsets 0-3 já estão no passado
+    vi.setSystemTime(d(2027, 2, 15));
+
+    mockDb.nutritionist.findMany.mockResolvedValue([
+      { id: 'n-nov', createdAt: d(2026, 11, 5) },
+    ]);
+    mockDb.consultation.findMany.mockResolvedValue([
+      { nutritionistId: 'n-nov', date: d(2027, 1, 10).toISOString() }, // offset 2 (jan/2027)
+    ]);
+    mockDb.mealPlan.findMany.mockResolvedValue([]);
+
+    const service = createAdminStatsService();
+    const result = await service.getRetentionCohorts(d(2026, 11, 1), d(2026, 11, 30));
+
+    // Prova que Date.UTC(2026, 11 - 1 + 2, 1) = Date.UTC(2026, 12, 1) corretamente
+    // normaliza para janeiro de 2027, e a atividade em janeiro é encontrada.
+    expect(result).toEqual([
+      {
+        cohortMonth: '2026-11',
+        cohortSize: 1,
+        retention: [
+          { offset: 0, pct: 0 },   // nenhuma atividade em nov/2026
+          { offset: 1, pct: 0 },   // nenhuma atividade em dez/2026
+          { offset: 2, pct: 100 }, // atividade em jan/2027 (ano mudou, verificação de overflow)
+          { offset: 3, pct: 0 },   // nenhuma atividade em fev/2027
+        ],
+      },
+    ]);
+  });
 });
