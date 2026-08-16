@@ -653,7 +653,15 @@ git commit -m "feat: adiciona churn rate mensal (aproximado) ao painel admin"
 
 - [ ] **Step 1: Write the failing service test**
 
-Add to `src/tests/services/admin-stats.service.test.ts`, after `getChurnRateByMonth`. Note: this test needs `nutritionistId` on consultation/mealPlan fixtures and a fixed "now" — use `vi.setSystemTime`.
+First, in `src/tests/services/admin-stats.service.test.ts`, the top-of-file `mockDb` declares `nutritionist: { count: vi.fn() }` only — it has no `findMany`, but this task's tests need `mockDb.nutritionist.findMany`. Update that line to:
+
+```ts
+  nutritionist: { count: vi.fn(), findMany: vi.fn() },
+```
+
+`consultation: { findMany: vi.fn() }` and `mealPlan: { findMany: vi.fn() }` already exist in `mockDb` — no change needed for those two.
+
+Then add to `src/tests/services/admin-stats.service.test.ts`, after `getChurnRateByMonth`. Note: this test needs `nutritionistId` on consultation/mealPlan fixtures and a fixed "now" — use `vi.setSystemTime`.
 
 ```ts
 describe('AdminStatsService.getRetentionCohorts', () => {
@@ -810,7 +818,7 @@ Add the method after `getRetentionCohorts`'s neighbors (after `getChurnRateByMon
   }
 ```
 
-Add `getRetentionCohorts,` to the returned object. Also add `consultation: { findMany: vi.fn() }` and `mealPlan: { findMany: vi.fn() }` to `mockDb` in the test file if missing (they already exist — check lines 3-10 of `admin-stats.service.test.ts`; both are already declared).
+Add `getRetentionCohorts,` to the returned object (the `mockDb.nutritionist.findMany` addition was already done in Step 1).
 
 - [ ] **Step 4: Run the test to verify it passes**
 
