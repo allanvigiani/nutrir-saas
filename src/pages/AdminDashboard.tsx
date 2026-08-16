@@ -71,7 +71,7 @@ export const AdminDashboard = () => {
     freeCount: number;
     adminCount: number;
     conversionRate: number;
-    estimatedRevenue: number;
+    payingPremiumRevenue: number;
     activeLast30Days: number;
     newLast7Days: number;
     totalPatients: number;
@@ -109,7 +109,7 @@ export const AdminDashboard = () => {
             freeCount: number;
             adminCount: number;
             conversionRate: number;
-            estimatedRevenue: number;
+            payingPremiumRevenue: number;
             activeLast30Days: number;
             newLast7Days: number;
             totalPatients: number;
@@ -280,9 +280,9 @@ export const AdminDashboard = () => {
                   <div>
                     <p className="text-xs text-muted-foreground">Receita Estimada</p>
                     <p className="text-2xl font-bold text-foreground">
-                      {adminStats ? `R$ ${adminStats.estimatedRevenue.toFixed(2).replace('.', ',')}` : '—'}
+                      {adminStats ? `R$ ${adminStats.payingPremiumRevenue.toFixed(2).replace('.', ',')}` : '—'}
                     </p>
-                    <p className="text-xs text-muted-foreground">mensal recorrente</p>
+                    <p className="text-xs text-muted-foreground">assinantes premium com pagamento em dia</p>
                   </div>
                 </div>
               </CardContent>

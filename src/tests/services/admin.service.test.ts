@@ -22,10 +22,11 @@ import { createAdminService } from '../../server/services/admin.service.ts';
 describe('AdminService.getStats', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('calcula conversão e receita corretamente', async () => {
+  it('calcula conversão e receita paga corretamente', async () => {
     mockDb.nutritionist.count
       .mockResolvedValueOnce(10)   // total
       .mockResolvedValueOnce(3)    // premium
+      .mockResolvedValueOnce(2)    // payingPremium (asaasStatus pagante)
       .mockResolvedValueOnce(1)    // admin
       .mockResolvedValueOnce(7)    // active last 30 days
       .mockResolvedValueOnce(2);   // new last 7 days
@@ -38,8 +39,20 @@ describe('AdminService.getStats', () => {
     expect(stats.premiumCount).toBe(3);
     expect(stats.freeCount).toBe(6); // 10 - 3 - 1 = 6
     expect(stats.conversionRate).toBe(30); // 3/10 * 100
-    expect(stats.estimatedRevenue).toBeCloseTo(119.70); // 3 * 39.90
+    expect(stats.payingPremiumRevenue).toBeCloseTo(79.80); // 2 * 39.90
     expect(stats.totalPatients).toBe(50);
+  });
+
+  it('conta payingPremiumRevenue só com assinaturas em status pagante do Asaas', async () => {
+    mockDb.nutritionist.count.mockResolvedValue(0);
+    mockDb.patient.count.mockResolvedValue(0);
+
+    const service = createAdminService();
+    await service.getStats();
+
+    expect(mockDb.nutritionist.count).toHaveBeenNthCalledWith(3, {
+      where: { plan: 'premium', subscription: { asaasStatus: { in: ['CONFIRMED', 'RECEIVED', 'ACTIVE'] } } },
+    });
   });
 
   it('retorna conversionRate 0 quando não há nutricionistas', async () => {
@@ -50,7 +63,7 @@ describe('AdminService.getStats', () => {
     const stats = await service.getStats();
 
     expect(stats.conversionRate).toBe(0);
-    expect(stats.estimatedRevenue).toBe(0);
+    expect(stats.payingPremiumRevenue).toBe(0);
   });
 });
 

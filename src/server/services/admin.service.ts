@@ -3,6 +3,11 @@ import { subDays } from 'date-fns';
 
 const PREMIUM_PRICE = 39.90;
 
+// Estados do Asaas que representam uma assinatura efetivamente sendo paga agora —
+// ver mapeamento de eventos em asaas.service.ts:27-139. Exclui OVERDUE/PENDING/
+// AWAITING_RISK_ANALYSIS/DELETED/REFUNDED/INACTIVE, que plan==='premium' sozinho não filtra.
+const PAYING_ASAAS_STATUSES = ['CONFIRMED', 'RECEIVED', 'ACTIVE'];
+
 interface AuditEntry {
   adminId: string;
   adminEmail: string;
@@ -37,9 +42,12 @@ export function createAdminService() {
     const thirtyDaysAgo = subDays(now, 30).toISOString();
     const sevenDaysAgo = subDays(now, 7).toISOString();
 
-    const [total, premium, admin, activeLast30, newLast7, totalPatients] = await Promise.all([
+    const [total, premium, payingPremium, admin, activeLast30, newLast7, totalPatients] = await Promise.all([
       getDb().nutritionist.count(),
       getDb().nutritionist.count({ where: { plan: 'premium' } }),
+      getDb().nutritionist.count({
+        where: { plan: 'premium', subscription: { asaasStatus: { in: PAYING_ASAAS_STATUSES } } },
+      }),
       getDb().nutritionist.count({ where: { role: 'admin' } }),
       getDb().nutritionist.count({ where: { lastLogin: { gte: thirtyDaysAgo } } }),
       getDb().nutritionist.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
@@ -52,7 +60,7 @@ export function createAdminService() {
       freeCount: total - premium - admin,
       adminCount: admin,
       conversionRate: total > 0 ? Math.round((premium / total) * 100) : 0,
-      estimatedRevenue: parseFloat((premium * PREMIUM_PRICE).toFixed(2)),
+      payingPremiumRevenue: parseFloat((payingPremium * PREMIUM_PRICE).toFixed(2)),
       activeLast30Days: activeLast30,
       newLast7Days: newLast7,
       totalPatients,
