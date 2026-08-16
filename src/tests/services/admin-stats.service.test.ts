@@ -6,6 +6,7 @@ const mockDb = {
   subscription: { findMany: vi.fn() },
   consultation: { findMany: vi.fn() },
   mealPlan: { findMany: vi.fn() },
+  labExam: { findMany: vi.fn() },
   nutritionist: { count: vi.fn(), findMany: vi.fn() },
 };
 
@@ -165,6 +166,41 @@ describe('AdminStatsService.getMealPlansByMonth', () => {
     expect(mockDb.mealPlan.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) })
     );
+    expect(result).toEqual([{ month: '2026-06', value: 1 }]);
+  });
+});
+
+describe('AdminStatsService.getLabExamAdherenceByMonth', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('agrupa contagem de exames laboratoriais criados por mês, excluindo deletedAt', async () => {
+    mockDb.labExam.findMany.mockResolvedValue([
+      { date: d(2026, 6, 5).toISOString() },
+      { date: d(2026, 6, 20).toISOString() },
+      { date: d(2026, 7, 1).toISOString() },
+    ]);
+
+    const service = createAdminStatsService();
+    const result = await service.getLabExamAdherenceByMonth(d(2026, 6, 1), d(2026, 7, 31));
+
+    expect(mockDb.labExam.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ deletedAt: null }) })
+    );
+    expect(result).toEqual([
+      { month: '2026-06', value: 2 },
+      { month: '2026-07', value: 1 },
+    ]);
+  });
+
+  it('ignora registros com date inválida (não numérica ao fazer parse)', async () => {
+    mockDb.labExam.findMany.mockResolvedValue([
+      { date: 'data-invalida' },
+      { date: d(2026, 6, 5).toISOString() },
+    ]);
+
+    const service = createAdminStatsService();
+    const result = await service.getLabExamAdherenceByMonth(d(2026, 6, 1), d(2026, 6, 30));
+
     expect(result).toEqual([{ month: '2026-06', value: 1 }]);
   });
 });

@@ -47,6 +47,7 @@ vi.mock('../../server/services/admin-stats.service.ts', () => ({
     getNewSubscribersByMonth: vi.fn().mockResolvedValue([]),
     getConsultationsByMonth: vi.fn().mockResolvedValue([]),
     getMealPlansByMonth: vi.fn().mockResolvedValue([]),
+    getLabExamAdherenceByMonth: vi.fn().mockResolvedValue([]),
     getPaymentMethodBreakdown: vi.fn().mockResolvedValue([]),
     getConversionFunnel: vi.fn().mockResolvedValue({ signedUp: 0, activated: 0, premium: 0 }),
     getChurnRateByMonth: vi.fn().mockResolvedValue([]),
@@ -313,6 +314,7 @@ describe('Admin routes — gráficos de negócio (/api/admin/stats/*)', () => {
     { path: '/api/admin/stats/conversion-funnel', fn: 'getConversionFunnel' },
     { path: '/api/admin/stats/churn-rate', fn: 'getChurnRateByMonth' },
     { path: '/api/admin/stats/retention-cohort', fn: 'getRetentionCohorts' },
+    { path: '/api/admin/stats/lab-exam-adherence', fn: 'getLabExamAdherenceByMonth' },
   ] as const;
 
   for (const { path, fn } of seriesCases) {

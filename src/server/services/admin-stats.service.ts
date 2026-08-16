@@ -199,6 +199,25 @@ export function createAdminStatsService() {
     return fillMonths(buildMonthRange(from, to), counts);
   }
 
+  async function getLabExamAdherenceByMonth(from: Date, to: Date): Promise<MonthlyPoint[]> {
+    // LabExam.date é string ISO (não DateTime), mesmo padrão de getConsultationsByMonth
+    // nesta service — comparação lexicográfica funciona pois o formato é sempre ISO 8601.
+    const labExams = await getDb().labExam.findMany({
+      where: { deletedAt: null, date: { gte: from.toISOString(), lt: endOfRangeExclusive(to).toISOString() } },
+      select: { date: true },
+    });
+
+    const counts = new Map<string, number>();
+    for (const labExam of labExams) {
+      const parsed = new Date(labExam.date);
+      if (Number.isNaN(parsed.getTime())) continue;
+      const key = monthKey(parsed);
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+
+    return fillMonths(buildMonthRange(from, to), counts);
+  }
+
   async function getChurnRateByMonth(from: Date, to: Date): Promise<MonthlyPoint[]> {
     // O numerador (cancelamentos) é filtrado por mês do período queried, mas o denominador
     // (currentPremiumCount) é um snapshot *atual* do total de nutricionistas premium — não
@@ -355,6 +374,7 @@ export function createAdminStatsService() {
     getNewSubscribersByMonth,
     getConsultationsByMonth,
     getMealPlansByMonth,
+    getLabExamAdherenceByMonth,
     getChurnRateByMonth,
     getRetentionCohorts,
     getPaymentMethodBreakdown,
