@@ -17,7 +17,7 @@
 - Task 2's export button must **not** duplicate `listNutritionists`' search/plan/role filtering logic server-side — those are, and remain, client-only filters (`AdminDashboard.tsx`'s `filteredNutritionists` local computation). The export flow re-applies the exact same 3 predicates client-side against the full unpaginated response, it does not invent a new server-side text-search feature.
 - Task 1's refactor (extracting `buildNutritionistFilterWhere`) must not change `listNutritionists`' existing behavior — the existing test suite for `listNutritionists` (already in `admin.service.test.ts`) must keep passing unmodified as a regression check.
 - CSV export fields are limited to what the admin table already displays or closely related metadata (name, email, CRN, plan, role, patient count, signup date, last login, manual-override flag) — **do not include `cpf`/`cnpj`** in the export; those are more sensitive PII than what a downloadable file should carry, and they aren't shown in the existing table either.
-- New route placement: `GET /api/admin/nutritionists/export` goes right after the existing `GET /api/admin/nutritionists/:id` handler (before `/api/admin/stats`) in `admin.routes.ts`; `GET /api/admin/alerts` goes right after `GET /api/admin/operational`.
+- New route placement: `GET /api/admin/nutritionists/export` must be registered **before** `GET /api/admin/nutritionists/:id` (e.g. right after `GET /api/admin/patients/count`) — Express matches routes in registration order, and `:id` is a wildcard segment that would otherwise swallow a literal `export` path segment as `id === "export"`, making the export route unreachable dead code. `GET /api/admin/alerts` goes right after `GET /api/admin/operational`.
 
 ---
 
@@ -187,7 +187,7 @@ Expected: PASS — including the pre-existing `describe('AdminService.listNutrit
 
 - [ ] **Step 5: Register the route**
 
-In `src/server/routes/admin.routes.ts`, add right after the `GET /api/admin/nutritionists/:id` handler (its closing `});`), before the `GET /api/admin/stats` handler:
+In `src/server/routes/admin.routes.ts`, add right after the `GET /api/admin/patients/count` handler (its closing `});`), **before** the `GET /api/admin/nutritionists/:id` handler. This ordering is required, not stylistic: Express matches routes in registration order, and `:id` is a wildcard path segment — if it were registered first, a request to `/api/admin/nutritionists/export` would be captured by the `:id` handler (with `id === "export"`) instead of reaching this one, making it unreachable dead code.
 
 ```ts
   // Exporta a lista completa de nutricionistas (sem paginação) pro botão "Exportar CSV" do
