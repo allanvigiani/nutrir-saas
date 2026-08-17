@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 const mockDb = {
   nutritionist: {
@@ -523,12 +523,22 @@ describe('AdminService.updateNutritionistProfile', () => {
 });
 
 describe('AdminService.getAlerts', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    // Fixa o relógio em um instante específico para evitar race condition entre
+    // o new Date() do teste e o new Date() dentro de getAlerts()
+    vi.setSystemTime(new Date(2026, 7, 15, 12, 0, 0)); // 2026-08-15 12:00:00 UTC
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('agrupa os 4 tipos de alerta com o detail correto', async () => {
     const now = new Date();
     const lastLogin35DaysAgo = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000);
-    // Usa 10 dias para evitar ambiguidade em day boundaries
+    // Com relógio congelado, 10 dias é garantido (sem ambiguidade de day boundaries)
     const graceEndsIn10Days = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
 
     mockDb.nutritionist.findMany

@@ -270,16 +270,15 @@ export function createAdminService() {
 
   async function getAlerts(): Promise<AdminAlert[]> {
     const now = new Date();
-    const thirtyDaysAgo = subDays(now, 30);
     const graceWindowEnd = addDays(now, GRACE_PERIOD_ALERT_WINDOW_DAYS);
 
     const [churnRiskList, atLimitList, graceEndingList, paymentIssueList] = await Promise.all([
       getDb().nutritionist.findMany({
-        where: { plan: 'premium', lastLogin: { lt: thirtyDaysAgo } },
+        where: buildNutritionistFilterWhere('churnRisk'),
         select: { id: true, name: true, email: true, lastLogin: true },
       }),
       getDb().nutritionist.findMany({
-        where: { plan: 'free', patients: { some: { status: 'active', deletedAt: null } } },
+        where: buildNutritionistFilterWhere('atLimit'),
         select: { id: true, name: true, email: true },
       }),
       getDb().nutritionist.findMany({
