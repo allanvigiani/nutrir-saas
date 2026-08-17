@@ -192,6 +192,22 @@ describe('Admin routes — guard de acesso', () => {
 
       expect(serviceInstance.listNutritionistsForExport).toHaveBeenCalledWith({ filter: undefined });
     });
+
+    // Regressão: /export precisa estar registrada ANTES de /:id no Express, senão
+    // "export" é capturado como :id e a rota de export fica permanentemente
+    // inalcançável (resolveria para getNutritionistById('export') -> 404).
+    it('resolve pelo handler de export, não pelo handler de :id (ordem de registro das rotas)', async () => {
+      const app = buildApp(true);
+      const serviceInstance = lastServiceInstance(createAdminService);
+      (serviceInstance.listNutritionistsForExport as any).mockResolvedValueOnce([{ __sentinel: 'export-route' }]);
+      (serviceInstance.getNutritionistById as any).mockResolvedValueOnce(null);
+
+      const res = await request(app).get('/api/admin/nutritionists/export');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ data: [{ __sentinel: 'export-route' }] });
+      expect(serviceInstance.getNutritionistById).not.toHaveBeenCalled();
+    });
   });
 
   describe('GET /api/admin/patients/count', () => {

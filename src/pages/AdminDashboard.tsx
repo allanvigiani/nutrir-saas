@@ -212,10 +212,10 @@ export const AdminDashboard = () => {
         Plano: n.plan === 'premium' ? 'Premium' : 'Gratuito',
         Cargo: n.role === 'admin' ? 'Admin' : 'Nutricionista',
         Pacientes: n._count?.patients ?? 0,
-        'Cadastrado em': n.createdAt,
-        'Último login': n.lastLogin ?? '',
+        'Cadastrado em': n.createdAt ? format(parseISO(n.createdAt), 'dd/MM/yyyy', { locale: ptBR }) : '',
+        'Último login': n.lastLogin ? format(parseISO(n.lastLogin), 'dd/MM/yyyy', { locale: ptBR }) : '',
         'Plano manual': n.planOverridedByAdmin ? 'Sim' : 'Não',
-      })));
+      })), { escapeFormulae: true });
 
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);

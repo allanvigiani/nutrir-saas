@@ -163,6 +163,7 @@ export function createAdminService() {
   }
 
   const MAX_EXPORT_ROWS = 5000;
+  const MAX_ALERTS_PER_CATEGORY = 500;
 
   async function listNutritionistsForExport({ filter }: { filter?: 'atLimit' | 'churnRisk' }) {
     const where = buildNutritionistFilterWhere(filter);
@@ -276,18 +277,26 @@ export function createAdminService() {
       getDb().nutritionist.findMany({
         where: buildNutritionistFilterWhere('churnRisk'),
         select: { id: true, name: true, email: true, lastLogin: true },
+        orderBy: { lastLogin: 'asc' },
+        take: MAX_ALERTS_PER_CATEGORY,
       }),
       getDb().nutritionist.findMany({
         where: buildNutritionistFilterWhere('atLimit'),
         select: { id: true, name: true, email: true },
+        orderBy: { createdAt: 'desc' },
+        take: MAX_ALERTS_PER_CATEGORY,
       }),
       getDb().nutritionist.findMany({
         where: { gracePeriodEndAt: { gte: now, lte: graceWindowEnd } },
         select: { id: true, name: true, email: true, gracePeriodEndAt: true },
+        orderBy: { gracePeriodEndAt: 'asc' },
+        take: MAX_ALERTS_PER_CATEGORY,
       }),
       getDb().nutritionist.findMany({
         where: { subscription: { asaasStatus: { in: PAYMENT_ISSUE_ASAAS_STATUSES } } },
         select: { id: true, name: true, email: true, subscription: { select: { asaasStatus: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: MAX_ALERTS_PER_CATEGORY,
       }),
     ]);
 
