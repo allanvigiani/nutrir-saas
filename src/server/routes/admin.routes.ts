@@ -261,6 +261,18 @@ export function registerAdminRoutes(deps: BaseRouteDeps) {
     }
   });
 
+  // Retorna alertas operacionais: churnRisk, atLimit, gracePeriodEnding, paymentIssue
+  deps.app.get('/api/admin/alerts', deps.authenticate, async (req: any, res: any) => {
+    if (!assertAdmin(req, res)) return;
+    try {
+      await withAdminRLS(async () => {
+        res.json({ data: await adminService.getAlerts() });
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // ---------------------------------------------------------------------------------
   // Gráficos de negócio (somente leitura) — série temporal 1–5 com date range livre,
   // distribuição de planos (6) sem período.

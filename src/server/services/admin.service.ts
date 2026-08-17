@@ -1,5 +1,5 @@
 import { getDb } from '../lib/rls-context.ts';
-import { subDays } from 'date-fns';
+import { subDays, addDays, differenceInDays } from 'date-fns';
 
 const PREMIUM_PRICE = 39.90;
 
@@ -7,6 +7,19 @@ const PREMIUM_PRICE = 39.90;
 // ver mapeamento de eventos em asaas.service.ts:27-139. Exclui OVERDUE/PENDING/
 // AWAITING_RISK_ANALYSIS/DELETED/REFUNDED/INACTIVE, que plan==='premium' sozinho não filtra.
 const PAYING_ASAAS_STATUSES = ['CONFIRMED', 'RECEIVED', 'ACTIVE'];
+
+const GRACE_PERIOD_ALERT_WINDOW_DAYS = 7;
+const PAYMENT_ISSUE_ASAAS_STATUSES = ['OVERDUE', 'PENDING'];
+
+export type AdminAlertType = 'churnRisk' | 'atLimit' | 'gracePeriodEnding' | 'paymentIssue';
+
+export interface AdminAlert {
+  type: AdminAlertType;
+  nutritionistId: string;
+  name: string;
+  email: string;
+  detail: string;
+}
 
 interface AuditEntry {
   adminId: string;
@@ -255,6 +268,77 @@ export function createAdminService() {
     return { noCpfCnpjCount, noPatientsCount, manualPlanOverrides };
   }
 
+  async function getAlerts(): Promise<AdminAlert[]> {
+    const now = new Date();
+    const thirtyDaysAgo = subDays(now, 30);
+    const graceWindowEnd = addDays(now, GRACE_PERIOD_ALERT_WINDOW_DAYS);
+
+    const [churnRiskList, atLimitList, graceEndingList, paymentIssueList] = await Promise.all([
+      getDb().nutritionist.findMany({
+        where: { plan: 'premium', lastLogin: { lt: thirtyDaysAgo } },
+        select: { id: true, name: true, email: true, lastLogin: true },
+      }),
+      getDb().nutritionist.findMany({
+        where: { plan: 'free', patients: { some: { status: 'active', deletedAt: null } } },
+        select: { id: true, name: true, email: true },
+      }),
+      getDb().nutritionist.findMany({
+        where: { gracePeriodEndAt: { gte: now, lte: graceWindowEnd } },
+        select: { id: true, name: true, email: true, gracePeriodEndAt: true },
+      }),
+      getDb().nutritionist.findMany({
+        where: { subscription: { asaasStatus: { in: PAYMENT_ISSUE_ASAAS_STATUSES } } },
+        select: { id: true, name: true, email: true, subscription: { select: { asaasStatus: true } } },
+      }),
+    ]);
+
+    const alerts: AdminAlert[] = [];
+
+    for (const n of churnRiskList) {
+      const days = n.lastLogin ? differenceInDays(now, new Date(n.lastLogin)) : null;
+      alerts.push({
+        type: 'churnRisk',
+        nutritionistId: n.id,
+        name: n.name,
+        email: n.email,
+        detail: days !== null ? `Sem login há ${days} dias` : 'Nunca fez login',
+      });
+    }
+
+    for (const n of atLimitList) {
+      alerts.push({
+        type: 'atLimit',
+        nutritionistId: n.id,
+        name: n.name,
+        email: n.email,
+        detail: 'Plano gratuito com paciente ativo',
+      });
+    }
+
+    for (const n of graceEndingList) {
+      const days = n.gracePeriodEndAt ? differenceInDays(new Date(n.gracePeriodEndAt), now) : null;
+      alerts.push({
+        type: 'gracePeriodEnding',
+        nutritionistId: n.id,
+        name: n.name,
+        email: n.email,
+        detail: days !== null ? `Período de carência termina em ${days} dia(s)` : 'Período de carência terminando',
+      });
+    }
+
+    for (const n of paymentIssueList) {
+      alerts.push({
+        type: 'paymentIssue',
+        nutritionistId: n.id,
+        name: n.name,
+        email: n.email,
+        detail: `Status Asaas: ${n.subscription?.asaasStatus ?? 'desconhecido'}`,
+      });
+    }
+
+    return alerts;
+  }
+
   return {
     getStats,
     getExpandedStats,
@@ -265,5 +349,6 @@ export function createAdminService() {
     logAudit,
     getAuditLogs,
     getOperationalData,
+    getAlerts,
   };
 }

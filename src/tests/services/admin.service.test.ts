@@ -521,3 +521,78 @@ describe('AdminService.updateNutritionistProfile', () => {
     expect(dataEnviada.id).toBeUndefined();
   });
 });
+
+describe('AdminService.getAlerts', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('agrupa os 4 tipos de alerta com o detail correto', async () => {
+    const now = new Date();
+    const lastLogin35DaysAgo = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000);
+    // Usa 5 dias para evitar edge cases de day boundaries
+    const graceEndsIn5Days = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+
+    mockDb.nutritionist.findMany
+      .mockResolvedValueOnce([
+        { id: 'n1', name: 'Churn Risk', email: 'churn@test.com', lastLogin: lastLogin35DaysAgo.toISOString() },
+      ]) // churnRisk
+      .mockResolvedValueOnce([
+        { id: 'n2', name: 'At Limit', email: 'atlimit@test.com' },
+      ]) // atLimit
+      .mockResolvedValueOnce([
+        { id: 'n3', name: 'Grace Ending', email: 'grace@test.com', gracePeriodEndAt: graceEndsIn5Days },
+      ]) // gracePeriodEnding
+      .mockResolvedValueOnce([
+        { id: 'n4', name: 'Payment Issue', email: 'payment@test.com', subscription: { asaasStatus: 'OVERDUE' } },
+      ]); // paymentIssue
+
+    const service = createAdminService();
+    const alerts = await service.getAlerts();
+
+    expect(alerts).toEqual([
+      { type: 'churnRisk', nutritionistId: 'n1', name: 'Churn Risk', email: 'churn@test.com', detail: 'Sem login há 35 dias' },
+      { type: 'atLimit', nutritionistId: 'n2', name: 'At Limit', email: 'atlimit@test.com', detail: 'Plano gratuito com paciente ativo' },
+      { type: 'gracePeriodEnding', nutritionistId: 'n3', name: 'Grace Ending', email: 'grace@test.com', detail: 'Período de carência termina em 5 dia(s)' },
+      { type: 'paymentIssue', nutritionistId: 'n4', name: 'Payment Issue', email: 'payment@test.com', detail: 'Status Asaas: OVERDUE' },
+    ]);
+  });
+
+  it('nutricionista com lastLogin nulo recebe detail "Nunca fez login"', async () => {
+    mockDb.nutritionist.findMany
+      .mockResolvedValueOnce([{ id: 'n1', name: 'A', email: 'a@test.com', lastLogin: null }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([]);
+
+    const service = createAdminService();
+    const alerts = await service.getAlerts();
+
+    expect(alerts).toEqual([
+      { type: 'churnRisk', nutritionistId: 'n1', name: 'A', email: 'a@test.com', detail: 'Nunca fez login' },
+    ]);
+  });
+
+  it('retorna array vazio quando não há nenhum alerta', async () => {
+    mockDb.nutritionist.findMany.mockResolvedValue([]);
+
+    const service = createAdminService();
+    const alerts = await service.getAlerts();
+
+    expect(alerts).toEqual([]);
+  });
+
+  it('filtra gracePeriodEnding pra janela de 7 dias e paymentIssue pra status OVERDUE/PENDING', async () => {
+    mockDb.nutritionist.findMany.mockResolvedValue([]);
+
+    const service = createAdminService();
+    await service.getAlerts();
+
+    // 3ª chamada = gracePeriodEnding
+    expect(mockDb.nutritionist.findMany).toHaveBeenNthCalledWith(3, expect.objectContaining({
+      where: { gracePeriodEndAt: { gte: expect.any(Date), lte: expect.any(Date) } },
+    }));
+    // 4ª chamada = paymentIssue
+    expect(mockDb.nutritionist.findMany).toHaveBeenNthCalledWith(4, expect.objectContaining({
+      where: { subscription: { asaasStatus: { in: ['OVERDUE', 'PENDING'] } } },
+    }));
+  });
+});

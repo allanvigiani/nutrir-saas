@@ -38,6 +38,7 @@ vi.mock('../../server/services/admin.service.ts', () => ({
     }),
     logAudit: vi.fn().mockResolvedValue(undefined),
     getAuditLogs: vi.fn().mockResolvedValue([]),
+    getAlerts: vi.fn().mockResolvedValue([]),
   })),
 }));
 
@@ -334,6 +335,28 @@ describe('Admin routes — guard de acesso', () => {
       const res = await request(buildApp(true)).post('/api/admin/retention-cleanup');
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('deletedCount');
+    });
+  });
+
+  describe('GET /api/admin/alerts', () => {
+    it('retorna 403 para não-admin', async () => {
+      const res = await request(buildApp(false)).get('/api/admin/alerts');
+      expect(res.status).toBe(403);
+    });
+
+    it('retorna 200 com { data } para admin', async () => {
+      const app = buildApp(true);
+      const serviceInstance = lastServiceInstance(createAdminService);
+      (serviceInstance.getAlerts as any).mockResolvedValueOnce([
+        { type: 'churnRisk', nutritionistId: '1', name: 'A', email: 'a@test.com', detail: 'Sem login há 40 dias' },
+      ]);
+
+      const res = await request(app).get('/api/admin/alerts');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        data: [{ type: 'churnRisk', nutritionistId: '1', name: 'A', email: 'a@test.com', detail: 'Sem login há 40 dias' }],
+      });
     });
   });
 });
