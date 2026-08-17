@@ -26,7 +26,8 @@ import {
   Pencil,
   Eye,
   FlaskConical,
-  Download
+  Download,
+  Bell
 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
@@ -41,6 +42,7 @@ import { PlanDistributionChart } from '../components/admin/PlanDistributionChart
 import { AdminFunnelChart } from '../components/admin/AdminFunnelChart';
 import { AdminCohortGrid } from '../components/admin/AdminCohortGrid';
 import { AdminHeatmapGrid } from '../components/admin/AdminHeatmapGrid';
+import { AdminAlertsTab } from '../components/admin/AdminAlertsTab';
 
 import { 
   Select, 
@@ -265,6 +267,12 @@ export const AdminDashboard = () => {
             <LayoutDashboard className="w-4 h-4" /> Visão Geral
           </TabsTrigger>
           <TabsTrigger
+            value="alerts"
+            className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
+          >
+            <Bell className="w-4 h-4" /> Alertas
+          </TabsTrigger>
+          <TabsTrigger
             value="nutritionists"
             className="relative gap-2 px-4 py-4 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:text-primary transition-all whitespace-nowrap"
           >
@@ -424,6 +432,10 @@ export const AdminDashboard = () => {
             </Card>
           </div>
 
+        </TabsContent>
+
+        <TabsContent value="alerts">
+          <AdminAlertsTab />
         </TabsContent>
 
         <TabsContent value="charts" className="space-y-4">
