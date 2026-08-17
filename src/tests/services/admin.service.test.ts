@@ -224,6 +224,72 @@ describe('AdminService.listNutritionists com filtros de engajamento', () => {
   });
 });
 
+describe('AdminService.listNutritionistsForExport', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('sem filtro, usa where vazio e busca todos os nutricionistas', async () => {
+    mockDb.nutritionist.findMany.mockResolvedValue([]);
+
+    const service = createAdminService();
+    await service.listNutritionistsForExport({});
+
+    expect(mockDb.nutritionist.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: {} })
+    );
+  });
+
+  it('com filter=atLimit, aplica o mesmo where de listNutritionists', async () => {
+    mockDb.nutritionist.findMany.mockResolvedValue([
+      {
+        id: '1',
+        name: 'A',
+        email: 'a@test.com',
+        crn: '123',
+        plan: 'free',
+        role: 'nutritionist',
+        createdAt: new Date(),
+        lastLogin: null,
+        planOverridedByAdmin: false,
+        _count: { patients: 3 },
+      },
+    ]);
+
+    const service = createAdminService();
+    const result = await service.listNutritionistsForExport({ filter: 'atLimit' });
+
+    expect(mockDb.nutritionist.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { plan: 'free', patients: { some: { status: 'active', deletedAt: null } } },
+      })
+    );
+    expect(result).toHaveLength(1);
+  });
+
+  it('com filter=churnRisk, aplica plan premium e lastLogin antigo', async () => {
+    mockDb.nutritionist.findMany.mockResolvedValue([]);
+
+    const service = createAdminService();
+    await service.listNutritionistsForExport({ filter: 'churnRisk' });
+
+    expect(mockDb.nutritionist.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { plan: 'premium', lastLogin: { lt: expect.any(Date) } },
+      })
+    );
+  });
+
+  it('não pagina — não passa skip, e limita a 5000 registros via take', async () => {
+    mockDb.nutritionist.findMany.mockResolvedValue([]);
+
+    const service = createAdminService();
+    await service.listNutritionistsForExport({});
+
+    const callArgs = mockDb.nutritionist.findMany.mock.calls[0][0];
+    expect(callArgs.skip).toBeUndefined();
+    expect(callArgs.take).toBe(5000);
+  });
+});
+
 describe('AdminService.getOperationalData', () => {
   beforeEach(() => vi.clearAllMocks());
 

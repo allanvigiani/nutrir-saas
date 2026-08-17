@@ -94,6 +94,26 @@ export function registerAdminRoutes(deps: BaseRouteDeps) {
     }
   });
 
+  // Exporta a lista completa de nutricionistas (sem paginação) pro botão "Exportar CSV" do
+  // client — mesmos dois filtros de engajamento de /api/admin/nutritionists (busca/plano/
+  // cargo são só client-side hoje, não fazem parte desta query; ver AdminDashboard.tsx).
+  // Registrado ANTES de /:id para que a rota literal /export tenha prioridade sobre o
+  // parâmetro dinâmico.
+  deps.app.get('/api/admin/nutritionists/export', deps.authenticate, async (req: any, res: any) => {
+    if (!assertAdmin(req, res)) return;
+    try {
+      const filter = ['atLimit', 'churnRisk'].includes(req.query.filter as string)
+        ? (req.query.filter as 'atLimit' | 'churnRisk')
+        : undefined;
+      await withAdminRLS(async () => {
+        const data = await adminService.listNutritionistsForExport({ filter });
+        res.json({ data });
+      });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
   // Busca um nutricionista específico por id — usado pela tela de detalhe admin em
   // acesso direto por URL/refresh, sem depender de location.state nem de paginar a
   // lista inteira (limit alto) no cliente pra filtrar localmente.

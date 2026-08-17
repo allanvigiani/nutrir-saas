@@ -29,6 +29,7 @@ vi.mock('../../server/services/admin.service.ts', () => ({
   createAdminService: vi.fn(() => ({
     getStats: vi.fn().mockResolvedValue({}),
     listNutritionists: vi.fn().mockResolvedValue({ data: [], total: 0, page: 1, totalPages: 1 }),
+    listNutritionistsForExport: vi.fn().mockResolvedValue([]),
     getNutritionistById: vi.fn().mockResolvedValue({ id: '1', name: 'Nutri Teste', plan: 'free' }),
     updateNutritionistProfile: vi.fn().mockResolvedValue({
       nutritionist: { id: '1', plan: 'premium' },
@@ -152,6 +153,43 @@ describe('Admin routes — guard de acesso', () => {
       const app = buildApp(true);
       expect((await request(app).post('/api/admin/nutritionists/n1')).status).toBe(404);
       expect((await request(app).delete('/api/admin/nutritionists/n1')).status).toBe(404);
+    });
+  });
+
+  describe('GET /api/admin/nutritionists/export', () => {
+    it('retorna 403 para não-admin', async () => {
+      const res = await request(buildApp(false)).get('/api/admin/nutritionists/export');
+      expect(res.status).toBe(403);
+    });
+
+    it('retorna 200 com { data } para admin, sem filtro', async () => {
+      const app = buildApp(true);
+      const serviceInstance = lastServiceInstance(createAdminService);
+      (serviceInstance.listNutritionistsForExport as any).mockResolvedValueOnce([{ id: '1', name: 'A' }]);
+
+      const res = await request(app).get('/api/admin/nutritionists/export');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ data: [{ id: '1', name: 'A' }] });
+      expect(serviceInstance.listNutritionistsForExport).toHaveBeenCalledWith({ filter: undefined });
+    });
+
+    it('repassa filter=atLimit ao service', async () => {
+      const app = buildApp(true);
+      const serviceInstance = lastServiceInstance(createAdminService);
+
+      await request(app).get('/api/admin/nutritionists/export?filter=atLimit');
+
+      expect(serviceInstance.listNutritionistsForExport).toHaveBeenCalledWith({ filter: 'atLimit' });
+    });
+
+    it('ignora valores de filter fora do enum permitido', async () => {
+      const app = buildApp(true);
+      const serviceInstance = lastServiceInstance(createAdminService);
+
+      await request(app).get('/api/admin/nutritionists/export?filter=algo-invalido');
+
+      expect(serviceInstance.listNutritionistsForExport).toHaveBeenCalledWith({ filter: undefined });
     });
   });
 

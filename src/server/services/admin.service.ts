@@ -105,6 +105,18 @@ export function createAdminService() {
     };
   }
 
+  // Extraído de listNutritionists pra ser reaproveitado por listNutritionistsForExport —
+  // mesmos dois filtros de engajamento, sem duplicar a lógica.
+  function buildNutritionistFilterWhere(filter?: 'atLimit' | 'churnRisk'): any {
+    if (filter === 'churnRisk') {
+      return { plan: 'premium', lastLogin: { lt: subDays(new Date(), 30) } };
+    }
+    if (filter === 'atLimit') {
+      return { plan: 'free', patients: { some: { status: 'active', deletedAt: null } } };
+    }
+    return {};
+  }
+
   async function listNutritionists({
     page = 1,
     limit = 20,
@@ -115,17 +127,8 @@ export function createAdminService() {
     filter?: 'atLimit' | 'churnRisk';
   }) {
     const skip = (page - 1) * limit;
-    const thirtyDaysAgo = subDays(new Date(), 30);
 
-    let where: any = {};
-    if (filter === 'churnRisk') {
-      where = { plan: 'premium', lastLogin: { lt: thirtyDaysAgo } };
-    } else if (filter === 'atLimit') {
-      where = {
-        plan: 'free',
-        patients: { some: { status: 'active', deletedAt: null } },
-      };
-    }
+    const where = buildNutritionistFilterWhere(filter);
 
     const [data, total] = await Promise.all([
       getDb().nutritionist.findMany({
@@ -144,6 +147,29 @@ export function createAdminService() {
     ]);
 
     return { data, total, page, totalPages: Math.ceil(total / limit) };
+  }
+
+  const MAX_EXPORT_ROWS = 5000;
+
+  async function listNutritionistsForExport({ filter }: { filter?: 'atLimit' | 'churnRisk' }) {
+    const where = buildNutritionistFilterWhere(filter);
+    return getDb().nutritionist.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+      take: MAX_EXPORT_ROWS,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        crn: true,
+        plan: true,
+        role: true,
+        createdAt: true,
+        lastLogin: true,
+        planOverridedByAdmin: true,
+        _count: { select: { patients: true } },
+      },
+    });
   }
 
   // Busca um nutricionista específico por id — usado pela tela de detalhe admin em
@@ -233,6 +259,7 @@ export function createAdminService() {
     getStats,
     getExpandedStats,
     listNutritionists,
+    listNutritionistsForExport,
     getNutritionistById,
     updateNutritionistProfile,
     logAudit,
