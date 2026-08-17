@@ -528,8 +528,8 @@ describe('AdminService.getAlerts', () => {
   it('agrupa os 4 tipos de alerta com o detail correto', async () => {
     const now = new Date();
     const lastLogin35DaysAgo = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000);
-    // Usa 5 dias para evitar edge cases de day boundaries
-    const graceEndsIn5Days = new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000);
+    // Usa 10 dias para evitar ambiguidade em day boundaries
+    const graceEndsIn10Days = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
 
     mockDb.nutritionist.findMany
       .mockResolvedValueOnce([
@@ -539,7 +539,7 @@ describe('AdminService.getAlerts', () => {
         { id: 'n2', name: 'At Limit', email: 'atlimit@test.com' },
       ]) // atLimit
       .mockResolvedValueOnce([
-        { id: 'n3', name: 'Grace Ending', email: 'grace@test.com', gracePeriodEndAt: graceEndsIn5Days },
+        { id: 'n3', name: 'Grace Ending', email: 'grace@test.com', gracePeriodEndAt: graceEndsIn10Days },
       ]) // gracePeriodEnding
       .mockResolvedValueOnce([
         { id: 'n4', name: 'Payment Issue', email: 'payment@test.com', subscription: { asaasStatus: 'OVERDUE' } },
@@ -551,7 +551,7 @@ describe('AdminService.getAlerts', () => {
     expect(alerts).toEqual([
       { type: 'churnRisk', nutritionistId: 'n1', name: 'Churn Risk', email: 'churn@test.com', detail: 'Sem login há 35 dias' },
       { type: 'atLimit', nutritionistId: 'n2', name: 'At Limit', email: 'atlimit@test.com', detail: 'Plano gratuito com paciente ativo' },
-      { type: 'gracePeriodEnding', nutritionistId: 'n3', name: 'Grace Ending', email: 'grace@test.com', detail: 'Período de carência termina em 5 dia(s)' },
+      { type: 'gracePeriodEnding', nutritionistId: 'n3', name: 'Grace Ending', email: 'grace@test.com', detail: 'Período de carência termina em 10 dia(s)' },
       { type: 'paymentIssue', nutritionistId: 'n4', name: 'Payment Issue', email: 'payment@test.com', detail: 'Status Asaas: OVERDUE' },
     ]);
   });
