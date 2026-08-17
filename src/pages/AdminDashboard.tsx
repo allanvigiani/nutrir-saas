@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { apiRequest } from '../hooks/useApi';
+import Papa from 'papaparse';
 
 
 import { Nutritionist } from '../types';
@@ -24,7 +25,8 @@ import {
   UserPlus,
   Pencil,
   Eye,
-  FlaskConical
+  FlaskConical,
+  Download
 } from 'lucide-react';
 import { Input } from '../components/ui/input';
 import { toast } from 'sonner';
@@ -93,6 +95,7 @@ export const AdminDashboard = () => {
   } | null>(null);
   const [showRetentionConfirm, setShowRetentionConfirm] = useState(false);
   const [isRunningCleanup, setIsRunningCleanup] = useState(false);
+  const [isExportingCsv, setIsExportingCsv] = useState(false);
   const LIMIT = 20;
 
   useEffect(() => { setPage(1); }, [engagementFilter]);
@@ -183,6 +186,46 @@ export const AdminDashboard = () => {
       toast.error('Erro ao executar limpeza: ' + error.message);
     } finally {
       setIsRunningCleanup(false);
+    }
+  };
+
+  const handleExportCsv = async () => {
+    setIsExportingCsv(true);
+    try {
+      const filterParam = engagementFilter !== 'all' ? `?filter=${engagementFilter}` : '';
+      const res = await apiRequest<{ data: any[] }>(`/api/admin/nutritionists/export${filterParam}`, 'GET');
+      const rows = (res?.data ?? []).filter((n) => {
+        const matchesSearch = n.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          n.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (n.crn ?? '').toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesPlan = planFilter === 'all' || n.plan === planFilter;
+        const matchesRole = roleFilter === 'all' || n.role === roleFilter;
+        return matchesSearch && matchesPlan && matchesRole;
+      });
+
+      const csv = Papa.unparse(rows.map((n) => ({
+        Nome: n.name,
+        Email: n.email,
+        CRN: n.crn ?? '',
+        Plano: n.plan === 'premium' ? 'Premium' : 'Gratuito',
+        Cargo: n.role === 'admin' ? 'Admin' : 'Nutricionista',
+        Pacientes: n._count?.patients ?? 0,
+        'Cadastrado em': n.createdAt,
+        'Último login': n.lastLogin ?? '',
+        'Plano manual': n.planOverridedByAdmin ? 'Sim' : 'Não',
+      })));
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `nutricionistas_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+    } catch (error: any) {
+      toast.error('Erro ao exportar CSV: ' + error.message);
+    } finally {
+      setIsExportingCsv(false);
     }
   };
 
@@ -491,6 +534,16 @@ export const AdminDashboard = () => {
                       <SelectItem value="atLimit">Atingiu Limite Free</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportCsv}
+                    disabled={isExportingCsv}
+                    className="gap-2 h-9 rounded-xl"
+                  >
+                    <Download className="w-4 h-4" />
+                    {isExportingCsv ? 'Exportando...' : 'Exportar CSV'}
+                  </Button>
                 </div>
               </div>
             </CardHeader>
